@@ -7,4 +7,6 @@ bin_PROGRAMS = ccid
 
 ccid_LDADD = -lusb
 ccid_SOURCES = \
-	ccid.c
+	util.c \
+	cci.c \
+	main.c
