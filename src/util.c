@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-void hex_dump(void *t, size_t len, size_t llen)
+void hex_dump(const void *t, size_t len, size_t llen)
 {
 	uint8_t *tmp = t;
 	size_t i, j;

@@ -8,5 +8,7 @@ bin_PROGRAMS = ccid
 ccid_LDADD = -lusb
 ccid_SOURCES = \
 	util.c \
+	cci-msg.c \
+	chipcard.c \
 	cci.c \
 	main.c

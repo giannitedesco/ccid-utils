@@ -10,14 +10,35 @@
 
 static int found_cci(struct usb_device *dev, int c, int i, int a)
 {
+	chipcard_t cc;
 	cci_t cci;
+	int ret = 0;
 
 	cci = cci_probe(dev, c, i, a);
 	if ( NULL == cci )
-		return 0;
+		goto out;
+	
+	cc = cci_get_slot(cci, 0);
+	if ( NULL == cc ) {
+		fprintf(stderr, "ccid: error: no slots on CCI\n");
+		goto out_close;
+	}
 
+	printf("\nPOWER ON SLOT\n");
+	chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE);
+	printf("\nSLOT STATUS\n");
+	chipcard_slot_status(cc);
+	printf("\nPOWER OFF SLOT\n");
+	chipcard_slot_off(cc);
+	printf("\nSLOT STATUS\n");
+	chipcard_slot_status(cc);
+
+	ret = 1;
+
+out_close:
 	cci_close(cci);
-	return 1;
+out:
+	return ret;
 }
 
 static int check_interface(struct usb_device *dev, int c, int i)

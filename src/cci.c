@@ -9,25 +9,7 @@
 
 #include <stdio.h>
 
-struct _chipcard {
-	struct _cci *cc_parent;
-};
-
-struct _cci {
-	usb_dev_handle *cci_dev;
-	int cci_inp;
-	int cci_outp;
-	int cci_intrp;
-	uint16_t cci_max_in;
-	uint16_t cci_max_out;
-	unsigned int cci_num_slots;
-	unsigned int cci_max_slots;
-	struct _chipcard cci_slot[CCID_MAX_SLOTS];
-	struct ccid_desc cci_desc;
-	uint8_t cci_seq;
-	uint8_t *cci_rcvbuf;
-	size_t cci_rcvlen;
-};
+#include "ccid-internal.h"
 
 static void byteswap_desc(struct ccid_desc *desc)
 {
@@ -57,155 +39,6 @@ static unsigned int bcd_lo(uint16_t word)
 	return (((word & 0xf0) >> 4) * 10) + (word & 0xf);
 }
 
-
-static int _RDR_to_PC(struct _cci *cci)
-{
-	const struct ccid_msg *msg;
-	int ret;
-
-	ret = usb_bulk_read(cci->cci_dev, cci->cci_inp,
-				(void *)cci->cci_rcvbuf, cci->cci_max_in, 0);
-	if ( ret < 0 )
-		return 0;
-
-	printf(" Recv: %d bytes", ret);
-	cci->cci_rcvlen = (size_t)ret;
-
-	if ( ret < sizeof(*msg) ) {
-		printf("\n");
-		return 1;
-	}
-
-	msg = (struct ccid_msg *)cci->cci_rcvbuf;
-	printf(" for slot %u (seq = 0x%.2x)\n",
-		msg->bSlot, msg->bSeq);
-
-	switch( msg->in.bStatus & CCID_STATUS_RESULT_MASK ) {
-	case CCID_RESULT_SUCCESS:
-		printf("     : Command: SUCCESS\n");
-		ret = 1;
-		break;
-	case CCID_RESULT_ERROR:
-		printf("     : Command: FAILED (%d)\n", msg->in.bError);
-		ret = 0;
-		break;
-	case CCID_RESULT_TIMEOUT:
-		printf("     : Command: Time Extension Request\n");
-		ret = 0;
-		break;
-	default:
-		break;
-	}
-
-	switch( msg->in.bStatus & CCID_SLOT_STATUS_MASK ) {
-	case CCID_STATUS_ICC_ACTIVE:
-		printf("     : ICC present and active\n");
-		break;
-	case CCID_STATUS_ICC_PRESENT:
-		printf("     : ICC present and inactive\n");
-		break;
-	case CCID_STATUS_ICC_NOT_PRESENT:
-		printf("     : ICC not presnt\n");
-		break;
-	default:
-		break;
-	}
-
-	if ( !ret )
-		return 1;
-
-	switch(msg->bMessageType) {
-	case RDR_to_PC_DataBlock:
-		printf("     : RDR_to_PC_DataBlock\n");
-		printf("     : %u bytes extra\n",
-			sys_le32(msg->dwLength));
-		hex_dump(cci->cci_rcvbuf + 10,
-				cci->cci_rcvlen - 10, 16);
-		break;
-	case RDR_to_PC_SlotStatus:
-		printf("     : RDR_to_PC_SlotStatus: ");
-		switch(msg->in.bApp) {
-		case 0x00:
-			printf("Clock running\n");
-			break;
-		case 0x01:
-			printf("Clock stopped in L state\n");
-			break;
-		case 0x02:
-			printf("Clock stopped in H state\n");
-			break;
-		case 0x03:
-			printf("Clock stopped in unknown state\n");
-			break;
-		default:
-			break;
-		}
-		break;
-	case RDR_to_PC_Parameters:
-		printf("     : RDR_to_PC_Parameters\n");
-		break;
-	case RDR_to_PC_Escape:
-		printf("     : RDR_to_PC_Escape\n");
-		break;
-	case RDR_to_PC_BaudAndFreq:
-		printf("     : RDR_to_PC_BaudAndFreq\n");
-		break;
-	default:
-		hex_dump(cci->cci_rcvbuf, cci->cci_rcvlen, 16);
-		break;
-	}
-
-	return 1;
-}
-
-static int _PC_to_RDR(struct _cci *cci, unsigned int slot,
-			struct ccid_msg *msg, size_t len)
-{
-	int ret;
-
-	assert(slot < cci->cci_num_slots);
-
-	/* TODO: fill in any extra len in msg->dwLength */
-	msg->bSlot = slot;
-	msg->bSeq = cci->cci_seq++;
-
-	ret = usb_bulk_write(cci->cci_dev, cci->cci_outp,
-				(void *)msg, len, -1);
-	if ( ret < 0 )
-		return 0;
-	if ( (size_t)ret < sizeof(msg) )
-		return 0;
-
-	return 1;
-}
-
-static int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot)
-{
-	struct ccid_msg msg;
-	int ret;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.bMessageType = PC_to_RDR_GetSlotStatus;
-	ret = _PC_to_RDR(cci, slot, &msg, sizeof(msg));
-	if ( ret )
-		printf(" Xmit: PC_to_RDR_GetSlotStatus(%u)\n", slot);
-	return ret;
-}
-
-static int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot)
-{
-	struct ccid_msg msg;
-	int ret;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.bMessageType = PC_to_RDR_IccPowerOn;
-	ret = _PC_to_RDR(cci, slot, &msg, sizeof(msg));
-	if ( ret ) {
-		printf(" Xmit: PC_to_RDR_IccPowerOn(%u)\n", slot);
-		printf("     : Automatic Voltage Selectio\n");
-	}
-	return ret;
-}
 
 static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 {
@@ -439,6 +272,7 @@ cci_t cci_probe(struct usb_device *dev, int c, int i, int a)
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
+		cci->cci_slot[x].cc_idx = x;
 	}
 
 	/* Second, open USB device and get it ready */
@@ -473,16 +307,16 @@ cci_t cci_probe(struct usb_device *dev, int c, int i, int a)
 		goto out_close;
 	}
 
-	/* TODO: Fourth, setup each slot */
+	/* Fourth, setup each slot */
 	for(x = 0; x < cci->cci_num_slots; x++) {
+		const struct ccid_msg *msg;
+
 		if ( !_PC_to_RDR_GetSlotStatus(cci, x) )
 			goto out_freebuf;
-		if ( !_RDR_to_PC(cci) )
+		msg = _RDR_to_PC(cci);
+		if ( NULL == msg)
 			goto out_freebuf;
-		if ( !_PC_to_RDR_IccPowerOn(cci, x) )
-			goto out_freebuf;
-		if ( !_RDR_to_PC(cci) )
-			goto out_freebuf;
+		_RDR_to_PC_SlotStatus(msg);
 	}
 
 	goto out;
@@ -506,4 +340,18 @@ void cci_close(cci_t cci)
 		free(cci->cci_rcvbuf);
 	}
 	free(cci);
+}
+
+unsigned int cci_slots(cci_t cci)
+{
+	return cci->cci_num_slots;
+}
+
+chipcard_t cci_get_slot(cci_t cci, unsigned int i)
+{
+	if ( i < cci->cci_num_slots ) {
+		return cci->cci_slot + i;
+	}else{
+		return NULL;
+	}
 }
