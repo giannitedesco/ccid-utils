@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "compiler.h"
 #include "bytesex.h"
@@ -22,7 +23,11 @@
 typedef struct _cci *cci_t;
 typedef struct _chipcard *chipcard_t;
 
+/* Chipcard interface */
 cci_t cci_probe(struct usb_device *dev, int c, int i, int a);
 void cci_close(cci_t cci);
+
+/* Utility functions */
+void hex_dump(void *t, size_t len, size_t llen);
 
 #endif /* _CCID_H */

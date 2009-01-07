@@ -6,6 +6,67 @@
 #ifndef _CCID_SPEC_H
 #define _CCID_SPEC_H
 
+#define CCID_DT				0x21U
+#define CCID_MAX_SLOTS			0x10U
+
+/* Yes of course, all the world is a PC.... (or a RDR) */
+/* Bulk IN */
+#define RDR_to_PC_DataBlock		0x80
+#define RDR_to_PC_SlotStatus		0x81
+#define RDR_to_PC_Parameters		0x82
+#define RDR_to_PC_Escape		0x83
+#define RDR_to_PC_BaudAndFreq		0x84
+
+/* Interrupt */
+#define RDR_to_PC_NotifySlotChange	0x50
+#define RDR_to_PC_HardwareError		0x51
+
+/* Bulk Out */
+#define PC_to_RDR_SetParameters		0x61
+#define PC_to_RDR_IccPowerOn		0x62
+#define PC_to_RDR_IccPowerOff		0x63
+/* 64 */
+#define PC_to_RDR_GetSlotStatus		0x65
+/* 67,68 */
+#define PC_to_RDR_Secure		0x69
+#define PC_to_RDR_T0APDU		0x6a
+#define PC_to_RDR_Escape		0x6b
+#define PC_to_RDR_GetParameters		0x6c
+#define PC_to_RDR_ResetParameters	0x6d
+#define PC_to_RDR_IccClock		0x6e
+#define PC_to_RDR_XfrBlock		0x6f
+#define PC_to_RDR_Mechanical		0x71
+#define PC_to_RDR_Abort			0x72
+#define PC_to_RDR_SetBaudAndFreq	0x73
+
+#define CCID_STATUS_RESULT_MASK		0xc0
+#define CCID_RESULT_SUCCESS		(0 << 6)
+#define CCID_RESULT_ERROR		(1 << 6)
+#define CCID_RESULT_TIMEOUT		(2 << 6)
+
+#define CCID_SLOT_STATUS_MASK		0x03
+#define CCID_STATUS_ICC_ACTIVE		0x0
+#define CCID_STATUS_ICC_PRESENT		0x1
+#define CCID_STATUS_ICC_NOT_PRESENT	0x2
+
+/* CCID Message Header */
+struct ccid_msg {
+	uint8_t		bMessageType;
+	uint32_t 	dwLength;
+	uint8_t		bSlot;
+	uint8_t		bSeq;
+	union {
+		struct {
+			uint8_t	bStatus;
+			uint8_t	bError;
+			uint8_t	bApp;
+		}in;
+		struct {
+			uint8_t	bApp[3];
+		}out;
+	};
+} _packed;
+
 /* CCID Class Descriptor S.3.5 */
 struct ccid_desc {
 	uint8_t		bLength;
@@ -59,24 +120,6 @@ struct ccid_desc {
 #define CCID_PIN_MOD	(1<<1)
 	uint8_t		bPINSupport;
 	uint8_t		bMaxCCIDBusySlots;
-} _packed;
-
-/* CCID Message Header */
-struct ccid_msg {
-	uint8_t		bMessageType;
-	uint32_t 	dwLength;
-	uint8_t		bSlot;
-	uint8_t		bSeq;
-	union {
-		struct {
-			uint8_t	bStatus;
-			uint8_t	bError;
-			uint8_t	bApp;
-		}in;
-		struct {
-			uint8_t	bApp[3];
-		}out;
-	};
 } _packed;
 
 #endif /* _CCID_SPEC_H */
