@@ -48,8 +48,6 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 		break;
 	}
 
-	hex_dump(cci->cci_rcvbuf, ret, 16);
-
 	return 1;
 }
 
