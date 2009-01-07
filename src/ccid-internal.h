@@ -14,18 +14,26 @@ struct _chipcard {
 
 struct _cci {
 	usb_dev_handle *cci_dev;
-	int cci_inp;
-	int cci_outp;
-	int cci_intrp;
-	uint16_t cci_max_in;
-	uint16_t cci_max_out;
-	unsigned int cci_num_slots;
-	unsigned int cci_max_slots;
+
+	uint8_t 	*cci_rcvbuf;
+	size_t 		cci_rcvlen;
+
+	int 		cci_inp;
+	int 		cci_outp;
+	int 		cci_intrp;
+
+	uint16_t 	cci_max_in;
+	uint16_t 	cci_max_out;
+	uint16_t 	cci_max_intr;
+
+	uint8_t 	cci_seq;
+	uint8_t		_pad0;
+
+	unsigned int 	cci_num_slots;
+	unsigned int 	cci_max_slots;
 	struct _chipcard cci_slot[CCID_MAX_SLOTS];
+
 	struct ccid_desc cci_desc;
-	uint8_t cci_seq;
-	uint8_t *cci_rcvbuf;
-	size_t cci_rcvlen;
 };
 
 int _cci_get_cmd_result(const struct ccid_msg *msg, int *code);
@@ -40,5 +48,7 @@ int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
 int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot);
 
 void _chipcard_set_status(struct _chipcard *cc, unsigned int status);
+
+int _cci_wait_for_interrupt(struct _cci *cci);
 
 #endif /* _CCID_INTERNAL_H */

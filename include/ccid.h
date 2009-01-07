@@ -49,6 +49,8 @@ unsigned int chipcard_slot_status(chipcard_t cc);
 int chipcard_slot_on(chipcard_t cc, unsigned int voltage);
 int chipcard_slot_off(chipcard_t cc);
 
+void chipcard_wait_for_card(chipcard_t cc);
+
 /* Utility functions */
 void hex_dump(const void *t, size_t len, size_t llen);
 

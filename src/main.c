@@ -24,6 +24,8 @@ static int found_cci(struct usb_device *dev, int c, int i, int a)
 		goto out_close;
 	}
 
+	printf("\nWAIT FOR CHIP CARD\n");
+	chipcard_wait_for_card(cc);
 	printf("\nPOWER ON SLOT\n");
 	chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE);
 	printf("\nSLOT STATUS\n");

@@ -11,6 +11,48 @@
 
 #include "ccid-internal.h"
 
+int _cci_wait_for_interrupt(struct _cci *cci)
+{
+	int ret;
+	size_t len;
+
+	ret = usb_interrupt_read(cci->cci_dev, cci->cci_intrp,
+				(void *)cci->cci_rcvbuf, cci->cci_max_intr, 0);
+	if ( ret < 0 )
+		return 0;
+
+	len = (size_t)ret;
+
+	printf(" Intr: %u byte interrupt packet\n", len);
+	if ( len < 1 )
+		return 1;
+
+	switch( cci->cci_rcvbuf[0] ) {
+	case RDR_to_PC_NotifySlotChange:
+		assert(2 == len);
+		if ( cci->cci_rcvbuf[1] & 0x2 ) {
+			printf("     : Slot status changed to %s\n",
+				((cci->cci_rcvbuf[1] & 0x1) == 0) ? 
+					"NOT present" : "present");
+			cci->cci_slot[0].cc_status =
+				((cci->cci_rcvbuf[1] & 0x1) == 0) ?
+					CHIPCARD_NOT_PRESENT :
+					CHIPCARD_PRESENT;
+		}
+		break;
+	case RDR_to_PC_HardwareError:
+		printf("     : HALT AND CATCH FIRE!!\n");
+		break;
+	default:
+		fprintf(stderr, "*** error: unknown interrupt packet\n");
+		break;
+	}
+
+	hex_dump(cci->cci_rcvbuf, ret, 16);
+
+	return 1;
+}
+
 unsigned int _RDR_to_PC_DataBlock(const struct ccid_msg *msg)
 {
 	const uint8_t *ptr;
@@ -140,9 +182,10 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot,
 	msg->bSeq = cci->cci_seq++;
 
 	ret = usb_bulk_write(cci->cci_dev, cci->cci_outp,
-				(void *)msg, len, -1);
+				(void *)msg, len, 0);
 	if ( ret < 0 )
 		return 0;
+
 	if ( (size_t)ret < sizeof(msg) )
 		return 0;
 

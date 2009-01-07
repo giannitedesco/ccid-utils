@@ -95,3 +95,9 @@ int chipcard_slot_off(chipcard_t cc)
 
 	return 1;
 }
+
+void chipcard_wait_for_card(chipcard_t cc)
+{
+	while( cc->cc_status == CHIPCARD_NOT_PRESENT )
+		_cci_wait_for_interrupt(cc->cc_parent);
+}
