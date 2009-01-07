@@ -61,7 +61,7 @@ unsigned int _RDR_to_PC_DataBlock(const struct ccid_msg *msg)
 
 	printf("     : RDR_to_PC_DataBlock: %u bytes\n",
 		sys_le32(msg->dwLength));
-	hex_dump(msg + 10, sys_le32(msg->dwLength), 16);
+	hex_dump(ptr + 10, sys_le32(msg->dwLength), 16);
 
 	return msg->in.bApp;
 }

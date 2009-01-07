@@ -67,10 +67,11 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 		}
 		break;
 	case USB_ENDPOINT_TYPE_INTERRUPT:
-		printf(" o Interrupt %s endpint 0x%.2x\n",
+		printf(" o Interrupt %s endpint 0x%.2x nax=%u bytes\n",
 			(ep->bEndpointAddress &  USB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
-			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK);
+			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK,
+			sys_le16(ep->wMaxPacketSize));
 		cci->cci_intrp = ep->bEndpointAddress &
 					USB_ENDPOINT_ADDRESS_MASK;
 		cci->cci_max_intr = sys_le16(ep->wMaxPacketSize);
