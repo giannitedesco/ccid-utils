@@ -46,6 +46,8 @@ int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot);
 int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
 				unsigned int voltage);
 int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot);
+int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
+				const uint8_t *ptr, size_t len);
 
 void _chipcard_set_status(struct _chipcard *cc, unsigned int status);
 

@@ -175,7 +175,8 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot,
 
 	assert(slot < cci->cci_num_slots);
 
-	/* TODO: fill in any extra len in msg->dwLength */
+	if ( len > sizeof(*msg) )
+		msg->dwLength = sys_le32(len - sizeof(*msg));
 	msg->bSlot = slot;
 	msg->bSeq = cci->cci_seq++;
 
@@ -188,6 +189,27 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot,
 		return 0;
 
 	return 1;
+}
+
+int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
+				const uint8_t *ptr, size_t len)
+{
+	uint8_t buf[cci->cci_max_out];
+	struct ccid_msg *msg = (void *)buf;
+	int ret;
+
+	if ( len + sizeof(*msg) > cci->cci_max_out )
+		return 0;
+
+	memset(msg, 0, sizeof(*msg));
+	memcpy(buf + sizeof(*msg), ptr, len);
+	msg->bMessageType = PC_to_RDR_XfrBlock;
+	ret = _PC_to_RDR(cci, slot, msg, sizeof(*msg) + len);
+	if ( ret ) {
+		printf(" Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
+		hex_dump(ptr, len, 16);
+	}
+	return ret;
 }
 
 int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot)

@@ -75,6 +75,25 @@ int chipcard_slot_on(chipcard_t cc, unsigned int voltage)
 	return _RDR_to_PC_DataBlock(msg);
 }
 
+int chipcard_transmit(chipcard_t cc, const uint8_t *data, size_t len)
+{
+	const struct ccid_msg *msg;
+
+	if ( !_PC_to_RDR_XfrBlock(cc->cc_parent, cc->cc_idx, data, len) )
+		return 0;
+
+	msg = _RDR_to_PC(cc->cc_parent);
+	if ( NULL == msg )
+		return 0;
+
+	if ( msg->bMessageType != RDR_to_PC_DataBlock ||
+		msg->bSlot != cc->cc_idx ||
+		!_cci_get_cmd_result(msg, NULL) )
+		return 0;
+
+	return _RDR_to_PC_DataBlock(msg);
+}
+
 int chipcard_slot_off(chipcard_t cc)
 {
 	const struct ccid_msg *msg;

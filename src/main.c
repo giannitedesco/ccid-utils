@@ -30,6 +30,8 @@ static int found_cci(struct usb_device *dev, int c, int i, int a)
 	chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE);
 	printf("\nSLOT STATUS\n");
 	chipcard_slot_status(cc);
+	printf("\nSELECT TELECOM DIR\n");
+	chipcard_transmit(cc, "\xa0\xcd\x7f\x10", 4);
 	printf("\nPOWER OFF SLOT\n");
 	chipcard_slot_off(cc);
 	printf("\nSLOT STATUS\n");
@@ -52,7 +54,8 @@ static int check_interface(struct usb_device *dev, int c, int i)
 		struct usb_interface_descriptor *id = &iface->altsetting[a];
 		if ( id->bInterfaceClass == 0x0b ) {
 			if ( found_cci(dev, c, i, a) )
-				return 1;
+				continue;
+				//return 1;
 		}
 	}
 
