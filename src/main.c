@@ -37,6 +37,16 @@ static void decode_sms(const uint8_t *inp, size_t len)
 	printf("-sms: \"%s\"\n", out);
 }
 
+static uint8_t _hi(uint8_t byte)
+{
+	return byte >> 4;
+}
+
+static uint8_t _lo(uint8_t byte)
+{
+	return byte & 0xf;
+}
+
 static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 {
 	uint8_t buf[] = "\xa0\xb2\xff\x04\xb0";
@@ -75,11 +85,28 @@ static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 
 	ptr++;
 	printf("-sms: %u bytes SMSC type 0x%.2x\n", ptr[0], ptr[1]);
+	printf("-sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
+		"%1x%1x %1x%1x\n",
+		_lo(ptr[2]), _hi(ptr[2]),
+		_lo(ptr[3]), _hi(ptr[3]),
+		_lo(ptr[4]), _hi(ptr[4]),
+		_lo(ptr[5]), _hi(ptr[5]),
+		_lo(ptr[6]), _hi(ptr[6]),
+		_lo(ptr[7]), _hi(ptr[7]));
 	ptr += ptr[0] + 1;
 	printf("-sms: SMS-DELIVER %u\n", *ptr);
 	ptr++;
 	printf("-sms: %u byte address type 0x%.2x\n", ptr[0], ptr[1]);
 	if ( ptr[1] == 0x91 ) {
+		printf("-sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
+			"%1x%1x %1x%1x\n",
+			_lo(ptr[2]), _hi(ptr[2]),
+			_lo(ptr[3]), _hi(ptr[3]),
+			_lo(ptr[4]), _hi(ptr[4]),
+			_lo(ptr[5]), _hi(ptr[5]),
+			_lo(ptr[6]), _hi(ptr[6]),
+			_lo(ptr[7]), _hi(ptr[7]));
+
 		ptr += 8;
 	}else{
 		ptr += ptr[0] + 1;
