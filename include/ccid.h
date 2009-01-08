@@ -30,7 +30,7 @@ chipcard_t cci_get_slot(cci_t cci, unsigned int i);
 void cci_close(cci_t cci);
 
 /* Chipcard */
-void chipcard_wait_for_card(chipcard_t cc);
+int chipcard_wait_for_card(chipcard_t cc);
 
 #define CHIPCARD_ACTIVE		0x0
 #define CHIPCARD_PRESENT	0x1

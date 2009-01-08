@@ -61,7 +61,9 @@ unsigned int _RDR_to_PC_DataBlock(const struct ccid_msg *msg)
 		sys_le32(msg->dwLength));
 	hex_dump(ptr + 10, sys_le32(msg->dwLength), 16);
 
-	return msg->in.bApp;
+	//return msg->in.bApp; /* APDU chaining parameter */
+
+	return 1;
 }
 
 unsigned int _RDR_to_PC_SlotStatus(const struct ccid_msg *msg)
