@@ -17,6 +17,7 @@ struct _cci {
 
 	uint8_t 	*cci_rcvbuf;
 	size_t 		cci_rcvlen;
+	size_t		cci_rcvmax;
 
 	int 		cci_inp;
 	int 		cci_outp;

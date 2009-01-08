@@ -120,3 +120,12 @@ void chipcard_wait_for_card(chipcard_t cc)
 	while( cc->cc_status == CHIPCARD_NOT_PRESENT )
 		_cci_wait_for_interrupt(cc->cc_parent);
 }
+
+const uint8_t *chipcard_rcvbuf(chipcard_t cc, size_t *len)
+{
+	const struct ccid_msg *msg;
+
+	msg = (struct ccid_msg *)cc->cc_parent->cci_rcvbuf;
+	*len = sys_le32(msg->dwLength);
+	return cc->cc_parent->cci_rcvbuf + sizeof(struct ccid_msg);
+}

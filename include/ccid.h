@@ -52,6 +52,7 @@ int chipcard_slot_on(chipcard_t cc, unsigned int voltage);
 int chipcard_slot_off(chipcard_t cc);
 
 int chipcard_transmit(chipcard_t cc, const uint8_t *data, size_t len);
+const uint8_t *chipcard_rcvbuf(chipcard_t cc, size_t *len);
 
 /* Utility functions */
 void hex_dump(const void *t, size_t len, size_t llen);

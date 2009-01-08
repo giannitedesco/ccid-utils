@@ -117,7 +117,7 @@ static int do_recv(struct _cci *cci)
 	int ret;
 
 	ret = usb_bulk_read(cci->cci_dev, cci->cci_inp,
-				(void *)cci->cci_rcvbuf, cci->cci_max_in, 0);
+				(void *)cci->cci_rcvbuf, cci->cci_rcvmax, 0);
 	if ( ret < 0 ) {
 		fprintf(stderr, "*** error: usb_bulk_read()\n");
 		return 0;
@@ -154,9 +154,9 @@ const struct ccid_msg *_RDR_to_PC(struct _cci *cci)
 		return NULL;
 	}
 
-	if ( msg->bSeq + 1 != cci->cci_seq ) {
+	if ( (uint8_t)(msg->bSeq + 1) != cci->cci_seq ) {
 		fprintf(stderr, "*** error: expected seq 0x%.2x got 0x%.2x\n",
-			cci->cci_seq, msg->bSeq);
+			cci->cci_seq, (uint8_t)(msg->bSeq + 1));
 		return NULL;
 	}
 

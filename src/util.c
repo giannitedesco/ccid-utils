@@ -39,5 +39,5 @@ void hex_dump(const void *t, size_t len, size_t llen)
 
 		printf("\n");
 	}
-	printf("\n");
+	//printf("\n");
 }

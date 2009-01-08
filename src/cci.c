@@ -306,8 +306,8 @@ cci_t cci_probe(struct usb_device *dev, int c, int i, int a)
 		goto out_close;
 	}
 
-	cci->cci_rcvbuf = calloc(1, (cci->cci_max_in > cci->cci_max_intr) ? 
-					cci->cci_max_in : cci->cci_max_intr);
+	cci->cci_rcvmax = 4096;
+	cci->cci_rcvbuf = calloc(1, cci->cci_rcvmax);
 	if ( NULL == cci->cci_rcvbuf ) {
 		goto out_close;
 	}
