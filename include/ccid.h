@@ -56,5 +56,6 @@ const uint8_t *chipcard_rcvbuf(chipcard_t cc, size_t *len);
 
 /* Utility functions */
 void hex_dump(const void *t, size_t len, size_t llen);
+void ber_dump(const uint8_t *buf, size_t len, unsigned int depth);
 
 #endif /* _CCID_H */
