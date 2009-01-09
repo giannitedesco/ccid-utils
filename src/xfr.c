@@ -344,7 +344,7 @@ int xfr_tx_buf(xfr_t xfr, const uint8_t *ptr, size_t len)
 uint8_t xfr_rx_sw1(xfr_t xfr)
 {
 	uint8_t *end;
-	assert(xfr->x_rxlen >= 2);
+	assert(xfr->x_rxlen >= 2U);
 	end = xfr->x_rxbuf + xfr->x_rxlen;
 	return end[-2];
 }
@@ -352,7 +352,7 @@ uint8_t xfr_rx_sw1(xfr_t xfr)
 uint8_t xfr_rx_sw2(xfr_t xfr)
 {
 	uint8_t *end;
-	assert(xfr->x_rxlen >= 2);
+	assert(xfr->x_rxlen >= 2U);
 	end = xfr->x_rxbuf + xfr->x_rxlen;
 	return end[-1];
 }
@@ -362,7 +362,7 @@ const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len)
 	if ( xfr->x_rxlen < 2 )
 		return NULL;
 	
-	*len = xfr->x_rxlen;
+	*len = xfr->x_rxlen - 2;
 	return xfr->x_rxbuf;
 }
 
