@@ -7,6 +7,7 @@
 #include <ccid.h>
 #include <stdio.h>
 
+#if 0
 static int gsm_select(chipcard_t cc, uint16_t id)
 {
 	uint8_t buf[] = "\xa0\xa4\x00\x00\x02\xff\xff";
@@ -118,9 +119,11 @@ static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 
 	decode_sms(ptr, ptr[-1]);
 }
+#endif
 
 void do_gsm_stuff(chipcard_t cc)
 {
+#if 0
 	uint16_t i;
 
 	printf("\nSELECT TELECOM/SMS\n");
@@ -132,4 +135,5 @@ void do_gsm_stuff(chipcard_t cc)
 	//chipcard_transmit(cc, (void *)"\xa0\xb2\x01\x04\xb0", 5);
 	for(i = 1; i < 0xb; i++)
 		gsm_read_sms(cc, i);
+#endif
 }

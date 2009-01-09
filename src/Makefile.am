@@ -11,7 +11,7 @@ ccid_SOURCES = \
 	ber.c \
 	emv.c \
 	gsm.c \
-	cci-msg.c \
+	xfr.c \
 	chipcard.c \
 	cci.c \
 	main.c

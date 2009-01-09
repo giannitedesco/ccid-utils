@@ -7,108 +7,121 @@
 #include <ccid.h>
 #include <stdio.h>
 
-static int emv_select(chipcard_t cc, uint8_t *name, size_t len)
+static int emv_select(chipcard_t cc, xfr_t xfr, uint8_t *name, size_t nlen)
 {
-	uint8_t buf[6 + len];
-	uint8_t gbuf[] = "\x00\xc0\x00\x00\xff";
-	const uint8_t *res;
-
-
-	assert(len < 0x100);
-
-	memcpy(buf, "\x00\xa4\x04\x00", 4);
-	buf[4] = len;
-	memcpy(buf + 5, name, len);
-	buf[5 + len] = '\0';
-
-	/* Do select and get SW1 SW2 */
-	if ( !chipcard_transmit(cc, buf, 6 + len) )
-		return 1;
-
-	res = chipcard_rcvbuf(cc, &len);
-	if ( NULL == res || len < 2 )
-		return 0;
-	
-	if ( res[0] != 0x61 )
-		return 0;
-	
-	gbuf[4] = res[1];
-	if ( !chipcard_transmit(cc, gbuf, 5) )
-		return 0;
-
-	res = chipcard_rcvbuf(cc, &len);
-	if ( NULL == res || 0 == len )
-		return;
-
-	ber_dump(res, len - 2, 1);
-}
-
-static int emv_read_record(chipcard_t cc, uint8_t sfi, uint8_t record)
-{
-	uint8_t buf[] = "\x00\xb2\xff\xff\x1d";
 	const uint8_t *res;
 	size_t len;
 
-	buf[2] = record;
-	buf[3] = (sfi << 3) | (1 << 2);
-	buf[4] = 0;
+	assert(nlen < 0x100);
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x00);		/* CLS */
+	xfr_tx_byte(xfr, 0xa4);		/* INS: SELECT */
+	xfr_tx_byte(xfr, 0x04);		/* P1: Select by name */
+	xfr_tx_byte(xfr, 0);		/* P2: First or only occurance */
+	xfr_tx_byte(xfr, nlen);		/* Lc: name length */
+	xfr_tx_buf(xfr, name, nlen);	/* DATA: name */
 
-	if ( !chipcard_transmit(cc, (void *)buf, 5) )
+	if ( !chipcard_transact(cc, xfr) )
+		return 1;
+
+	res = xfr_rx_data(xfr, &len);
+	if ( NULL == res || len < 2 )
 		return 0;
 
-	res = chipcard_rcvbuf(cc, &len);
+	if ( res[0] != 0x61 )
+		return 0;
+
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x00);		/* CLS */
+	xfr_tx_byte(xfr, 0xc0);		/* INS: GET RESPONSE */
+	xfr_tx_byte(xfr, 0);		/* P1 */
+	xfr_tx_byte(xfr, 0);		/* P2 */
+	xfr_tx_byte(xfr, res[1]);	/* Le */
+
+	if ( !chipcard_transact(cc, xfr) )
+		return 0;
+
+	res = xfr_rx_data(xfr, &len);
+	if ( NULL == res || len < 2 )
+		return 0;
+
+	if ( res[len - 2] != 0x90 )
+		return 0;
+
+	ber_dump(res, len - 2, 1);
+	return 1;
+}
+
+static int emv_read_record(chipcard_t cc, xfr_t xfr,
+				uint8_t sfi, uint8_t record)
+{
+	const uint8_t *res;
+	size_t len;
+
+	//uint8_t buf[] = "\x00\xb2\xff\xff\x1d";
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x00);			/* CLS */
+	xfr_tx_byte(xfr, 0xb2);			/* INS: READ RECORD */
+	xfr_tx_byte(xfr, record);		/* P1: record index */
+	xfr_tx_byte(xfr, (sfi << 3) | (1 << 2)); /* P2 */
+	xfr_tx_byte(xfr, 0);			/* Le: 0 this time around */
+	if ( !chipcard_transact(cc, xfr) )
+		return 0;
+
+	res = xfr_rx_data(xfr, &len);
 	if ( NULL == res || len < 2 )
 		return 0;
 	
 	if ( res[0] != 0x6c )
 		return 0;
 	
-	buf[4] = res[1];
-	return chipcard_transmit(cc, (void *)buf, 5);
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x00);			/* CLS */
+	xfr_tx_byte(xfr, 0xb2);			/* INS: READ RECORD */
+	xfr_tx_byte(xfr, record);		/* P1: record index */
+	xfr_tx_byte(xfr, (sfi << 3) | (1 << 2)); /* P2 */
+	xfr_tx_byte(xfr, res[1]);		/* Le: got it now */
+
+	if ( !chipcard_transact(cc, xfr) )
+		return 0;
+
+	if ( res[len - 2] != 0x90 )
+		return 0;
+
+	ber_dump(res, len - 2, 1);
+	return 1;
 }
 
 void do_emv_stuff(chipcard_t cc)
 {
-	const uint8_t *fci;
-	size_t len;
+	xfr_t xfr;
 	unsigned int i;
 
+	xfr = xfr_alloc(1024, 1204);
+	if ( NULL == xfr )
+		return;
+
 	printf("\nSELECT PAY SYS\n");
-	emv_select(cc, "1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
+	emv_select(cc, xfr, "1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
+
 
 	printf("\nREAD RECORD REC 1\n");
-	emv_read_record(cc, 1, 1);
-
-	fci = chipcard_rcvbuf(cc, &len);
-	if ( NULL == fci || 0 == len )
-		return;
-	printf("\nBER TLV DECODE OF RESPONSE\n");
-	ber_dump(fci, len - 2, 1);
+	emv_read_record(cc, xfr, 1, 1);
 
 	printf("\nREAD RECORD REC=%u\n", 2);
-	emv_read_record(cc, 1, 2);
+	emv_read_record(cc, xfr, 1, 2);
 
 	printf("\nREAD RECORD REC 2\n");
-	emv_read_record(cc, 1, 2);
-	fci = chipcard_rcvbuf(cc, &len);
-	if ( NULL == fci || 0 == len )
-		return;
-	printf("\nBER TLV DECODE OF RESPONSE\n");
-	ber_dump(fci, len - 2, 1);
+	emv_read_record(cc, xfr, 1, 2);
 
 
 	printf("\nSELECT LINK APPLICATION\n");
-	emv_select(cc, "\xa0\x00\x00\x00\x03\x10\x10", 7);
+	emv_select(cc, xfr, "\xa0\x00\x00\x00\x03\x10\x10", 7);
 
 	for(i = 0; i < 0xf; i++ ) {
 		printf("\nREAD RECORD SFI=%u\n", i);
-		emv_read_record(cc, i, 1);
-
-		fci = chipcard_rcvbuf(cc, &len);
-		if ( NULL == fci || 0 == len )
-			return;
-		printf("\nBER TLV DECODE OF RESPONSE\n");
-		ber_dump(fci, len - 2, 1);
+		emv_read_record(cc, xfr, i, 1);
 	}
 
+	xfr_free(xfr);
 }

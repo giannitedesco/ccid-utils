@@ -22,14 +22,28 @@
 
 typedef struct _cci *cci_t;
 typedef struct _chipcard *chipcard_t;
+typedef struct _xfr *xfr_t;
 
-/* Chipcard interface */
+/* -- Chipcard interface */
 cci_t cci_probe(struct usb_device *dev, int c, int i, int a);
 unsigned int cci_slots(cci_t cci);
 chipcard_t cci_get_slot(cci_t cci, unsigned int i);
 void cci_close(cci_t cci);
 
-/* Chipcard */
+/* -- Xfr */
+xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf);
+void xfr_reset(xfr_t xfr);
+int xfr_tx_byte(xfr_t xfr, uint8_t byte);
+int xfr_tx_buf(xfr_t xfr, const uint8_t *ptr, size_t len);
+
+/* Only valid if chipcard_transact() returns 1 */
+uint8_t xfr_rx_sw1(xfr_t xfr);
+uint8_t xfr_rx_sw2(xfr_t xfr);
+const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
+
+void xfr_free(xfr_t xfr);
+
+/* -- Chipcard */
 int chipcard_wait_for_card(chipcard_t cc);
 
 #define CHIPCARD_ACTIVE		0x0
@@ -51,10 +65,9 @@ unsigned int chipcard_slot_status(chipcard_t cc);
 int chipcard_slot_on(chipcard_t cc, unsigned int voltage);
 int chipcard_slot_off(chipcard_t cc);
 
-int chipcard_transmit(chipcard_t cc, const uint8_t *data, size_t len);
-const uint8_t *chipcard_rcvbuf(chipcard_t cc, size_t *len);
+int chipcard_transact(chipcard_t cc, xfr_t xfr);
 
-/* Utility functions */
+/* -- Utility functions */
 void hex_dump(const void *t, size_t len, size_t llen);
 void ber_dump(const uint8_t *buf, size_t len, unsigned int depth);
 

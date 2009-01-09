@@ -15,9 +15,7 @@ struct _chipcard {
 struct _cci {
 	usb_dev_handle *cci_dev;
 
-	uint8_t 	*cci_rcvbuf;
-	size_t 		cci_rcvlen;
-	size_t		cci_rcvmax;
+	struct _xfr	*cci_xfr;
 
 	int 		cci_inp;
 	int 		cci_outp;
@@ -37,18 +35,28 @@ struct _cci {
 	struct ccid_desc cci_desc;
 };
 
-int _cci_get_cmd_result(const struct ccid_msg *msg, int *code);
+struct _xfr {
+	size_t x_txmax, x_rxmax;
+	size_t x_txlen, x_rxlen;
+	uint8_t *x_txptr;
+	struct ccid_msg *x_txhdr;
+	uint8_t *x_txbuf;
+	const struct ccid_msg *x_rxhdr;
+	uint8_t *x_rxbuf;
+};
 
-const struct ccid_msg *_RDR_to_PC(struct _cci *cci);
-unsigned int _RDR_to_PC_SlotStatus(const struct ccid_msg *msg);
-unsigned int _RDR_to_PC_DataBlock(const struct ccid_msg *msg);
+int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
+unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);
+unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr);
 
-int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot);
+int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
+				struct _xfr *xfr);
 int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
+				struct _xfr *xfr,
 				unsigned int voltage);
-int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot);
-int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
-				const uint8_t *ptr, size_t len);
+int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
+				struct _xfr *xfr);
+int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
 
 void _chipcard_set_status(struct _chipcard *cc, unsigned int status);
 

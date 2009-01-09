@@ -306,28 +306,24 @@ cci_t cci_probe(struct usb_device *dev, int c, int i, int a)
 		goto out_close;
 	}
 
-	cci->cci_rcvmax = 4096;
-	cci->cci_rcvbuf = calloc(1, cci->cci_rcvmax);
-	if ( NULL == cci->cci_rcvbuf ) {
+	cci->cci_xfr = xfr_alloc(cci->cci_max_out, cci->cci_max_in);
+	if ( NULL == cci->cci_xfr )
 		goto out_close;
-	}
 
 	/* Fourth, setup each slot */
 	for(x = 0; x < cci->cci_num_slots; x++) {
-		const struct ccid_msg *msg;
-
-		if ( !_PC_to_RDR_GetSlotStatus(cci, x) )
+		if ( !_PC_to_RDR_GetSlotStatus(cci, x, cci->cci_xfr) )
 			goto out_freebuf;
-		msg = _RDR_to_PC(cci);
-		if ( NULL == msg)
+		if ( !_RDR_to_PC(cci, x, cci->cci_xfr) )
 			goto out_freebuf;
-		_RDR_to_PC_SlotStatus(msg);
+		if ( !_RDR_to_PC_SlotStatus(cci, cci->cci_xfr) )
+			goto out_freebuf;
 	}
 
 	goto out;
 
 out_freebuf:
-	free(cci->cci_rcvbuf);
+	xfr_free(cci->cci_xfr);
 out_close:
 	usb_close(cci->cci_dev);
 out_free:
@@ -342,7 +338,7 @@ void cci_close(cci_t cci)
 	if ( cci ) {
 		if ( cci->cci_dev )
 			usb_close(cci->cci_dev);
-		free(cci->cci_rcvbuf);
+		xfr_free(cci->cci_xfr);
 	}
 	free(cci);
 }

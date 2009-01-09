@@ -39,78 +39,56 @@ unsigned int chipcard_status(chipcard_t cc)
 
 unsigned int chipcard_slot_status(chipcard_t cc)
 {
-	const struct ccid_msg *msg;
+	struct _cci *cci = cc->cc_parent;
 
-	if ( !_PC_to_RDR_GetSlotStatus(cc->cc_parent, cc->cc_idx) )
+	if ( !_PC_to_RDR_GetSlotStatus(cci, cc->cc_idx, cci->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	msg = _RDR_to_PC(cc->cc_parent);
-	if ( NULL == msg )
+	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	if ( msg->bMessageType != RDR_to_PC_SlotStatus || 
-		msg->bSlot != cc->cc_idx ||
-		!_cci_get_cmd_result(msg, NULL) )
-		return CHIPCARD_CLOCK_ERR;
-
-	return _RDR_to_PC_SlotStatus(msg);
+	return _RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
 }
 
 int chipcard_slot_on(chipcard_t cc, unsigned int voltage)
 {
-	const struct ccid_msg *msg;
+	struct _cci *cci = cc->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOn(cc->cc_parent, cc->cc_idx, voltage) )
+	if ( !_PC_to_RDR_IccPowerOn(cci, cc->cc_idx, cci->cci_xfr, voltage) )
 		return 0;
 
-	msg = _RDR_to_PC(cc->cc_parent);
-	if ( NULL == msg )
+	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
 		return 0;
 	
-	if ( msg->bMessageType != RDR_to_PC_DataBlock ||
-		msg->bSlot != cc->cc_idx ||
-		!_cci_get_cmd_result(msg, NULL) )
-		return 0;
-
-	return _RDR_to_PC_DataBlock(msg);
+	_RDR_to_PC_DataBlock(cci, cci->cci_xfr);
+	return 1;
 }
 
-int chipcard_transmit(chipcard_t cc, const uint8_t *data, size_t len)
+int chipcard_transact(chipcard_t cc, xfr_t xfr)
 {
-	const struct ccid_msg *msg;
+	struct _cci *cci = cc->cc_parent;
 
-	if ( !_PC_to_RDR_XfrBlock(cc->cc_parent, cc->cc_idx, data, len) )
+	if ( !_PC_to_RDR_XfrBlock(cci, cc->cc_idx, xfr) )
 		return 0;
 
-	msg = _RDR_to_PC(cc->cc_parent);
-	if ( NULL == msg )
+	if ( !_RDR_to_PC(cci, cc->cc_idx, xfr) )
 		return 0;
 
-	if ( msg->bMessageType != RDR_to_PC_DataBlock ||
-		msg->bSlot != cc->cc_idx ||
-		!_cci_get_cmd_result(msg, NULL) )
-		return 0;
-
-	return _RDR_to_PC_DataBlock(msg);
+	_RDR_to_PC_DataBlock(cci, xfr);
+	return 1;
 }
 
 int chipcard_slot_off(chipcard_t cc)
 {
-	const struct ccid_msg *msg;
+	struct _cci *cci = cc->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOff(cc->cc_parent, cc->cc_idx) )
+	if ( !_PC_to_RDR_IccPowerOff(cci, cc->cc_idx, cci->cci_xfr) )
 		return 0;
 
-	msg = _RDR_to_PC(cc->cc_parent);
-	if ( NULL == msg )
+	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
 		return 0;
 	
-	if ( msg->bMessageType != RDR_to_PC_SlotStatus ||
-		msg->bSlot != cc->cc_idx ||
-		!_cci_get_cmd_result(msg, NULL) )
-		return 0;
-
-	_RDR_to_PC_SlotStatus(msg);
+	_RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
 
 	return 1;
 }
@@ -121,13 +99,4 @@ int chipcard_wait_for_card(chipcard_t cc)
 		if ( !_cci_wait_for_interrupt(cc->cc_parent) )
 			return 0;
 	return 1;
-}
-
-const uint8_t *chipcard_rcvbuf(chipcard_t cc, size_t *len)
-{
-	const struct ccid_msg *msg;
-
-	msg = (struct ccid_msg *)cc->cc_parent->cci_rcvbuf;
-	*len = sys_le32(msg->dwLength);
-	return cc->cc_parent->cci_rcvbuf + sizeof(struct ccid_msg);
 }
