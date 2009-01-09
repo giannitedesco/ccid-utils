@@ -36,13 +36,12 @@ struct _cci {
 };
 
 struct _xfr {
-	size_t x_txmax, x_rxmax;
-	size_t x_txlen, x_rxlen;
-	uint8_t *x_txptr;
+	size_t 		x_txmax, x_rxmax;
+	size_t 		x_txlen, x_rxlen;
 	struct ccid_msg *x_txhdr;
-	uint8_t *x_txbuf;
-	const struct ccid_msg *x_rxhdr;
-	uint8_t *x_rxbuf;
+	uint8_t 	*x_txbuf;
+	const struct ccid_msg	*x_rxhdr;
+	uint8_t 	*x_rxbuf;
 };
 
 int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);

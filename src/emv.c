@@ -15,7 +15,7 @@ static int emv_select(chipcard_t cc, xfr_t xfr, uint8_t *name, size_t nlen)
 
 	assert(nlen < 0x100);
 	xfr_reset(xfr);
-	xfr_tx_byte(xfr, 0x00);		/* CLS */
+	xfr_tx_byte(xfr, 0x00);		/* CLA */
 	xfr_tx_byte(xfr, 0xa4);		/* INS: SELECT */
 	xfr_tx_byte(xfr, 0x04);		/* P1: Select by name */
 	xfr_tx_byte(xfr, 0);		/* P2: First/only occurance */
@@ -30,7 +30,7 @@ static int emv_select(chipcard_t cc, xfr_t xfr, uint8_t *name, size_t nlen)
 	sw2 = xfr_rx_sw2(xfr);
 
 	xfr_reset(xfr);
-	xfr_tx_byte(xfr, 0x00);		/* CLS */
+	xfr_tx_byte(xfr, 0x00);		/* CLA */
 	xfr_tx_byte(xfr, 0xc0);		/* INS: GET RESPONSE */
 	xfr_tx_byte(xfr, 0);		/* P1 */
 	xfr_tx_byte(xfr, 0);		/* P2 */
@@ -55,28 +55,30 @@ static int emv_read_record(chipcard_t cc, xfr_t xfr,
 {
 	const uint8_t *res;
 	size_t len;
-	uint8_t sw2;
+	uint8_t sw2, p2;
 
-	//uint8_t buf[] = "\x00\xb2\xff\xff\x1d";
+	p2 = (sfi << 3) | (1 << 2);
+
 	xfr_reset(xfr);
-	xfr_tx_byte(xfr, 0x00);			/* CLS */
-	xfr_tx_byte(xfr, 0xb2);			/* INS: READ RECORD */
-	xfr_tx_byte(xfr, record);		/* P1: record index */
-	xfr_tx_byte(xfr, (sfi << 3) | (1 << 2)); /* P2 */
-	xfr_tx_byte(xfr, 0);			/* Le: 0 this time around */
+	xfr_tx_byte(xfr, 0x00);		/* CLA */
+	xfr_tx_byte(xfr, 0xb2);		/* INS: READ RECORD */
+	xfr_tx_byte(xfr, record);	/* P1: record index */
+	xfr_tx_byte(xfr, p2);		/* P2 */
+	xfr_tx_byte(xfr, 0);		/* Le: 0 this time around */
+
 	if ( !chipcard_transact(cc, xfr) )
 		return 0;
 
 	if ( xfr_rx_sw1(xfr) != 0x6c )
 		return 0;
 	sw2 = xfr_rx_sw2(xfr);
-	
+
 	xfr_reset(xfr);
-	xfr_tx_byte(xfr, 0x00);			/* CLS */
-	xfr_tx_byte(xfr, 0xb2);			/* INS: READ RECORD */
-	xfr_tx_byte(xfr, record);		/* P1: record index */
-	xfr_tx_byte(xfr, (sfi << 3) | (1 << 2)); /* P2 */
-	xfr_tx_byte(xfr, sw2);			/* Le: got it now */
+	xfr_tx_byte(xfr, 0x00);		/* CLA */
+	xfr_tx_byte(xfr, 0xb2);		/* INS: READ RECORD */
+	xfr_tx_byte(xfr, record);	/* P1: record index */
+	xfr_tx_byte(xfr, p2); 		/* P2 */
+	xfr_tx_byte(xfr, sw2);		/* Le: got it now */
 
 	if ( !chipcard_transact(cc, xfr) )
 		return 0;
@@ -88,7 +90,7 @@ static int emv_read_record(chipcard_t cc, xfr_t xfr,
 	if ( NULL == res )
 		return 0;
 
-	ber_dump(res, len, 1);
+//	ber_dump(res, len, 1);
 	return 1;
 }
 
@@ -102,8 +104,7 @@ void do_emv_stuff(chipcard_t cc)
 		return;
 
 	printf("\nSELECT PAY SYS\n");
-	emv_select(cc, xfr, "1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
-
+	emv_select(cc, xfr, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
 
 	printf("\nREAD RECORD REC 1\n");
 	emv_read_record(cc, xfr, 1, 1);
@@ -112,7 +113,7 @@ void do_emv_stuff(chipcard_t cc)
 	emv_read_record(cc, xfr, 1, 2);
 
 	printf("\nSELECT LINK APPLICATION\n");
-	emv_select(cc, xfr, "\xa0\x00\x00\x00\x29\x10\x10", 7);
+	emv_select(cc, xfr, (void *)"\xa0\x00\x00\x00\x29\x10\x10", 7);
 	for(i = 1; i < 11; i++ ) {
 		printf("\nREAD RECORD SFI=%u\n", i);
 		emv_read_record(cc, xfr, i, 1);
@@ -121,7 +122,7 @@ void do_emv_stuff(chipcard_t cc)
 	}
 
 	printf("\nSELECT VISA APPLICATION\n");
-	emv_select(cc, xfr, "\xa0\x00\x00\x00\x03\x10\x10", 7);
+	emv_select(cc, xfr, (void *)"\xa0\x00\x00\x00\x03\x10\x10", 7);
 	for(i = 1; i < 11; i++ ) {
 		printf("\nREAD RECORD SFI=%u\n", i);
 		emv_read_record(cc, xfr, i, 1);

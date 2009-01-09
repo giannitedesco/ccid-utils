@@ -2,6 +2,8 @@
  * This file is part of cci-utils
  * Copyright (c) 2008 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
+ *
+ * Interface to a chipcard interface slot.
 */
 
 #include <ccid.h>
