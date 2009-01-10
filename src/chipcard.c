@@ -101,3 +101,8 @@ int chipcard_wait_for_card(chipcard_t cc)
 			return 0;
 	return 1;
 }
+
+cci_t chipcard_cci(chipcard_t cc)
+{
+	return cc->cc_parent;
+}

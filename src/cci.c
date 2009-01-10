@@ -486,7 +486,6 @@ static int probe_descriptors(struct _cci *cci)
 		return 0;
 
 	printf(" o Fetching config descriptor\n");
-	hex_dump(dbuf, sz, 16);
 
 	for(ptr = dbuf, end = ptr + sz; ptr + 2 < end; ) {
 		if ( ptr + ptr[0] > end )
@@ -527,7 +526,7 @@ static int probe_descriptors(struct _cci *cci)
 
 cci_t cci_probe(ccidev_t dev)
 {
-	struct _cci *cci;
+	struct _cci *cci = NULL;
 	unsigned int x;
 	int c, i, a;
 

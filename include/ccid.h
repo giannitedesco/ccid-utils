@@ -47,6 +47,7 @@ const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 void xfr_free(xfr_t xfr);
 
 /* -- Chipcard */
+cci_t chipcard_cci(chipcard_t cc);
 int chipcard_wait_for_card(chipcard_t cc);
 
 #define CHIPCARD_ACTIVE		0x0
