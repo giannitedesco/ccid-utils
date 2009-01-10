@@ -18,14 +18,17 @@
 #include "compiler.h"
 #include "bytesex.h"
 
-#include <usb.h>
-
 typedef struct _cci *cci_t;
 typedef struct _chipcard *chipcard_t;
 typedef struct _xfr *xfr_t;
+typedef struct usb_device *ccidev_t;
+
+/* Chipcard interface devices */
+ccidev_t ccid_find_first_device(void);
+//ccidev_t ccid_find_next_device(void);
 
 /* -- Chipcard interface */
-cci_t cci_probe(struct usb_device *dev, int c, int i, int a);
+cci_t cci_probe(ccidev_t dev);
 unsigned int cci_slots(cci_t cci);
 chipcard_t cci_get_slot(cci_t cci, unsigned int i);
 void cci_close(cci_t cci);

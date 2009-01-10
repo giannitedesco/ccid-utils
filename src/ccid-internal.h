@@ -6,6 +6,9 @@
 #ifndef _CCID_INTERNAL_H
 #define _CCID_INTERNAL_H
 
+#include <usb.h>
+#include <ccid-spec.h>
+
 struct _chipcard {
 	struct _cci *cc_parent;
 	uint8_t cc_idx;
@@ -43,6 +46,8 @@ struct _xfr {
 	const struct ccid_msg	*x_rxhdr;
 	uint8_t 	*x_rxbuf;
 };
+
+int _probe_device(struct usb_device *dev, int *cp, int *ip, int *ap);
 
 int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
 unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);

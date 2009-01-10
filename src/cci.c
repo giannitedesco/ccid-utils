@@ -7,7 +7,6 @@
 */
 
 #include <ccid.h>
-#include <ccid-spec.h>
 
 #include <stdio.h>
 
@@ -526,10 +525,17 @@ static int probe_descriptors(struct _cci *cci)
 	return 1;
 }
 
-cci_t cci_probe(struct usb_device *dev, int c, int i, int a)
+cci_t cci_probe(ccidev_t dev)
 {
 	struct _cci *cci;
 	unsigned int x;
+	int c, i, a;
+
+	if ( !_probe_device(dev, &c, &i, &a) ) {
+		fprintf(stderr, "*** error: failed to probe device %s/%s\n",
+			dev->bus->dirname, dev->filename);
+		goto out;
+	}
 
 	printf("Probe CCI on dev %s/%s %d:%d:%d\n",
 		dev->bus->dirname, dev->filename, c, i, a);

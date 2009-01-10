@@ -7,7 +7,6 @@
 */
 
 #include <ccid.h>
-#include <ccid-spec.h>
 
 #include <stdio.h>
 

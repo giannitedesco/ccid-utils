@@ -10,13 +10,13 @@
 void do_gsm_stuff(chipcard_t cc);
 void do_emv_stuff(chipcard_t cc);
 
-static int found_cci(struct usb_device *dev, int c, int i, int a)
+static int found_cci(ccidev_t dev)
 {
 	chipcard_t cc;
 	cci_t cci;
 	int ret = 0;
 
-	cci = cci_probe(dev, c, i, a);
+	cci = cci_probe(dev);
 	if ( NULL == cci )
 		goto out;
 	
@@ -51,58 +51,16 @@ out:
 	return ret;
 }
 
-static int check_interface(struct usb_device *dev, int c, int i)
-{
-	struct usb_interface *iface = &dev->config[c].interface[i];
-	int a, ret;
-
-	for (ret = a = 0; a < iface->num_altsetting; a++) {
-		struct usb_interface_descriptor *id = &iface->altsetting[a];
-		if ( id->bInterfaceClass == 0x0b ) {
-			if ( found_cci(dev, c, i, a) )
-				ret = 1;
-		}
-	}
-
-	return ret;
-}
-
-static int check_device(struct usb_device *dev)
-{
-	int c, i;
-
-	if ( dev->descriptor.idVendor == 0x4e6 &&
-		dev->descriptor.idProduct == 0xe003 ) {
-		return found_cci(dev, 1, 0, 0);
-	}
-
-	for(c = 0; c < dev->descriptor.bNumConfigurations; c++) {
-		for(i = 0; i < dev->config[c].bNumInterfaces; i++) {
-			if ( check_interface(dev, c, i) )
-				return 1;
-		}
-	}
-
-	return 0;
-}
-
 int main(int argc, char **argv)
 {
-	struct usb_bus *bus, *busses;
-	struct usb_device *dev;
-	int ret = EXIT_FAILURE;
+	ccidev_t dev;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	dev = ccid_find_first_device();
+	if ( NULL == dev )
+		return EXIT_FAILURE;
 
-	busses = usb_get_busses();
+	if ( !found_cci(dev) )
+		return EXIT_FAILURE;
 
-	for(bus = busses; bus; bus = bus->next) {
-		for(dev = bus->devices; dev; dev = dev->next)
-			if ( check_device(dev) )
-				ret = EXIT_SUCCESS;
-	}
-
-	return ret;
+	return EXIT_SUCCESS;
 }
