@@ -20,7 +20,155 @@ struct cp_cci {
 	cci_t dev;
 };
 
-static PyObject *cp_chipcard_wait(struct cp_chipcard * self, PyObject *args)
+struct cp_xfr {
+	PyObject_HEAD;
+	xfr_t xfr;
+};
+
+/* ---[ Xfr wrapper */
+static int cp_xfr_init(struct cp_xfr *self, PyObject *args, PyObject *kwds)
+{
+	int tx, rx;
+
+	if ( !PyArg_ParseTuple(args, "ii", &tx, &rx) )
+		return -1;
+
+	self->xfr = xfr_alloc(tx, rx);
+	if ( NULL == self->xfr ) {
+		PyErr_SetString(PyExc_MemoryError, "Allocating chipcard");
+		return -1;
+	}
+
+	return 0;
+}
+
+static void cp_xfr_dealloc(struct cp_xfr *self)
+{
+	xfr_free(self->xfr);
+	self->ob_type->tp_free((PyObject*)self);
+}
+
+static PyObject *cp_xfr_reset(struct cp_xfr *self, PyObject *args)
+{
+	xfr_reset(self->xfr);
+	return Py_None;
+}
+
+static PyObject *cp_xfr_byte(struct cp_xfr *self, PyObject *args)
+{
+	uint8_t byte;
+
+	if ( !PyArg_ParseTuple(args, "b", &byte) )
+		return NULL;
+
+	if ( !xfr_tx_byte(self->xfr, byte) ) {
+		PyErr_SetString(PyExc_MemoryError, "TX buffer overflow");
+		return NULL;
+	}
+
+	return Py_None;
+}
+
+static PyObject *cp_xfr_str(struct cp_xfr *self, PyObject *args)
+{
+	const uint8_t *str;
+	int len;
+
+	if ( !PyArg_ParseTuple(args, "s#", &str, &len) )
+		return NULL;
+
+	if ( !xfr_tx_buf(self->xfr, str, len) ) {
+		PyErr_SetString(PyExc_MemoryError, "TX buffer overflow");
+		return NULL;
+	}
+
+	return Py_None;
+}
+
+static PyObject *cp_xfr_sw1(struct cp_xfr *self, PyObject *args)
+{
+	return PyInt_FromLong(xfr_rx_sw1(self->xfr));
+}
+
+static PyObject *cp_xfr_sw2(struct cp_xfr *self, PyObject *args)
+{
+	return PyInt_FromLong(xfr_rx_sw2(self->xfr));
+}
+
+static PyObject *cp_xfr_data(struct cp_xfr *self, PyObject *args)
+{
+	const uint8_t *str;
+	size_t len;
+	
+	str = xfr_rx_data(self->xfr, &len);
+	if ( NULL == str ) {
+		PyErr_SetString(PyExc_ValueError, "RX buffer underflow");
+		return NULL;
+	}
+	return Py_BuildValue("s#", str, (int)len);
+}
+
+static PyMethodDef cp_xfr_methods[] = {
+	{"reset", (PyCFunction)cp_xfr_reset, METH_NOARGS,	
+		"xfr.reset()\n"
+		"Reset transmit and receive buffers."},
+	{"tx_byte", (PyCFunction)cp_xfr_byte, METH_VARARGS,
+		"xfr.tx_byte()\n"
+		"Push a byte to the transmit buffer."},
+	{"tx_str", (PyCFunction)cp_xfr_str, METH_VARARGS,
+		"xfr.tx_str()\n"
+		"Push a string to the transmit buffer."},
+	{"rx_sw1", (PyCFunction)cp_xfr_sw1, METH_NOARGS,
+		"xfr.rx_sw1()\n"
+		"Retrieve SW1 status word."},
+	{"rx_sw2", (PyCFunction)cp_xfr_sw2, METH_NOARGS,
+		"xfr.rx_sw1()\n"
+		"Retrieve SW2 status word."},
+	{"rx_data", (PyCFunction)cp_xfr_data, METH_NOARGS,
+		"xfr.rx_data()\n"
+		"Return receive buffer data."},
+	{NULL,}
+};
+
+static PyTypeObject xfr_pytype = {
+	PyObject_HEAD_INIT(NULL)
+	.tp_name = "ccid.xfr",
+	.tp_basicsize = sizeof(struct cp_xfr),
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_new = PyType_GenericNew,
+	.tp_methods = cp_xfr_methods,
+	.tp_init = (initproc)cp_xfr_init,
+	.tp_dealloc = (destructor)cp_xfr_dealloc,
+	.tp_doc = "CCI transfer buffer",
+};
+
+/* ---[ chipcard wrapper */
+static PyObject *cp_chipcard_transact(struct cp_chipcard *self, PyObject *args)
+{
+	struct cp_xfr *xfr;
+
+	if ( NULL == self->slot ) {
+		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		return NULL;
+	}
+
+	if ( !PyArg_ParseTuple(args, "O", &xfr) )
+		return NULL;
+
+	if ( xfr->ob_type != &xfr_pytype ) {
+		PyErr_SetString(PyExc_TypeError, "Not an xfr object");
+		return NULL;
+	}
+
+	if ( !chipcard_transact(self->slot, xfr->xfr) ) {
+		PyErr_SetString(PyExc_IOError, "Transaction error");
+		return NULL;
+	}
+
+	return cp_xfr_data(xfr, NULL);
+}
+
+static PyObject *cp_chipcard_wait(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
@@ -32,7 +180,7 @@ static PyObject *cp_chipcard_wait(struct cp_chipcard * self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject *cp_chipcard_status(struct cp_chipcard * self, PyObject *args)
+static PyObject *cp_chipcard_status(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
@@ -42,7 +190,7 @@ static PyObject *cp_chipcard_status(struct cp_chipcard * self, PyObject *args)
 	return PyInt_FromLong(chipcard_status(self->slot));
 }
 
-static PyObject *cp_chipcard_clock(struct cp_chipcard * self, PyObject *args)
+static PyObject *cp_chipcard_clock(struct cp_chipcard *self, PyObject *args)
 {
 	long ret;
 
@@ -60,7 +208,7 @@ static PyObject *cp_chipcard_clock(struct cp_chipcard * self, PyObject *args)
 	return PyInt_FromLong(ret);
 }
 
-static PyObject *cp_chipcard_on(struct cp_chipcard * self, PyObject *args)
+static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 {
 	int voltage = CHIPCARD_AUTO_VOLTAGE;
 
@@ -69,8 +217,10 @@ static PyObject *cp_chipcard_on(struct cp_chipcard * self, PyObject *args)
 		return NULL;
 	}
 
-	if ( !PyArg_ParseTuple(args, "|i", &voltage) ||
-		voltage < 0 || voltage > CHIPCARD_1_8V ) {
+	if ( !PyArg_ParseTuple(args, "|i", &voltage) )
+		return NULL;
+
+	if ( voltage < 0 || voltage > CHIPCARD_1_8V ) {
 		PyErr_SetString(PyExc_ValueError, "Bad voltage ID");
 		return NULL;
 	}
@@ -83,7 +233,7 @@ static PyObject *cp_chipcard_on(struct cp_chipcard * self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject *cp_chipcard_off(struct cp_chipcard * self, PyObject *args)
+static PyObject *cp_chipcard_off(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
@@ -98,7 +248,6 @@ static PyObject *cp_chipcard_off(struct cp_chipcard * self, PyObject *args)
 	return Py_None;
 }
 
-/* ---[ chipcard wrapper */
 static PyMethodDef cp_chipcard_methods[] = {
 	{"wait_for_card", (PyCFunction)cp_chipcard_wait, METH_NOARGS,	
 		"chipcard.wait_for_card()\n"
@@ -116,14 +265,12 @@ static PyMethodDef cp_chipcard_methods[] = {
 	{"off", (PyCFunction)cp_chipcard_off, METH_NOARGS,	
 		"chipcard.off()\n"
 		"Power off card."},
-#if 0
-	{"transact", (PyCFunction)cp_chipcard_on, METH_VARARGS,	
-		"chipcard.transact() - chipcard transaction."},
-#endif
+	{"transact", (PyCFunction)cp_chipcard_transact, METH_VARARGS,	
+		"chipcard.transact(xfr) - chipcard transaction."},
 	{NULL, }
 };
 
-static void cp_chipcard_dealloc(struct cp_chipcard * self)
+static void cp_chipcard_dealloc(struct cp_chipcard *self)
 {
 	if ( self->owner ) {
 		Py_DECREF(self->owner);
@@ -149,10 +296,8 @@ static PyObject *cp_get_slot(struct cp_cci *self, PyObject *args)
 	struct cp_chipcard *cc;
 	int slot;
 
-	if (!PyArg_ParseTuple(args, "i", &slot) ) {
-		PyErr_SetString(PyExc_ValueError, "Bad arguments");
+	if (!PyArg_ParseTuple(args, "i", &slot) )
 		return NULL;
-	}
 
 	cc = (struct cp_chipcard*)_PyObject_New(&chipcard_pytype);
 	if ( NULL == cc ) {
@@ -191,7 +336,7 @@ static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 	return 0;
 }
 
-static void cp_cci_dealloc(struct cp_cci * self)
+static void cp_cci_dealloc(struct cp_cci *self)
 {
 	cci_close(self->dev);
 	self->ob_type->tp_free((PyObject*)self);
@@ -226,7 +371,7 @@ static PyObject *cp_hex_dump(PyObject *self, PyObject *args)
 {
 	const uint8_t *ptr;
 	int len, llen = 16;
-	if (!PyArg_ParseTuple(args, "s#|i", &ptr, &len, &llen))
+	if ( !PyArg_ParseTuple(args, "s#|i", &ptr, &len, &llen) )
 		return NULL;
 	hex_dump(ptr, len, llen);
 	return Py_None;
@@ -236,7 +381,7 @@ static PyObject *cp_ber_dump(PyObject *self, PyObject *args)
 {
 	const uint8_t *ptr;
 	int len;
-	if (!PyArg_ParseTuple(args, "s#", &ptr, &len))
+	if ( !PyArg_ParseTuple(args, "s#", &ptr, &len) )
 		return NULL;
 	ber_dump(ptr, len, 1);
 	return Py_None;
@@ -255,9 +400,11 @@ PyMODINIT_FUNC initccid(void)
 {
 	PyObject *m;
 
-	if ( PyType_Ready(&cci_pytype) < 0 )
+	if ( PyType_Ready(&xfr_pytype) < 0 )
 		return;
 	if ( PyType_Ready(&chipcard_pytype) < 0 )
+		return;
+	if ( PyType_Ready(&cci_pytype) < 0 )
 		return;
 
 	m = Py_InitModule3("ccid", methods, "USB Chip Card Interface Driver");
@@ -278,9 +425,12 @@ PyMODINIT_FUNC initccid(void)
 	_INT_CONST(m, CHIPCARD_3V);
 	_INT_CONST(m, CHIPCARD_1_8V);
 
-	Py_INCREF(&cci_pytype);
-	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
+	Py_INCREF(&xfr_pytype);
+	PyModule_AddObject(m, "xfr", (PyObject *)&xfr_pytype);
 
 	Py_INCREF(&chipcard_pytype);
 	PyModule_AddObject(m, "chipcard", (PyObject *)&chipcard_pytype);
+
+	Py_INCREF(&cci_pytype);
+	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
 }
