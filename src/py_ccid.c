@@ -28,6 +28,7 @@ static PyObject *cp_chipcard_wait(struct cp_chipcard * self, PyObject *args)
 	}
 
 	chipcard_wait_for_card(self->slot);
+
 	return Py_None;
 }
 
@@ -37,6 +38,7 @@ static PyObject *cp_chipcard_status(struct cp_chipcard * self, PyObject *args)
 		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
 		return NULL;
 	}
+
 	return PyInt_FromLong(chipcard_status(self->slot));
 }
 
@@ -67,7 +69,7 @@ static PyObject *cp_chipcard_on(struct cp_chipcard * self, PyObject *args)
 		return NULL;
 	}
 
-	if (!PyArg_ParseTuple(args, "|i", &voltage) ||
+	if ( !PyArg_ParseTuple(args, "|i", &voltage) ||
 		voltage < 0 || voltage > CHIPCARD_1_8V ) {
 		PyErr_SetString(PyExc_ValueError, "Bad voltage ID");
 		return NULL;
@@ -87,25 +89,33 @@ static PyObject *cp_chipcard_off(struct cp_chipcard * self, PyObject *args)
 		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
 		return NULL;
 	}
+
 	if ( !chipcard_slot_off(self->slot) ) {
 		PyErr_SetString(PyExc_IOError, "Transaction error");
 		return NULL;
 	}
+
 	return Py_None;
 }
 
 /* ---[ chipcard wrapper */
 static PyMethodDef cp_chipcard_methods[] = {
 	{"wait_for_card", (PyCFunction)cp_chipcard_wait, METH_NOARGS,	
-		"chipcard.wait_for_card() - Wait for a card to be inserted."},
+		"chipcard.wait_for_card()\n"
+		"Sleep until the end of time, or until a card is inserted."
+		"whichever comes soonest."},
 	{"status", (PyCFunction)cp_chipcard_status, METH_NOARGS,	
-		"chipcard.status() - Get status."},
+		"chipcard.status()\n"
+		"Get status of the slot."},
 	{"clock_status", (PyCFunction)cp_chipcard_clock, METH_NOARGS,	
-		"chipcard.status() - Get clock status."},
+		"chipcard.status()\n"
+		"Get chip card clock status."},
 	{"on", (PyCFunction)cp_chipcard_on, METH_VARARGS,	
-		"chipcard.on(voltage=0) - Power on card."},
+		"chipcard.on(voltage=CHIPCARD_AUTO_VOLTAGE)\n"
+		"Power on card and retrieve ATR."},
 	{"off", (PyCFunction)cp_chipcard_off, METH_NOARGS,	
-		"chipcard.off() - Power off card."},
+		"chipcard.off()\n"
+		"Power off card."},
 #if 0
 	{"transact", (PyCFunction)cp_chipcard_on, METH_VARARGS,	
 		"chipcard.transact() - chipcard transaction."},
@@ -240,6 +250,7 @@ static PyMethodDef methods[] = {
 	{NULL, }
 };
 
+#define _INT_CONST(m, c) PyModule_AddIntConstant(m, #c, c)
 PyMODINIT_FUNC initccid(void)
 {
 	PyObject *m;
@@ -252,6 +263,20 @@ PyMODINIT_FUNC initccid(void)
 	m = Py_InitModule3("ccid", methods, "USB Chip Card Interface Driver");
 	if ( NULL == m )
 		return;
+
+	_INT_CONST(m, CHIPCARD_ACTIVE);
+	_INT_CONST(m, CHIPCARD_PRESENT);
+	_INT_CONST(m, CHIPCARD_NOT_PRESENT);
+
+	_INT_CONST(m, CHIPCARD_CLOCK_START);
+	_INT_CONST(m, CHIPCARD_CLOCK_STOP_L);
+	_INT_CONST(m, CHIPCARD_CLOCK_STOP_H);
+	_INT_CONST(m, CHIPCARD_CLOCK_STOP_L);
+
+	_INT_CONST(m, CHIPCARD_AUTO_VOLTAGE);
+	_INT_CONST(m, CHIPCARD_5V);
+	_INT_CONST(m, CHIPCARD_3V);
+	_INT_CONST(m, CHIPCARD_1_8V);
 
 	Py_INCREF(&cci_pytype);
 	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
