@@ -8,22 +8,24 @@
 #include <stdio.h>
 #include <ctype.h>
 
-void hex_dump(const void *t, size_t len, size_t llen)
+void hex_dump(const uint8_t *tmp, size_t len, size_t llen)
 {
-	uint8_t *tmp = t;
 	size_t i, j;
 	size_t line;
 
-	for(j=0; j < len; j += line, tmp += line) {
+	if ( llen == 0 )
+		return;
+
+	for(j = 0; j < len; j += line, tmp += line) {
 		if ( j + llen > len ) {
 			line = len - j;
 		}else{
 			line = llen;
 		}
 
-		printf(" | %05X : ", j);
+		printf("%05x : ", j);
 
-		for(i=0; i < line; i++) {
+		for(i = 0; i < line; i++) {
 			if ( isprint(tmp[i]) ) {
 				printf("%c", tmp[i]);
 			}else{
@@ -35,9 +37,9 @@ void hex_dump(const void *t, size_t len, size_t llen)
 			printf(" ");
 
 		for(i = 0; i < line; i++)
-			printf(" %02X", tmp[i]);
+			printf(" %02x", tmp[i]);
 
 		printf("\n");
 	}
-	//printf("\n");
+	printf("\n");
 }

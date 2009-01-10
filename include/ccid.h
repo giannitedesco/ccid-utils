@@ -68,7 +68,7 @@ int chipcard_slot_off(chipcard_t cc);
 int chipcard_transact(chipcard_t cc, xfr_t xfr);
 
 /* -- Utility functions */
-void hex_dump(const void *t, size_t len, size_t llen);
+void hex_dump(const uint8_t *t, size_t len, size_t llen);
 void ber_dump(const uint8_t *buf, size_t len, unsigned int depth);
 
 #endif /* _CCID_H */
