@@ -54,6 +54,7 @@ static void cp_xfr_dealloc(struct cp_xfr *self)
 static PyObject *cp_xfr_reset(struct cp_xfr *self, PyObject *args)
 {
 	xfr_reset(self->xfr);
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -69,6 +70,7 @@ static PyObject *cp_xfr_byte(struct cp_xfr *self, PyObject *args)
 		return NULL;
 	}
 
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -85,6 +87,7 @@ static PyObject *cp_xfr_str(struct cp_xfr *self, PyObject *args)
 		return NULL;
 	}
 
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -168,7 +171,7 @@ static PyObject *cp_chipcard_transact(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
-	return cp_xfr_data(xfr, NULL);
+	return PyInt_FromLong(xfr_rx_sw1(xfr->xfr));
 }
 
 static PyObject *cp_chipcard_wait(struct cp_chipcard *self, PyObject *args)
@@ -180,6 +183,7 @@ static PyObject *cp_chipcard_wait(struct cp_chipcard *self, PyObject *args)
 
 	chipcard_wait_for_card(self->slot);
 
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -233,6 +237,7 @@ static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -248,6 +253,7 @@ static PyObject *cp_chipcard_off(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -381,6 +387,7 @@ static PyObject *cp_hex_dump(PyObject *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "s#|i", &ptr, &len, &llen) )
 		return NULL;
 	hex_dump(ptr, len, llen);
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
@@ -391,6 +398,7 @@ static PyObject *cp_ber_dump(PyObject *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "s#", &ptr, &len) )
 		return NULL;
 	ber_dump(ptr, len, 1);
+	Py_INCREF(Py_None);
 	return Py_None;
 }
 
