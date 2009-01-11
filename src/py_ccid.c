@@ -322,6 +322,7 @@ static PyObject *cp_get_slot(struct cp_cci *self, PyObject *args)
 
 static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 {
+	const char *trace = NULL;
 	ccidev_t dev;
 
 	dev = ccid_find_first_device();
@@ -330,7 +331,10 @@ static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 		return -1;
 	}
 
-	self->dev = cci_probe(dev);
+	if ( !PyArg_ParseTuple(args, "|s", &trace) )
+		return NULL;
+
+	self->dev = cci_probe(dev, trace);
 	if ( NULL == self->dev ) {
 		PyErr_SetString(PyExc_IOError, "cci_probe() failed");
 		return -1;

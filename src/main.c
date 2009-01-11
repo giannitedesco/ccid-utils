@@ -5,6 +5,7 @@
 */
 
 #include <ccid.h>
+
 #include <stdio.h>
 
 void do_gsm_stuff(chipcard_t cc);
@@ -16,7 +17,7 @@ static int found_cci(ccidev_t dev)
 	cci_t cci;
 	int ret = 0;
 
-	cci = cci_probe(dev);
+	cci = cci_probe(dev, "./scsh.log");
 	if ( NULL == cci )
 		goto out;
 	

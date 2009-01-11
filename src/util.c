@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-void hex_dump(const uint8_t *tmp, size_t len, size_t llen)
+static void do_hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
 {
 	size_t i, j;
 	size_t line;
@@ -23,23 +23,34 @@ void hex_dump(const uint8_t *tmp, size_t len, size_t llen)
 			line = llen;
 		}
 
-		printf("%05x : ", j);
+		fprintf(f, " | %05x : ", j);
 
 		for(i = 0; i < line; i++) {
 			if ( isprint(tmp[i]) ) {
-				printf("%c", tmp[i]);
+				fprintf(f, "%c", tmp[i]);
 			}else{
-				printf(".");
+				fprintf(f, ".");
 			}
 		}
 
 		for(; i < llen; i++)
-			printf(" ");
+			fprintf(f, " ");
 
 		for(i = 0; i < line; i++)
-			printf(" %02x", tmp[i]);
+			fprintf(f, " %02x", tmp[i]);
 
-		printf("\n");
+		fprintf(f, "\n");
 	}
-	printf("\n");
+	fprintf(f, "\n");
+}
+
+void hex_dumpf(FILE *f, const uint8_t *ptr, size_t len, size_t llen)
+{
+	if ( f )
+		do_hex_dumpf(f, ptr, len, llen);
+}
+
+void hex_dump(const uint8_t *ptr, size_t len, size_t llen)
+{
+	do_hex_dumpf(stdout, ptr, len, llen);
 }

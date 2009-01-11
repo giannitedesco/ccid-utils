@@ -9,6 +9,13 @@
 #include <usb.h>
 #include <ccid-spec.h>
 
+#define trace(cci, fmt, x...) \
+		do { \
+			struct _cci *_CCI = cci; \
+			if ( _CCI->cci_tf ) \
+				fprintf(_CCI->cci_tf, fmt , ##x); \
+		}while(0);
+
 struct _chipcard {
 	struct _cci *cc_parent;
 	uint8_t cc_idx;
@@ -19,6 +26,8 @@ struct _cci {
 	usb_dev_handle *cci_dev;
 
 	struct _xfr	*cci_xfr;
+
+	FILE		*cci_tf;
 
 	int 		cci_inp;
 	int 		cci_outp;
@@ -61,8 +70,6 @@ int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
 int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
 int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
-
-void _chipcard_set_status(struct _chipcard *cc, unsigned int status);
 
 int _cci_wait_for_interrupt(struct _cci *cci);
 

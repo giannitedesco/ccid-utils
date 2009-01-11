@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 #include "compiler.h"
@@ -28,7 +29,7 @@ ccidev_t ccid_find_first_device(void);
 //ccidev_t ccid_find_next_device(void);
 
 /* -- Chipcard interface */
-cci_t cci_probe(ccidev_t dev);
+cci_t cci_probe(ccidev_t dev, const char *tracefile);
 unsigned int cci_slots(cci_t cci);
 chipcard_t cci_get_slot(cci_t cci, unsigned int i);
 void cci_close(cci_t cci);
@@ -72,7 +73,8 @@ int chipcard_slot_off(chipcard_t cc);
 int chipcard_transact(chipcard_t cc, xfr_t xfr);
 
 /* -- Utility functions */
-void hex_dump(const uint8_t *t, size_t len, size_t llen);
-void ber_dump(const uint8_t *buf, size_t len, unsigned int depth);
+void hex_dump(const uint8_t *ptr, size_t len, size_t llen);
+void hex_dumpf(FILE *f, const uint8_t *ptr, size_t len, size_t llen);
+void ber_dump(const uint8_t *ptr, size_t len, unsigned int depth);
 
 #endif /* _CCID_H */

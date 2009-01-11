@@ -12,27 +12,6 @@
 
 #include "ccid-internal.h"
 
-void _chipcard_set_status(struct _chipcard *cc, unsigned int status)
-{
-	switch( status & CCID_SLOT_STATUS_MASK ) {
-	case CCID_STATUS_ICC_ACTIVE:
-		printf("     : ICC present and active\n");
-		cc->cc_status = CHIPCARD_ACTIVE;
-		break;
-	case CCID_STATUS_ICC_PRESENT:
-		printf("     : ICC present and inactive\n");
-		cc->cc_status = CHIPCARD_PRESENT;
-		break;
-	case CCID_STATUS_ICC_NOT_PRESENT:
-		printf("     : ICC not presnt\n");
-		cc->cc_status = CHIPCARD_NOT_PRESENT;
-		break;
-	default:
-		fprintf(stderr, "*** error: unknown chipcard status update\n");
-		break;
-	}
-}
-
 unsigned int chipcard_status(chipcard_t cc)
 {
 	return cc->cc_status;

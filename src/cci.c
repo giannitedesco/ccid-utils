@@ -34,7 +34,7 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 
 	len = (size_t)ret;
 
-	printf(" Intr: %u byte interrupt packet\n", len);
+	trace(cci, " Intr: %u byte interrupt packet\n", len);
 	if ( len < 1 )
 		return 1;
 
@@ -42,7 +42,8 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 	case RDR_to_PC_NotifySlotChange:
 		assert(2 == len);
 		if ( buf[1] & 0x2 ) {
-			printf("     : Slot status changed to %s\n",
+			fprintf(cci->cci_tf,
+				"     : Slot status changed to %s\n",
 				((buf[1] & 0x1) == 0) ? 
 					"NOT present" : "present");
 			cci->cci_slot[0].cc_status =
@@ -52,7 +53,7 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 		}
 		break;
 	case RDR_to_PC_HardwareError:
-		printf("     : HALT AND CATCH FIRE!!\n");
+		trace(cci, "     : HALT AND CATCH FIRE!!\n");
 		break;
 	default:
 		fprintf(stderr, "*** error: unknown interrupt packet\n");
@@ -65,8 +66,8 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr)
 {
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_DataBlock);
-	printf("     : RDR_to_PC_DataBlock: %u bytes\n", xfr->x_rxlen);
-	hex_dump(xfr->x_rxbuf, xfr->x_rxlen, 16);
+	trace(cci, "     : RDR_to_PC_DataBlock: %u bytes\n", xfr->x_rxlen);
+	hex_dumpf(cci->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
 	return xfr->x_rxhdr->in.bApp; /* APDU chaining parameter */
 }
 
@@ -74,36 +75,36 @@ unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr)
 {
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_SlotStatus);
 
-	printf("     : RDR_to_PC_SlotStatus: ");
+	trace(cci, "     : RDR_to_PC_SlotStatus: ");
 	switch( xfr->x_rxhdr->in.bApp ) {
 	case 0x00:
-		printf("Clock running\n");
+		trace(cci, "Clock running\n");
 		return CHIPCARD_CLOCK_START;
 	case 0x01:
-		printf("Clock stopped in L state\n");
+		trace(cci, "Clock stopped in L state\n");
 		return CHIPCARD_CLOCK_STOP_L;
 	case 0x02:
-		printf("Clock stopped in H state\n");
+		trace(cci, "Clock stopped in H state\n");
 		return CHIPCARD_CLOCK_STOP_H;
 	case 0x03:
-		printf("Clock stopped in unknown state\n");
+		trace(cci, "Clock stopped in unknown state\n");
 		return CHIPCARD_CLOCK_STOP;
 	default:
 		return CHIPCARD_CLOCK_ERR;
 	}
 }
 
-static int _cmd_result(const struct ccid_msg *msg)
+static int _cmd_result(struct _cci *cci, const struct ccid_msg *msg)
 {
 	switch( msg->in.bStatus & CCID_STATUS_RESULT_MASK ) {
 	case CCID_RESULT_SUCCESS:
-		printf("     : Command: SUCCESS\n");
+		trace(cci, "     : Command: SUCCESS\n");
 		return 1;
 	case CCID_RESULT_ERROR:
-		printf("     : Command: FAILED (%d)\n", msg->in.bError);
+		trace(cci, "     : Command: FAILED (%d)\n", msg->in.bError);
 		return 0;
 	case CCID_RESULT_TIMEOUT:
-		printf("     : Command: Time Extension Request\n");
+		trace(cci, "     : Command: Time Extension Request\n");
 		return 0;
 	default:
 		fprintf(stderr, "*** error: unknown command result\n");
@@ -141,6 +142,27 @@ static int do_recv(struct _cci *cci, struct _xfr *xfr)
 	return 1;
 }
 
+static void _chipcard_set_status(struct _chipcard *cc, unsigned int status)
+{
+	switch( status & CCID_SLOT_STATUS_MASK ) {
+	case CCID_STATUS_ICC_ACTIVE:
+		trace(cc->cc_parent, "     : ICC present and active\n");
+		cc->cc_status = CHIPCARD_ACTIVE;
+		break;
+	case CCID_STATUS_ICC_PRESENT:
+		trace(cc->cc_parent, "     : ICC present and inactive\n");
+		cc->cc_status = CHIPCARD_PRESENT;
+		break;
+	case CCID_STATUS_ICC_NOT_PRESENT:
+		trace(cc->cc_parent, "     : ICC not presnt\n");
+		cc->cc_status = CHIPCARD_NOT_PRESENT;
+		break;
+	default:
+		fprintf(stderr, "*** error: unknown chipcard status update\n");
+		break;
+	}
+}
+
 int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 {
 	const struct ccid_msg *msg;
@@ -150,7 +172,7 @@ int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 
 	msg = xfr->x_rxhdr;
 
-	printf(" Recv: %d bytes for slot %u (seq = 0x%.2x)\n",
+	trace(cci, " Recv: %d bytes for slot %u (seq = 0x%.2x)\n",
 		xfr->x_rxlen, msg->bSlot, msg->bSeq);
 
 	if ( msg->bSlot != slot ) {
@@ -167,7 +189,7 @@ int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 
 	_chipcard_set_status(&cci->cci_slot[msg->bSlot], msg->in.bStatus);
 
-	return _cmd_result(xfr->x_rxhdr);
+	return _cmd_result(cci, xfr->x_rxhdr);
 }
 
 static int _PC_to_RDR(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
@@ -207,8 +229,8 @@ int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	xfr->x_txhdr->bMessageType = PC_to_RDR_XfrBlock;
 	ret = _PC_to_RDR(cci, slot, xfr);
 	if ( ret ) {
-		printf(" Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
-		hex_dump(xfr->x_txbuf, xfr->x_txlen, 16);
+		trace(cci, " Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
+		hex_dumpf(cci->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
 	}
 	return ret;
 }
@@ -222,7 +244,7 @@ int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
 	xfr->x_txhdr->bMessageType = PC_to_RDR_GetSlotStatus;
 	ret = _PC_to_RDR(cci, slot, xfr);
 	if ( ret )
-		printf(" Xmit: PC_to_RDR_GetSlotStatus(%u)\n", slot);
+		trace(cci, " Xmit: PC_to_RDR_GetSlotStatus(%u)\n", slot);
 
 	return ret;
 }
@@ -240,19 +262,19 @@ int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
 	xfr->x_txhdr->out.bApp[0] = voltage & 0xff;
 	ret = _PC_to_RDR(cci, slot, xfr);
 	if ( ret ) {
-		printf(" Xmit: PC_to_RDR_IccPowerOn(%u)\n", slot);
+		trace(cci, " Xmit: PC_to_RDR_IccPowerOn(%u)\n", slot);
 		switch(voltage) {
 		case CHIPCARD_AUTO_VOLTAGE:
-			printf("     : Automatic Voltage Selection\n");
+			trace(cci, "     : Automatic Voltage Selection\n");
 			break;
 		case CHIPCARD_5V:
-			printf("     : 5 Volts\n");
+			trace(cci, "     : 5 Volts\n");
 			break;
 		case CHIPCARD_3V:
-			printf("     : 3 Volts\n");
+			trace(cci, "     : 3 Volts\n");
 			break;
 		case CHIPCARD_1_8V:
-			printf("     : 1.8 Volts\n");
+			trace(cci, "     : 1.8 Volts\n");
 			break;
 		}
 	}
@@ -269,7 +291,7 @@ int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
 	xfr->x_txhdr->bMessageType = PC_to_RDR_IccPowerOff;
 	ret = _PC_to_RDR(cci, slot, xfr);
 	if ( ret ) {
-		printf(" Xmit: PC_to_RDR_IccPowerOff(%u)\n", slot);
+		trace(cci, " Xmit: PC_to_RDR_IccPowerOff(%u)\n", slot);
 	}
 
 	return ret;
@@ -315,7 +337,7 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 
 	switch( ep->bmAttributes ) {
 	case USB_ENDPOINT_TYPE_BULK:
-		printf(" o Bulk %s endpoint at 0x%.2x max=%u bytes\n",
+		trace(cci, " o Bulk %s endpoint at 0x%.2x max=%u bytes\n",
 			(ep->bEndpointAddress &  USB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
 			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK,
@@ -331,7 +353,7 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 		}
 		break;
 	case USB_ENDPOINT_TYPE_INTERRUPT:
-		printf(" o Interrupt %s endpint 0x%.2x nax=%u bytes\n",
+		trace(cci, " o Interrupt %s endpint 0x%.2x nax=%u bytes\n",
 			(ep->bEndpointAddress &  USB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
 			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK,
@@ -362,64 +384,64 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 	cci->cci_num_slots = cci->cci_desc.bMaxSlotIndex + 1;
 	cci->cci_max_slots = cci->cci_desc.bMaxCCIDBusySlots;
 
-	printf(" o got %u/%u byte desc of type 0x%.2x\n",
+	trace(cci, " o got %u/%u byte desc of type 0x%.2x\n",
 		len, sizeof(cci->cci_desc), cci->cci_desc.bDescriptorType);
-	printf(" o CCID version %u.%u device with %u/%u slots in parallel\n",
+	trace(cci, " o CCID version %u.%u device with %u/%u slots in parallel\n",
 			bcd_hi(cci->cci_desc.bcdCCID),
 			bcd_lo(cci->cci_desc.bcdCCID),
 			cci->cci_max_slots, cci->cci_num_slots);
 
 
-	printf(" o Voltages:");
+	trace(cci, " o Voltages:");
 	if ( cci->cci_desc.bVoltageSupport & CCID_5V )
-		printf(" 5V");
+		trace(cci, " 5V");
 	if ( cci->cci_desc.bVoltageSupport & CCID_3V )
-		printf(" 3V");
+		trace(cci, " 3V");
 	if ( cci->cci_desc.bVoltageSupport & CCID_1_8V )
-		printf(" 1.8V");
-	printf("\n");
+		trace(cci, " 1.8V");
+	trace(cci, "\n");
 
-	printf(" o Protocols: ");
+	trace(cci, " o Protocols: ");
 	if ( cci->cci_desc.dwProtocols & CCID_T0 )
-		printf(" T=0");
+		trace(cci, " T=0");
 	if ( cci->cci_desc.dwProtocols & CCID_T1 )
-		printf(" T=1");
-	printf("\n");
+		trace(cci, " T=1");
+	trace(cci, "\n");
 
-	printf(" o Default Clock Freq.: %uKHz\n", cci->cci_desc.dwDefaultClock);
-	printf(" o Max. Clock Freq.: %uKHz\n", cci->cci_desc.dwMaximumClock);
-	//printf("   .bNumClocks = %u\n", cci->cci_desc.bNumClockSupported);
-	printf(" o Default Data Rate: %ubps\n", cci->cci_desc.dwDataRate);
-	printf(" o Max. Data Rate: %ubps\n", cci->cci_desc.dwMaxDataRate);
-	//printf("   .bNumDataRates = %u\n", cci->cci_desc.bNumDataRatesSupported);
-	printf(" o T=1 Max. IFSD = %u\n", cci->cci_desc.dwMaxIFSD);
-	//printf("   .dwSynchProtocols = 0x%.8x\n",
+	trace(cci, " o Default Clock Freq.: %uKHz\n", cci->cci_desc.dwDefaultClock);
+	trace(cci, " o Max. Clock Freq.: %uKHz\n", cci->cci_desc.dwMaximumClock);
+	//trace(cci, "   .bNumClocks = %u\n", cci->cci_desc.bNumClockSupported);
+	trace(cci, " o Default Data Rate: %ubps\n", cci->cci_desc.dwDataRate);
+	trace(cci, " o Max. Data Rate: %ubps\n", cci->cci_desc.dwMaxDataRate);
+	//trace(cci, "   .bNumDataRates = %u\n", cci->cci_desc.bNumDataRatesSupported);
+	trace(cci, " o T=1 Max. IFSD = %u\n", cci->cci_desc.dwMaxIFSD);
+	//trace(cci, "   .dwSynchProtocols = 0x%.8x\n",
 	//	cci->cci_desc.dwSynchProtocols);
-	//printf("   .dwMechanical = 0x%.8x\n", cci->cci_desc.dwMechanical);
+	//trace(cci, "   .dwMechanical = 0x%.8x\n", cci->cci_desc.dwMechanical);
 	
 	if ( cci->cci_desc.dwFeatures & CCID_ATR_CONFIG )
-		printf(" o Paramaters configured from ATR\n");
+		trace(cci, " o Paramaters configured from ATR\n");
 	if ( cci->cci_desc.dwFeatures & CCID_ACTIVATE )
-		printf(" o Chipcard auto-activate\n");
+		trace(cci, " o Chipcard auto-activate\n");
 	if ( cci->cci_desc.dwFeatures & CCID_VOLTAGE )
-		printf(" o Auto Voltage Select\n");
+		trace(cci, " o Auto Voltage Select\n");
 	if ( cci->cci_desc.dwFeatures & CCID_FREQ )
-		printf(" o Auto Clock Freq. Select\n");
+		trace(cci, " o Auto Clock Freq. Select\n");
 	if ( cci->cci_desc.dwFeatures & CCID_BAUD )
-		printf(" o Auto Data Rate Select\n");
+		trace(cci, " o Auto Data Rate Select\n");
 	if ( cci->cci_desc.dwFeatures & CCID_CLOCK_STOP )
-		printf(" o Clock Stop Mode\n");
+		trace(cci, " o Clock Stop Mode\n");
 	if ( cci->cci_desc.dwFeatures & CCID_NAD )
-		printf(" o NAD value other than 0 permitted\n");
+		trace(cci, " o NAD value other than 0 permitted\n");
 	if ( cci->cci_desc.dwFeatures & CCID_IFSD )
-		printf(" o Auto IFSD on first exchange\n");
+		trace(cci, " o Auto IFSD on first exchange\n");
 	
 	switch ( cci->cci_desc.dwFeatures & (CCID_PPS_VENDOR|CCID_PPS) ) {
 	case CCID_PPS_VENDOR:
-		printf(" o Proprietary parameter selection algorithm\n");
+		trace(cci, " o Proprietary parameter selection algorithm\n");
 		break;
 	case CCID_PPS:
-		printf(" o Chipcard automatic PPD\n");
+		trace(cci, " o Chipcard automatic PPD\n");
 		break;
 	default:
 		fprintf(stderr, "PPS/PPS_VENDOR conflict in descriptor\n");
@@ -429,13 +451,13 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 	switch ( cci->cci_desc.dwFeatures &
 		(CCID_T1_TPDU|CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
 	case CCID_T1_TPDU:
-		printf(" o T=1 TPDU\n");
+		trace(cci, " o T=1 TPDU\n");
 		break;
 	case CCID_T1_APDU:
-		printf(" o T=1 APDU (Short)\n");
+		trace(cci, " o T=1 APDU (Short)\n");
 		break;
 	case CCID_T1_APDU_EXT:
-		printf(" o T=1 APDU (Short and Extended)\n");
+		trace(cci, " o T=1 APDU (Short and Extended)\n");
 		break;
 	default:
 		fprintf(stderr, "T=1 PDU conflict in descriptor\n");
@@ -443,34 +465,35 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 	}
 
 
-	printf(" o Max. Message Length: %u bytes\n",
+	trace(cci, " o Max. Message Length: %u bytes\n",
 		cci->cci_desc.dwMaxCCIDMessageLength);
 
 	if ( cci->cci_desc.dwFeatures & (CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
-		printf(" o APDU Default GetResponse: %u\n",
+		trace(cci, " o APDU Default GetResponse: %u\n",
 			cci->cci_desc.bClassGetResponse);
-		printf(" o APDU Default Envelope: %u\n",
+		trace(cci, " o APDU Default Envelope: %u\n",
 			cci->cci_desc.bClassEnvelope);
 	}
 
 	if ( cci->cci_desc.wLcdLayout ) {
-		printf(" o LCD Layout: %ux%u\n",
+		trace(cci, " o LCD Layout: %ux%u\n",
 			bcd_hi(cci->cci_desc.wLcdLayout),
 			bcd_lo(cci->cci_desc.wLcdLayout));
 	}
 
 	switch ( cci->cci_desc.bPINSupport & (CCID_PIN_VER|CCID_PIN_MOD) ) {
 	case CCID_PIN_VER:
-		printf(" o PIN verification supported\n");
+		trace(cci, " o PIN verification supported\n");
 		break;
 	case CCID_PIN_MOD:
-		printf(" o PIN modification supported\n");
+		trace(cci, " o PIN modification supported\n");
 		break;
 	case CCID_PIN_VER|CCID_PIN_MOD:
-		printf(" o PIN verification and modification supported\n");
+		trace(cci, " o PIN verification and modification supported\n");
 		break;
 	}
 
+	hex_dumpf(cci->cci_tf, ptr, len, 16);
 	return 1;
 }
 
@@ -485,7 +508,7 @@ static int probe_descriptors(struct _cci *cci)
 	if ( sz < 0 )
 		return 0;
 
-	printf(" o Fetching config descriptor\n");
+	trace(cci, " o Fetching config descriptor\n");
 
 	for(ptr = dbuf, end = ptr + sz; ptr + 2 < end; ) {
 		if ( ptr + ptr[0] > end )
@@ -508,7 +531,7 @@ static int probe_descriptors(struct _cci *cci)
 				valid_ccid = 1;
 			break;
 		default:
-			printf(" o Unknown descriptor 0x%.2x\n", ptr[1]);
+			trace(cci, " o Unknown descriptor 0x%.2x\n", ptr[1]);
 			break;
 		}
 
@@ -524,7 +547,7 @@ static int probe_descriptors(struct _cci *cci)
 	return 1;
 }
 
-cci_t cci_probe(ccidev_t dev)
+cci_t cci_probe(ccidev_t dev, const char *tracefile)
 {
 	struct _cci *cci = NULL;
 	unsigned int x;
@@ -536,13 +559,22 @@ cci_t cci_probe(ccidev_t dev)
 		goto out;
 	}
 
-	printf("Probe CCI on dev %s/%s %d:%d:%d\n",
-		dev->bus->dirname, dev->filename, c, i, a);
-
 	/* First initialize data structures */
 	cci = calloc(1, sizeof(*cci));
 	if ( NULL == cci )
 		goto out;
+
+	if ( tracefile ) {
+		if ( !strcmp("-", tracefile) )
+			cci->cci_tf = stdout;
+		else
+			cci->cci_tf = fopen(tracefile, "w");
+		if ( cci->cci_tf == NULL )
+			goto out_free;
+	}
+
+	trace(cci, "Probe CCI on dev %s/%s %d:%d:%d\n",
+		dev->bus->dirname, dev->filename, c, i, a);
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
