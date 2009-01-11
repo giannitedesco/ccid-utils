@@ -9,6 +9,9 @@
 #include <Python.h>
 #include <structmember.h>
 
+/* chipcard is the only dodgy part, this type can only be created via
+ * a call to cci.get_slot()
+ */
 struct cp_chipcard {
 	PyObject_HEAD;
 	PyObject *owner;
@@ -35,7 +38,7 @@ static int cp_xfr_init(struct cp_xfr *self, PyObject *args, PyObject *kwds)
 
 	self->xfr = xfr_alloc(tx, rx);
 	if ( NULL == self->xfr ) {
-		PyErr_SetString(PyExc_MemoryError, "Allocating chipcard");
+		PyErr_SetString(PyExc_MemoryError, "Allocating buffer");
 		return -1;
 	}
 
@@ -148,7 +151,7 @@ static PyObject *cp_chipcard_transact(struct cp_chipcard *self, PyObject *args)
 	struct cp_xfr *xfr;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -171,7 +174,7 @@ static PyObject *cp_chipcard_transact(struct cp_chipcard *self, PyObject *args)
 static PyObject *cp_chipcard_wait(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -183,7 +186,7 @@ static PyObject *cp_chipcard_wait(struct cp_chipcard *self, PyObject *args)
 static PyObject *cp_chipcard_status(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -195,7 +198,7 @@ static PyObject *cp_chipcard_clock(struct cp_chipcard *self, PyObject *args)
 	long ret;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -213,7 +216,7 @@ static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 	int voltage = CHIPCARD_AUTO_VOLTAGE;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -236,7 +239,7 @@ static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 static PyObject *cp_chipcard_off(struct cp_chipcard *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad chipcard");
+		PyErr_SetString(PyExc_ValueError, "Bad slot");
 		return NULL;
 	}
 
@@ -250,23 +253,23 @@ static PyObject *cp_chipcard_off(struct cp_chipcard *self, PyObject *args)
 
 static PyMethodDef cp_chipcard_methods[] = {
 	{"wait_for_card", (PyCFunction)cp_chipcard_wait, METH_NOARGS,	
-		"chipcard.wait_for_card()\n"
+		"slot.wait_for_card()\n"
 		"Sleep until the end of time, or until a card is inserted."
 		"whichever comes soonest."},
 	{"status", (PyCFunction)cp_chipcard_status, METH_NOARGS,	
-		"chipcard.status()\n"
+		"slot.status()\n"
 		"Get status of the slot."},
 	{"clock_status", (PyCFunction)cp_chipcard_clock, METH_NOARGS,	
-		"chipcard.status()\n"
+		"slot.status()\n"
 		"Get chip card clock status."},
 	{"on", (PyCFunction)cp_chipcard_on, METH_VARARGS,	
-		"chipcard.on(voltage=CHIPCARD_AUTO_VOLTAGE)\n"
+		"slotchipcard.on(voltage=CHIPCARD_AUTO_VOLTAGE)\n"
 		"Power on card and retrieve ATR."},
 	{"off", (PyCFunction)cp_chipcard_off, METH_NOARGS,	
-		"chipcard.off()\n"
+		"slot.off()\n"
 		"Power off card."},
 	{"transact", (PyCFunction)cp_chipcard_transact, METH_VARARGS,	
-		"chipcard.transact(xfr) - chipcard transaction."},
+		"slot.transact(xfr) - chipcard transaction."},
 	{NULL, }
 };
 
@@ -429,7 +432,7 @@ PyMODINIT_FUNC initccid(void)
 	PyModule_AddObject(m, "xfr", (PyObject *)&xfr_pytype);
 
 	Py_INCREF(&chipcard_pytype);
-	PyModule_AddObject(m, "chipcard", (PyObject *)&chipcard_pytype);
+	PyModule_AddObject(m, "slot", (PyObject *)&chipcard_pytype);
 
 	Py_INCREF(&cci_pytype);
 	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
