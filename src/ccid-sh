@@ -1,0 +1,319 @@
+#!/usr/bin/python
+
+import os, readline, atexit
+import ccid
+
+class cmd:
+	def __init__(self, func, help):
+		self.__func = func
+		self.__help = help
+	def func(self):
+		return self.__func
+	def help(self):
+		return self.__help
+
+class scsh:
+	def cmd_quit(self, str, *arg):
+		raise SystemExit
+
+	def cmd_help(self, str, *arg):
+		self.out("You need help:")
+		keys = self.__cmd.keys()
+		keys.sort()
+		for x in keys:
+			self.out("  %-10s: %s"%(x, self.__cmd[x].help()))
+
+	def cmd_on(self, str, *arg):
+		if len(arg):
+			if arg[0].upper() == "AUTO":
+				v = ccid.CHIPCARD_AUTO_VOLTAGE
+			elif arg[0].upper() == "5":
+				v = ccid.CHIPCARD_5V
+			elif arg[0].upper() == "3":
+				v = ccid.CHIPCARD_3V
+			elif arg[0].upper() == "1.8":
+				v = ccid.CHIPCARD_1_8V
+			else:
+				self.out("Bad voltage: expected "
+						"AUTO, 5, 3 or 1.8")
+				return
+		else:
+			v = ccid.CHIPCARD_AUTO_VOLTAGE
+		self.__slot.on(v)
+
+	def cmd_off(self, str, *arg):
+		self.__slot.off()
+
+	def cmd_wait(self, str, *arg):
+		self.__slot.wait_for_card()
+
+	def cmd_rxlen(self, str, *arg):
+		if len(arg):
+			newrx = int(arg[0])
+			if newrx != self.__rxlen:
+				self.__rxlen = newrx
+				self.__xfr = ccid.xfr(self.__txlen,
+					self.__rxlen)
+
+		self.out("RX_LEN = %u"%self.__rxlen)
+
+	def cmd_txlen(self, str, *arg):
+		if len(arg):
+			newtx = int(arg[0])
+			if newtx != self.__txlen:
+				self.__txlen = newtx
+				self.__xfr = ccid.xfr(self.__txlen,
+					self.__txlen)
+
+		self.out("TX_LEN = %u"%self.__txlen)
+
+	def cmd_cla(self, str, *arg):
+		if len(arg):
+			self.__cla = int(arg[0], 16) & 0xff
+		self.out("CLA = 0x%.2x"%self.__cla)
+
+	def cmd_transmit(self, str, *arg):
+		self.__xfr.reset()
+		self.__xfr.tx_byte(self.__cla)
+		for x in arg:
+			self.__xfr.tx_byte(int(x, 16))
+		self.__slot.transact(self.__xfr)
+		self.__dump_results()
+	
+	def cmd_select(self, str, *arg):
+		self.__xfr.reset()
+		self.__xfr.tx_byte(self.__cla)
+		self.__xfr.tx_byte(0xa4)
+		if len(arg):
+			self.__xfr.tx_byte(0x4)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(len(arg[0]))
+			self.__xfr.tx_str(arg[0])
+		else:
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(2)
+			self.__xfr.tx_byte(0x3f)
+			self.__xfr.tx_byte(0x00)
+		self.__slot.transact(self.__xfr)
+
+		if self.__xfr.rx_sw1() == 0x61:
+			sw2 = self.__xfr.rx_sw2()
+			self.__xfr.reset()
+			self.__xfr.tx_byte(self.__cla)
+			self.__xfr.tx_byte(0xc0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(sw2)
+			self.__slot.transact(self.__xfr)
+
+		self.__dump_results()
+
+
+	def cmd_status(self, str, *arg):
+		# clock first because it updates status
+		c = self.__slot.clock_status()
+		s = self.__slot.status()
+
+		if s == ccid.CHIPCARD_ACTIVE:
+			self.out("Status: ACTIVE")
+		elif s == ccid.CHIPCARD_PRESENT:
+			self.out("Status: PRESENT")
+		elif s == ccid.CHIPCARD_NOT_PRESENT:
+			self.out("Status: NOT PRESENT")
+
+		if c == ccid.CHIPCARD_CLOCK_START:
+			self.out("Clock: Running")
+		elif c == ccid.CHIPCARD_CLOCK_STOP_L:
+			self.out("Clock: Stopped in LO state")
+		elif c == ccid.CHIPCARD_CLOCK_STOP_H:
+			self.out("Clock: Stopped in HI state")
+		elif c == ccid.CHIPCARD_CLOCK_STOP:
+			self.out("Clock: Stopped")
+
+	def cmd_brutecla(self, str, *arg):
+		ret = {}
+		i = 0
+		while i < 0x100:
+			self.__xfr.reset()
+			self.__xfr.tx_byte(i)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__slot.transact(self.__xfr)
+			sw1 = self.__xfr.rx_sw1()
+			if sw1 != 0x6e:
+				if not ret.has_key(sw1):
+					ret[sw1] = []
+				ret[sw1].append(i)
+			i += 1
+
+		for x in ret.keys():
+			self.out("Found %u classes, SW1 = %s (0x%.2x)"%(
+					len(ret[x]), self.get_str_sw1(x), x))
+			for y in ret[x]:
+				self.out(" o CLA 0x%.2x"%y)
+
+	def cmd_bruteins(self, str, *arg):
+		ret = {}
+		i = 0
+		while i < 0x100:
+			self.__xfr.reset()
+			self.__xfr.tx_byte(self.__cla)
+			self.__xfr.tx_byte(i)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			self.__xfr.tx_byte(0)
+			try:
+				self.__slot.transact(self.__xfr)
+			except:
+				i += 1
+				continue
+			sw1 = self.__xfr.rx_sw1()
+			if sw1 != 0x6d and sw1 != 0x6e:
+				if not ret.has_key(sw1):
+					ret[sw1] = []
+				ret[sw1].append(i)
+			i += 1
+
+		for x in ret.keys():
+			self.out("Found %u instructions, SW1 = %s (0x%.2x)"%(
+					len(ret[x]), self.get_str_sw1(x), x))
+			for y in ret[x]:
+				str = self.get_str_ins(y)
+				if y == None:
+					self.out(" o INS 0x%.2x"%y)
+				else:
+					self.out(" o INS 0x%.2x (%s)"%(y, str))
+
+	def get_str_ins(self, ins):
+		ret = {
+			0x0e: "ERASE_BINARY",
+			0x20: "VERIFY",
+			0x70: "MANAGE_CHANNEL",
+			0x82: "EXT_AUTHENTICATE",
+			0x84: "GET_CHALLENGE",
+			0x88: "INT_AUTHENTICATE",
+			0xa4: "SELECT_FILE",
+			0xb0: "READ_BINARY",
+			0xb2: "READ_RECORDS",
+			0xc0: "GET_RESPONSE",
+			0xc2: "ENVELOPE",
+			0xca: "GET_DATA",
+			0xd0: "WRITE_BINARY",
+			0xd2: "WRITE_RECORD",
+			0xd6: "UPDATE_BINARY",
+			0xda: "PUT_DATA",
+			0xdc: "UPDATE_DATA",
+			0xe2: "APPEND_RECORD"
+		}
+		if ret.has_key(ins):
+			return ret[ins]
+		return None
+
+	def get_str_sw1(self, sw1):
+		ret = {
+			0x61: "Insufficient buffer space",
+			0x62: "Non-Volatile memory unchanged",
+			0x63: "Volatile memory changed",
+			0x64: "NV-RAM unchanged",
+			0x65: "NV-RAM changed",
+			0x66: "Security Issues ;)",
+			0x67: "Wrong length",
+			0x68: "Functions in CLA not supported",
+			0x69: "Permission.... DENIED",
+			0x6a: "Bad parameters P1,P2",
+			0x6b: "Bad parameters P1,P2",
+			0x6c: "Wrong Le field",
+			0x6d: "Bad INS",
+			0x6e: "Bad CLA",
+			0x6f: "No precise diagnosis",
+			0x90: "Success" }
+		if ret.has_key(sw1):
+			return ret[sw1]
+		else:
+			return "%.2x"%sw1
+
+	def __dump_results(self):
+		self.out("SW1 = 0x%.2x : SW2 = 0x%.2x : %s"%(
+				self.__xfr.rx_sw1(),
+				self.__xfr.rx_sw2(),
+				self.get_str_sw1(self.__xfr.rx_sw1())))
+		ret = self.__xfr.rx_data()
+		if len(ret):
+			ccid.hex_dump(ret);
+
+	def __init__(self, tracefile=None):
+		self.__cci = ccid.cci(tracefile)
+		self.__slot = self.__cci.get_slot(0)
+		self.__txlen = 1024
+		self.__rxlen = 1024
+		self.__xfr = ccid.xfr(self.__txlen, self.__rxlen)
+		self.__cla = 0
+		self.__cmd = {
+			"status": cmd(self.cmd_status, "Slot status."),
+			"slot_on": cmd(self.cmd_on, "Enable Chipcard."),
+			"slot_off": cmd(self.cmd_off, "Disable Chipcard."),
+			"quit": cmd(self.cmd_quit, "Quit this shit."),
+			"help": cmd(self.cmd_help, "Print this message."),
+			"wait": cmd(self.cmd_wait, "Wait for card."),
+			"rx_len": cmd(self.cmd_rxlen, "Set RX len."),
+			"tx_len": cmd(self.cmd_txlen, "Set TX len."),
+			"cla": cmd(self.cmd_cla, "Set CLA."),
+			"transmit": cmd(self.cmd_transmit, "Send PDU."),
+			"brute_cla": cmd(self.cmd_brutecla,
+						"Brute-force CLA."),
+			"brute_ins": cmd(self.cmd_bruteins,
+						"Brute-force INS."),
+			"cd": cmd(self.cmd_select,
+					"Change working directory."),
+			"?": cmd(self.cmd_help, "Print this message.")
+		}
+
+	def prompt(self):
+		status = self.__slot.status()
+		if status == ccid.CHIPCARD_NOT_PRESENT:
+			return "scsh-$ "
+		else:
+			return "scsh-# "
+
+	def out(self, str):
+		print "scsh> " + str
+
+	def command(self, str):
+		arg = str.split()
+		if len(arg) < 1:
+			return
+		str = str[len(arg[0]):]
+		if not self.__cmd.has_key(arg[0]):
+			self.out("Unknown command: %s"%arg[0])
+			return
+		try:
+			self.__cmd[arg[0]].func()(str, *arg[1:])
+		except IOError:
+			if self.__slot.status() == ccid.CHIPCARD_NOT_PRESENT:
+				self.out("Card not present!!")
+			else:
+				self.out("Transaction Error!!")
+
+######### PROGRAM MAIN LOOP #########
+if __name__ == '__main__':
+	histfile = os.path.join(os.environ["HOME"], ".scsh")
+	try:
+		readline.read_history_file(histfile)
+	except IOError:
+		pass
+
+	atexit.register(readline.write_history_file, histfile)
+	del os, histfile
+
+	shell = scsh("scsh.log")
+	while True:
+		try:
+			str = raw_input(shell.prompt())
+		except EOFError:
+			print
+			break
+
+		shell.command(str);
