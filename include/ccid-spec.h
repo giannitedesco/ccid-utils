@@ -6,8 +6,28 @@
 #ifndef _CCID_SPEC_H
 #define _CCID_SPEC_H
 
+/* Descriptor type */
 #define CCID_DT				0x21U
+
+/* Max slots */
 #define CCID_MAX_SLOTS			0x10U
+
+#define CCID_ERR_ABORT			0xff
+#define CCID_ERR_MUTE			0xfe
+#define CCID_ERR_PARITY			0xfd
+#define CCID_ERR_OVERRUN		0xfc
+#define CCID_ERR_HARDWARE		0xfb
+#define CCID_ERR_BAD_TS			0xf8
+#define CCID_ERR_BAD_TCK		0xf7
+#define CCID_ERR_PROTOCOL		0xf6
+#define CCID_ERR_CLASS			0xf5
+#define CCID_ERR_PROCEDURE		0xf4
+#define CCID_ERR_DEACTIVATED		0xf3
+#define CCID_ERR_AUTO_SEQ		0xf2
+#define CCID_ERR_PIN_TIMEOUT		0xf0
+#define CCID_ERR_BUSY			0xe0
+#define CCID_ERR_USR_MIN		0x81
+#define CCID_ERR_USR_MAX		0xc0
 
 /* Yes of course, all the world is a PC.... (or a RDR) */
 /* Bulk IN */

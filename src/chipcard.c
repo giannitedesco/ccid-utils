@@ -68,16 +68,20 @@ int chipcard_slot_off(chipcard_t cc)
 	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
 		return 0;
 	
-	_RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
-
-	return 1;
+	return _RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
 }
 
 int chipcard_wait_for_card(chipcard_t cc)
 {
-	while( cc->cc_status == CHIPCARD_NOT_PRESENT )
-		if ( !_cci_wait_for_interrupt(cc->cc_parent) )
-			return 0;
+	struct _cci *cci = cc->cc_parent;
+
+	do {
+		_PC_to_RDR_GetSlotStatus(cci, cc->cc_idx, cci->cci_xfr);
+		_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr);
+		if ( cc->cc_status != CHIPCARD_NOT_PRESENT )
+			break;
+		_cci_wait_for_interrupt(cci);
+	} while( cc->cc_status == CHIPCARD_NOT_PRESENT );
 	return 1;
 }
 

@@ -23,15 +23,20 @@ static size_t x_tbuflen(struct _xfr *xfr)
 
 int _cci_wait_for_interrupt(struct _cci *cci)
 {
-	uint8_t buf[cci->cci_max_intr];
+	const uint8_t *buf;
 	int ret;
 	size_t len;
 
 	ret = usb_interrupt_read(cci->cci_dev, cci->cci_intrp,
-				(void *)buf, cci->cci_max_intr, 0);
+				(void *)cci->cci_xfr->x_rxhdr,
+				x_rbuflen(cci->cci_xfr), 250);
 	if ( ret < 0 )
 		return 0;
+	
+	if ( ret == 0 )
+		return 1;
 
+	buf = (void *)cci->cci_xfr->x_rxhdr;
 	len = (size_t)ret;
 
 	trace(cci, " Intr: %u byte interrupt packet\n", len);
@@ -42,8 +47,7 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 	case RDR_to_PC_NotifySlotChange:
 		assert(2 == len);
 		if ( buf[1] & 0x2 ) {
-			fprintf(cci->cci_tf,
-				"     : Slot status changed to %s\n",
+			trace(cci, "     : Slot status changed to %s\n",
 				((buf[1] & 0x1) == 0) ? 
 					"NOT present" : "present");
 			cci->cci_slot[0].cc_status =
@@ -68,7 +72,8 @@ unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr)
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_DataBlock);
 	trace(cci, "     : RDR_to_PC_DataBlock: %u bytes\n", xfr->x_rxlen);
 	hex_dumpf(cci->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
-	return xfr->x_rxhdr->in.bApp; /* APDU chaining parameter */
+	/* APDU chaining parameter */
+	return xfr->x_rxhdr->in.bApp;
 }
 
 unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr)
@@ -101,7 +106,62 @@ static int _cmd_result(struct _cci *cci, const struct ccid_msg *msg)
 		trace(cci, "     : Command: SUCCESS\n");
 		return 1;
 	case CCID_RESULT_ERROR:
-		trace(cci, "     : Command: FAILED (%d)\n", msg->in.bError);
+		switch ( msg->in.bError ) {
+		case CCID_ERR_ABORT:
+			trace(cci, "     : Command: ERR: ICC Aborted\n");
+			break;
+		case CCID_ERR_MUTE:
+			trace(cci, "     : Command: ERR: ICC Timed Out\n");
+			break;
+		case CCID_ERR_PARITY:
+			trace(cci, "     : Command: ERR: ICC Parity Error\n");
+			break;
+		case CCID_ERR_OVERRUN:
+			trace(cci, "     : Command: ERR: ICC Buffer Overrun\n");
+			break;
+		case CCID_ERR_HARDWARE:
+			trace(cci, "     : Command: ERR: Hardware Error\n");
+			break;
+		case CCID_ERR_BAD_TS:
+			trace(cci, "     : Command: ERR: Bad ATR TS\n");
+			break;
+		case CCID_ERR_BAD_TCK:
+			trace(cci, "     : Command: ERR: Bad ATR TCK\n");
+			break;
+		case CCID_ERR_PROTOCOL:
+			trace(cci, "     : Command: ERR: "
+					"Unsupported Protocol\n");
+			break;
+		case CCID_ERR_CLASS:
+			trace(cci, "     : Command: ERR: Unsupported CLA\n");
+			break;
+		case CCID_ERR_PROCEDURE:
+			trace(cci, "     : Command: ERR: "
+					"Procedure Byte Conflict\n");
+			break;
+		case CCID_ERR_DEACTIVATED:
+			trace(cci, "     : Command: ERR: "
+					"Deactivated Protocl\n");
+			break;
+		case CCID_ERR_AUTO_SEQ:
+			trace(cci, "     : Command: ERR: "
+					"Busy with Auto-Sequencing\n");
+			break;
+		case CCID_ERR_PIN_TIMEOUT:
+			trace(cci, "     : Command: ERR: PIN timeout\n");
+			break;
+		case CCID_ERR_BUSY:
+			trace(cci, "     : Command: ERR: Slot Busy\n");
+			break;
+		case CCID_ERR_USR_MIN ... CCID_ERR_USR_MAX:
+			trace(cci, "     : Command: FAILED (0x%.2x)\n",
+				msg->in.bError);
+			break;
+		default:
+			trace(cci, "     : Command: FAILED (RESERVED 0x%.2x)\n",
+				msg->in.bError);
+			break;
+		}
 		return 0;
 	case CCID_RESULT_TIMEOUT:
 		trace(cci, "     : Command: Time Extension Request\n");
