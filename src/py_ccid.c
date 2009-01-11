@@ -331,8 +331,8 @@ static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 		return -1;
 	}
 
-	if ( !PyArg_ParseTuple(args, "|s", &trace) )
-		return NULL;
+	if ( !PyArg_ParseTuple(args, "|z", &trace) )
+		return -1;
 
 	self->dev = cci_probe(dev, trace);
 	if ( NULL == self->dev ) {
