@@ -226,7 +226,9 @@ static void _chipcard_set_status(struct _chipcard *cc, unsigned int status)
 int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 {
 	const struct ccid_msg *msg;
+	unsigned int try = 10;
 
+again:
 	if ( !do_recv(cci, xfr) )
 		return 0;
 
@@ -248,6 +250,9 @@ int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	}
 
 	_chipcard_set_status(&cci->cci_slot[msg->bSlot], msg->in.bStatus);
+
+	if ( xfr->x_rxhdr->in.bStatus == CCID_RESULT_TIMEOUT && try )
+		goto again;
 
 	return _cmd_result(cci, xfr->x_rxhdr);
 }
