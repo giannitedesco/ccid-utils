@@ -39,7 +39,10 @@ class scsh:
 				return
 		else:
 			v = ccid.CHIPCARD_AUTO_VOLTAGE
-		self.__slot.on(v)
+		atr = self.__slot.on(v)
+		if len(atr):
+			self.out("Got %u bytes ATR:"%len(atr))
+		ccid.hex_dump(atr)
 
 	def cmd_off(self, str, *arg):
 		self.__slot.off()
@@ -356,7 +359,6 @@ class scsh:
 				len(ret)))
 		if len(ret):
 			if ber:
-				ccid.hex_dump(ret);
 				ccid.ber_dump(ret);
 			else:
 				ccid.hex_dump(ret);

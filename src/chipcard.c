@@ -30,7 +30,8 @@ unsigned int chipcard_slot_status(chipcard_t cc)
 	return _RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
 }
 
-int chipcard_slot_on(chipcard_t cc, unsigned int voltage)
+const uint8_t *chipcard_slot_on(chipcard_t cc, unsigned int voltage,
+				size_t *atr_len)
 {
 	struct _cci *cci = cc->cc_parent;
 
@@ -41,7 +42,9 @@ int chipcard_slot_on(chipcard_t cc, unsigned int voltage)
 		return 0;
 	
 	_RDR_to_PC_DataBlock(cci, cci->cci_xfr);
-	return 1;
+	if ( atr_len )
+		*atr_len = cci->cci_xfr->x_rxlen;
+	return cci->cci_xfr->x_rxbuf;
 }
 
 int chipcard_transact(chipcard_t cc, xfr_t xfr)

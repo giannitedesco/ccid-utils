@@ -32,7 +32,7 @@ static int found_cci(ccidev_t dev)
 		goto out_close;
 
 	printf("\nPOWER ON SLOT\n");
-	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE) )
+	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
 #if 0

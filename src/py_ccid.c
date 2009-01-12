@@ -218,6 +218,8 @@ static PyObject *cp_chipcard_clock(struct cp_chipcard *self, PyObject *args)
 static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 {
 	int voltage = CHIPCARD_AUTO_VOLTAGE;
+	const uint8_t *ptr;
+	size_t atr_len;
 
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad slot");
@@ -232,13 +234,13 @@ static PyObject *cp_chipcard_on(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
-	if ( !chipcard_slot_on(self->slot, voltage) ) {
+	ptr = chipcard_slot_on(self->slot, voltage, &atr_len);
+	if ( NULL == ptr ) {
 		PyErr_SetString(PyExc_IOError, "Transaction error");
 		return NULL;
 	}
 
-	Py_INCREF(Py_None);
-	return Py_None;
+	return Py_BuildValue("s#", ptr, (int)atr_len);
 }
 
 static PyObject *cp_chipcard_off(struct cp_chipcard *self, PyObject *args)

@@ -67,7 +67,8 @@ unsigned int chipcard_slot_status(chipcard_t cc);
 #define CHIPCARD_5V		0x1
 #define CHIPCARD_3V		0x2
 #define CHIPCARD_1_8V		0x3
-int chipcard_slot_on(chipcard_t cc, unsigned int voltage);
+const uint8_t *chipcard_slot_on(chipcard_t cc, unsigned int voltage,
+				size_t *atr_len);
 int chipcard_slot_off(chipcard_t cc);
 
 int chipcard_transact(chipcard_t cc, xfr_t xfr);
