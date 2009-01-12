@@ -65,13 +65,13 @@ static unsigned int ber_len_form_short(const uint8_t cls)
 
 static unsigned int ber_len_short(const uint8_t cls)
 {
-	return cls & ~0x80;
+	return cls & 0x7f;
 }
 
 void ber_dump(const uint8_t *buf, size_t len, unsigned int depth)
 {
 	const uint8_t *end = buf + len;
-	uint32_t clen;
+	uint32_t clen, num, i;
 	uint8_t idb;
 
 	const char * const clsname[]={
@@ -86,57 +86,57 @@ again:
 		return;
 
 	idb = *buf;
-	printf("%*c.id_byte = 0x%.2x\n", depth, ' ', *buf);
-	printf("%*c o class: %s\n", depth, ' ',
-		clsname[ber_id_octet_class(*buf)]);
-	printf("%*c o constructed: %s\n", depth, ' ',
-		ber_id_octet_constructed(*buf) ? "yes" : "no");
-	printf("%*c o tag: %.2x\n", depth, ' ',
-		ber_id_octet_tag(*buf));
-	/* FIXME: if ( tag == 0x1f ) get rest of type... */
+	num = ber_id_octet_tag(*buf);
 	buf++;
+
+	/* FIXME: if ( tag == 0x1f ) get rest of type... */
+	if ( num >= 0x1f ) {
+		for(num = 0, i = 0; buf < end; i++) {
+			num <<= 7;
+			num |= *buf & 0x7f;
+			buf++;
+			if ( !(*buf & 0x80) )
+				break;
+		}
+	}
+
+	printf("%*c.tag = %u (0x%x)\n", depth, ' ', num, num);
 
 	if ( buf >= end )
 		return;
 
-	printf("%*c.len = %u (0x%.2x)\n",
-		depth, ' ', *buf, *buf);
-	printf("%*c o length form: %s\n", depth, ' ',
-		ber_len_form_short(*buf) ? "short" : "long");
 	if ( ber_len_form_short(*buf) ) {
 		clen = ber_len_short(*buf);
 		buf++;
 	}else{
-		uint32_t i, l;
+		uint32_t l;
 
 		l = ber_len_short(*buf);
-		printf("%*c o length of length: %u\n", depth, ' ', l);
 		if ( l > 4 || buf + l > end )
 			return;
 		buf++;
-		for(clen = i = 0; i < l; i++) {
+		for(clen = i = 0; i < l; i++, buf++) {
 			clen <<= 8;
 			clen |= *buf;
-			buf++;
 		}
 
 	}
-	printf("%*c o length: %u\n", depth, ' ', clen);
 
 	if ( buf + clen > end )
 		return;
 
+	printf("%*c.len = %u (0x%x)",
+		depth, ' ', len, len);
+
 	if ( ber_id_octet_constructed(idb) ) {
-		printf("%*c ----\n", depth, ' ');
+		printf(" {\n");
 		ber_dump(buf, clen, depth + 2);
+		printf("%*c}\n", depth, ' ');
 	}else{
+		printf("\n");
 		hex_dump(buf, clen, 16, depth);
 	}
 
 	buf += clen;
 	goto again;
-
-	/* if tag number == 0x1f, following octets contain the rest of the
-	 * tag until one with 0x80 is found
-	 */
 }
