@@ -79,35 +79,104 @@ class scsh:
 			self.__xfr.tx_byte(int(x, 16))
 		self.__slot.transact(self.__xfr)
 		self.__dump_results()
-	
-	def cmd_select(self, str, *arg):
-		self.__xfr.reset()
-		self.__xfr.tx_byte(self.__cla)
-		self.__xfr.tx_byte(0xa4)
-		if len(arg):
-			self.__xfr.tx_byte(0x4)
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(len(arg[0]))
-			self.__xfr.tx_str(arg[0])
-		else:
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(2)
-			self.__xfr.tx_byte(0x3f)
-			self.__xfr.tx_byte(0x00)
-		self.__slot.transact(self.__xfr)
 
-		if self.__xfr.rx_sw1() == 0x61:
-			sw2 = self.__xfr.rx_sw2()
+	def select_by_id(self, str, args):
+		self.out("select by id: %r %s"%(args, str))
+		return
+
+	def select_by_name(self, str, args):
+		try:
+			name = ''
+			for x in args:
+				name += chr(int(x, 16))
+		except:
+			name = str
+		self.do_select(1<<2, 0, name)
+
+	def select_by_path(self, str, args):
+		self.out("select by path: %r %s"%(args, str))
+		return
+
+	def do_select(self, p1, p2, data):
+		(sw1, sw2, foo) = self.pdu(0xa4, p1, p2, data, 0)
+		del foo
+		if sw1 == 0x61 or sw1 == 0x9f:
+			self.pdu(0xc0, 0, 0, le = sw2)
+
+	def cmd_select(self, str, *arg):
+		if len(arg) == 0:
+			self.out("select (id|name|path) [optional..]")
+			return
+
+		str = str[len(arg[0]):].lstrip()
+		if arg[0] == "id":
+			self.select_by_id(str, arg[1:])
+		elif arg[0] == "name":
+			self.select_by_name(str, arg[1:])
+		elif arg[0] == "path":
+			self.select_by_path(str, arg[1:])
+		else:
+			self.out("select by id name or path?")
+			return
+
+		self.__dump_results(ber=True)
+
+	def cmd_get(self, str, *arg):
+		if not len(arg):
+			self.out("Must specify data object ID")
+			return
+
+		x = int(arg[0], 16)
+
+		x = 0
+		while x < 0x10000:
 			self.__xfr.reset()
 			self.__xfr.tx_byte(self.__cla)
-			self.__xfr.tx_byte(0xc0)
+			self.__xfr.tx_byte(0xca)
+			self.__xfr.tx_byte((x >> 8))
+			self.__xfr.tx_byte(x)
 			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(sw2)
 			self.__slot.transact(self.__xfr)
+			if self.__xfr.rx_sw1() == 0x6c:
+				self.out("0x%.2x"%x)
+				sw2 = self.__xfr.rx_sw2()
+				self.__xfr.reset()
+				self.__xfr.tx_byte(self.__cla)
+				self.__xfr.tx_byte(0xca)
+				self.__xfr.tx_byte((x >> 8))
+				self.__xfr.tx_byte(x)
+				self.__xfr.tx_byte(sw2)
+				self.__slot.transact(self.__xfr)
+				self.__dump_results(ber=True)
+			elif self.__xfr.rx_sw1() != 0x6a and \
+					self.__xfr.rx_sw1() != 0x69:
+				self.__dump_results(ber=True)
+			x += 1
 
+	def cmd_challenge(self, str, *arg):
+		if len(arg):
+			le = int(arg[0])
+		else:
+			le = 8
+
+		self.pdu(0x84, 0, 0, le = le)
 		self.__dump_results()
+
+	def cmd_read_rec(self, str, *arg):
+		if len(arg) < 2:
+			self.out("Must specify data object ID")
+			return
+
+		sfi = int(arg[0])
+		rec = int(arg[1])
+
+		(sw1, sw2, tmp) = self.pdu(0xb2, rec, (sfi << 3) | 4, le = 0)
+		del tmp 
+
+		if sw1 == 0x6c:
+			self.pdu(0xb2, rec, (sfi << 3) | 4, le = sw2)
+
+		self.__dump_results(ber=True)
 
 
 	def cmd_status(self, str, *arg):
@@ -134,7 +203,7 @@ class scsh:
 	def cmd_brutecla(self, str, *arg):
 		ret = {}
 		i = 0
-		while i < 0x100:
+		while i < 0xff:
 			self.__xfr.reset()
 			self.__xfr.tx_byte(i)
 			self.__xfr.tx_byte(0)
@@ -153,39 +222,43 @@ class scsh:
 			self.out("Found %u classes, SW1 = %s (0x%.2x)"%(
 					len(ret[x]), self.get_str_sw1(x), x))
 			for y in ret[x]:
-				self.out(" o CLA 0x%.2x"%y)
+				self.out(" o CLA %.2x"%y)
 
 	def cmd_bruteins(self, str, *arg):
 		ret = {}
 		i = 0
 		while i < 0x100:
-			self.__xfr.reset()
-			self.__xfr.tx_byte(self.__cla)
-			self.__xfr.tx_byte(i)
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(0)
-			self.__xfr.tx_byte(0)
 			try:
-				self.__slot.transact(self.__xfr)
+				if i == 0xa4:
+					p1 = 0xff
+					p2 = 0xff
+				else:
+					p1 = 0
+					p2 = 0
+				(sw1, sw2, foo) = self.pdu(i, p1, p2, le = 0)
+				del foo
 			except:
+				print "INS %.2x made card freak"%i
 				i += 1
 				continue
-			sw1 = self.__xfr.rx_sw1()
 			if sw1 != 0x6d and sw1 != 0x6e:
 				if not ret.has_key(sw1):
 					ret[sw1] = []
-				ret[sw1].append(i)
+				ret[sw1].append((i, sw2))
 			i += 1
 
 		for x in ret.keys():
 			self.out("Found %u instructions, SW1 = %s (0x%.2x)"%(
 					len(ret[x]), self.get_str_sw1(x), x))
-			for y in ret[x]:
+			for (y,sw2) in ret[x]:
 				str = self.get_str_ins(y)
 				if y == None:
-					self.out(" o INS 0x%.2x"%y)
+					str = ""
 				else:
-					self.out(" o INS 0x%.2x (%s)"%(y, str))
+					str = " (%s)"%str
+
+				self.out(" o INS %.2x%-22s SW2=0x%.2x"%(
+					y, str, sw2))
 
 	def get_str_ins(self, ins):
 		ret = {
@@ -193,11 +266,11 @@ class scsh:
 			0x20: "VERIFY",
 			0x70: "MANAGE_CHANNEL",
 			0x82: "EXT_AUTHENTICATE",
-			0x84: "GET_CHALLENGE",
 			0x88: "INT_AUTHENTICATE",
 			0xa4: "SELECT_FILE",
 			0xb0: "READ_BINARY",
 			0xb2: "READ_RECORDS",
+			0xb4: "GET_CHALLENGE",
 			0xc0: "GET_RESPONSE",
 			0xc2: "ENVELOPE",
 			0xca: "GET_DATA",
@@ -210,6 +283,23 @@ class scsh:
 		}
 		if ret.has_key(ins):
 			return ret[ins]
+
+		if self.__cla != 0xa0:
+			return None
+		gsm = {
+			0xa2: "GSM_SEEK",
+			0x32: "GSM_INCREASE",
+			0x20: "GSM_VERIFY_CHV",
+			0x26: "GSM_DISABLE_CHV",
+			0x28: "GSM_ENABLE_CHV",
+			0x2c: "GSM_UNBLOCK_CHV",
+			0x04: "GSM_INVALIDATE",
+			0x44: "GSM_REHABILITATE",
+			0x88: "GSM_RUN_GSM",
+			0xfa: "GSM_SLEEP",
+		}
+		if gsm.has_key(ins):
+			return gsm[ins]
 		return None
 
 	def get_str_sw1(self, sw1):
@@ -235,14 +325,41 @@ class scsh:
 		else:
 			return "%.2x"%sw1
 
-	def __dump_results(self):
-		self.out("SW1 = 0x%.2x : SW2 = 0x%.2x : %s"%(
+	def pdu(self, ins, p1, p2, data = None, le = None):
+		self.__xfr.reset()
+		self.__xfr.tx_byte(self.__cla)
+		self.__xfr.tx_byte(ins)
+		self.__xfr.tx_byte(p1)
+		self.__xfr.tx_byte(p2)
+		totlen = 4
+		if data != None:
+			self.__xfr.tx_byte(len(data)) # Lc
+			self.__xfr.tx_str(data)
+			totlen += 1 + len(data)
+		if  le != None:
+			self.__xfr.tx_byte(le)
+			totlen += 1
+		while totlen < 5:
+			self.__xfr.tx_byte(0)
+			totlen += 1
+		self.__slot.transact(self.__xfr)
+		return (self.__xfr.rx_sw1(),
+				self.__xfr.rx_sw2(),
+				self.__xfr.rx_data())
+
+	def __dump_results(self, ber = False):
+		ret = self.__xfr.rx_data()
+		self.out("SW1 = 0x%.2x : SW2 = 0x%.2x : %s (%u bytes)"%(
 				self.__xfr.rx_sw1(),
 				self.__xfr.rx_sw2(),
-				self.get_str_sw1(self.__xfr.rx_sw1())))
-		ret = self.__xfr.rx_data()
+				self.get_str_sw1(self.__xfr.rx_sw1()),
+				len(ret)))
 		if len(ret):
-			ccid.hex_dump(ret);
+			if ber:
+				ccid.hex_dump(ret);
+				ccid.ber_dump(ret);
+			else:
+				ccid.hex_dump(ret);
 
 	def __init__(self, tracefile=None):
 		self.__cci = ccid.cci(tracefile)
@@ -266,26 +383,29 @@ class scsh:
 						"Brute-force CLA."),
 			"brute_ins": cmd(self.cmd_bruteins,
 						"Brute-force INS."),
-			"cd": cmd(self.cmd_select,
-					"Change working directory."),
+			"select": cmd(self.cmd_select, "Select a file."),
+			"read_rec": cmd(self.cmd_read_rec, "Read a record."),
+			"challenge": cmd(self.cmd_challenge,
+						"Get a NONCE for EXT. AUTH."),
+			"get": cmd(self.cmd_get, "Get data object."),
 			"?": cmd(self.cmd_help, "Print this message.")
 		}
 
 	def prompt(self):
 		status = self.__slot.status()
 		if status == ccid.CHIPCARD_NOT_PRESENT:
-			return "scsh-$ "
+			return "ccid-$ "
 		else:
-			return "scsh-# "
+			return "ccid-# "
 
 	def out(self, str):
-		print "scsh> " + str
+		print "ccid> " + str
 
 	def command(self, str):
 		arg = str.split()
 		if len(arg) < 1:
 			return
-		str = str[len(arg[0]):]
+		str = str[len(arg[0]):].lstrip()
 		if not self.__cmd.has_key(arg[0]):
 			self.out("Unknown command: %s"%arg[0])
 			return
@@ -299,7 +419,7 @@ class scsh:
 
 ######### PROGRAM MAIN LOOP #########
 if __name__ == '__main__':
-	histfile = os.path.join(os.environ["HOME"], ".scsh")
+	histfile = os.path.join(os.environ["HOME"], ".ccid-sh")
 	try:
 		readline.read_history_file(histfile)
 	except IOError:
@@ -308,7 +428,7 @@ if __name__ == '__main__':
 	atexit.register(readline.write_history_file, histfile)
 	del os, histfile
 
-	shell = scsh("scsh.log")
+	shell = scsh("ccid-sh.log")
 	while True:
 		try:
 			str = raw_input(shell.prompt())
