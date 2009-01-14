@@ -72,7 +72,7 @@ class scsh:
 
 	def cmd_cla(self, str, *arg):
 		if len(arg):
-			self.__cla = int(arg[0], 16) & 0xff
+			self.__cla = int(arg[0], 0) & 0xff
 		self.out("CLA = 0x%.2x"%self.__cla)
 
 	def cmd_transmit(self, str, *arg):
@@ -83,24 +83,31 @@ class scsh:
 		self.__slot.transact(self.__xfr)
 		self.__dump_results()
 
-	def select_by_id(self, str, args):
-		self.out("select by id: %r %s"%(args, str))
-		return
+	def select_by_id(self, str, *arg):
+		if len(arg) == 1 and arg[0] == "..":
+			# select parent DF
+			self.do_select(3, 0)
+		elif len(arg):
+			id = int(arg[0], 0)
+			idbuf = chr(id >> 8) + chr(id & 0xff)
+			self.do_select(0, 0, idbuf)
+		else:
+			raise ValueError, "id (..|id)"
 
-	def select_by_name(self, str, args):
+
+	def select_by_name(self, str, *arg):
 		try:
 			name = ''
-			for x in args:
+			for x in arg:
 				name += chr(int(x, 16))
 		except:
 			name = str
 		self.do_select(1<<2, 0, name)
 
-	def select_by_path(self, str, args):
-		self.out("select by path: %r %s"%(args, str))
-		return
+	def select_by_path(self, str, *arg):
+		raise ValueError, "Not implemented"
 
-	def do_select(self, p1, p2, data):
+	def do_select(self, p1, p2, data = None):
 		(sw1, sw2, foo) = self.pdu(0xa4, p1, p2, data, 0)
 		del foo
 		if sw1 == 0x61 or sw1 == 0x9f:
@@ -108,28 +115,25 @@ class scsh:
 
 	def cmd_select(self, str, *arg):
 		if len(arg) == 0:
-			self.out("select (id|name|path) [optional..]")
-			return
+			raise ValueError, "(id|name|path) [optional..]"
 
 		str = str[len(arg[0]):].lstrip()
 		if arg[0] == "id":
-			self.select_by_id(str, arg[1:])
+			self.select_by_id(str, *arg[1:])
 		elif arg[0] == "name":
-			self.select_by_name(str, arg[1:])
+			self.select_by_name(str, *arg[1:])
 		elif arg[0] == "path":
-			self.select_by_path(str, arg[1:])
+			self.select_by_path(str, *arg[1:])
 		else:
-			self.out("select by id name or path?")
-			return
+			raise ValueError, "by id name or path?"
 
 		self.__dump_results(ber=True)
 
 	def cmd_get(self, str, *arg):
 		if not len(arg):
-			self.out("Must specify data object ID")
-			return
+			raise ValueError, "Must specify data object ID"
 
-		x = int(arg[0], 16)
+		x = int(arg[0], 0)
 
 		x = 0
 		while x < 0x10000:
@@ -167,16 +171,19 @@ class scsh:
 
 	def cmd_read_rec(self, str, *arg):
 		if len(arg) < 2:
-			self.out("Must specify data object ID")
-			return
+			raise ValueError, "Must specify data object ID"
 
-		sfi = int(arg[0])
-		rec = int(arg[1])
+		sfi = int(arg[1])
+		rec = int(arg[0])
+		if len(arg) > 2:
+			le = int(arg[2])
+		else:
+			le = 0
 
-		(sw1, sw2, tmp) = self.pdu(0xb2, rec, (sfi << 3) | 4, le = 0)
+		(sw1, sw2, tmp) = self.pdu(0xb2, rec, (sfi << 3) | 4, le = le)
 		del tmp 
 
-		if sw1 == 0x6c:
+		if sw1 == 0x6c or sw1 == 0x67:
 			self.pdu(0xb2, rec, (sfi << 3) | 4, le = sw2)
 
 		self.__dump_results(ber=True)
@@ -227,17 +234,41 @@ class scsh:
 			for y in ret[x]:
 				self.out(" o CLA %.2x"%y)
 
+	def cmd_brutefs(self, str, *arg):
+		ret = {}
+		i = 0
+		while i < 0x10000:
+			idbuf = chr(i >> 8) + chr(i & 0xff)
+			self.do_select(0, 0, idbuf)
+			sw1 = self.__xfr.rx_sw1()
+			if sw1 != 0x6e and sw1 != 0x6e and sw1 != 0x94:
+				if not ret.has_key(sw1):
+					ret[sw1] = []
+				ret[sw1].append(i)
+			i += 1
+
+		for x in ret.keys():
+			self.out("Found %u objects, SW1 = %s (0x%.2x)"%(
+					len(ret[x]), self.get_str_sw1(x), x))
+			for y in ret[x][:200]:
+				self.out(" o ID %.2x"%y)
+			if len(ret[x]) > 200:
+				self.out("Some results ommitted...")
+
+
 	def cmd_bruteins(self, str, *arg):
 		ret = {}
 		i = 0
 		while i < 0x100:
+			# Try not to select a file incase commands are
+			# file-specific.
+			if i == 0xa4:
+				p1 = 0xff
+				p2 = 0xff
+			else:
+				p1 = 0
+				p2 = 0
 			try:
-				if i == 0xa4:
-					p1 = 0xff
-					p2 = 0xff
-				else:
-					p1 = 0
-					p2 = 0
 				(sw1, sw2, foo) = self.pdu(i, p1, p2, le = 0)
 				del foo
 			except:
@@ -308,8 +339,8 @@ class scsh:
 	def get_str_sw1(self, sw1):
 		ret = {
 			0x61: "Insufficient buffer space",
-			0x62: "Non-Volatile memory unchanged",
-			0x63: "Volatile memory changed",
+			0x62: "RAM unchanged",
+			0x63: "RAM changed",
 			0x64: "NV-RAM unchanged",
 			0x65: "NV-RAM changed",
 			0x66: "Security Issues ;)",
@@ -385,6 +416,8 @@ class scsh:
 						"Brute-force CLA."),
 			"brute_ins": cmd(self.cmd_bruteins,
 						"Brute-force INS."),
+			"brute_fs": cmd(self.cmd_brutefs,
+						"Brute-force DF/EF."),
 			"select": cmd(self.cmd_select, "Select a file."),
 			"read_rec": cmd(self.cmd_read_rec, "Read a record."),
 			"challenge": cmd(self.cmd_challenge,
@@ -417,7 +450,9 @@ class scsh:
 			if self.__slot.status() == ccid.CHIPCARD_NOT_PRESENT:
 				self.out("Card not present!!")
 			else:
-				self.out("Transaction Error!!")
+				pass
+		except Exception, e:
+			self.out("Bad Arguments: %s: %s"%(arg[0], e.message))
 
 ######### PROGRAM MAIN LOOP #########
 if __name__ == '__main__':
