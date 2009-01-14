@@ -12,6 +12,8 @@
 
 #include "ccid-internal.h"
 
+#define MIN_RESP_LEN 2U
+
 xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf)
 {
 	uint8_t *ptr;
@@ -73,7 +75,7 @@ int xfr_tx_buf(xfr_t xfr, const uint8_t *ptr, size_t len)
 uint8_t xfr_rx_sw1(xfr_t xfr)
 {
 	uint8_t *end;
-	assert(xfr->x_rxlen >= 2U);
+	assert(xfr->x_rxlen >= MIN_RESP_LEN);
 	end = xfr->x_rxbuf + xfr->x_rxlen;
 	return end[-2];
 }
@@ -81,17 +83,16 @@ uint8_t xfr_rx_sw1(xfr_t xfr)
 uint8_t xfr_rx_sw2(xfr_t xfr)
 {
 	uint8_t *end;
-	assert(xfr->x_rxlen >= 2U);
+	assert(xfr->x_rxlen >= MIN_RESP_LEN);
 	end = xfr->x_rxbuf + xfr->x_rxlen;
 	return end[-1];
 }
 
 const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len)
 {
-	if ( xfr->x_rxlen < 2 )
+	if ( xfr->x_rxlen < MIN_RESP_LEN )
 		return NULL;
-	
-	*len = xfr->x_rxlen - 2;
+	*len = xfr->x_rxlen - MIN_RESP_LEN;
 	return xfr->x_rxbuf;
 }
 
