@@ -2,12 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
 #include <ctype.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 
 static void hex_dump(const uint8_t *tmp, size_t len,
 			size_t llen, unsigned int depth)
@@ -43,10 +38,12 @@ static void hex_dump(const uint8_t *tmp, size_t len,
 	printf("\n");
 }
 
+#if 0
 static unsigned int ber_id_octet_class(const uint8_t cls)
 {
 	return (cls & 0xc0) >> 6;
 }
+#endif
 
 static unsigned int ber_id_octet_constructed(const uint8_t cls)
 {
@@ -73,14 +70,14 @@ void ber_dump(const uint8_t *buf, size_t len, unsigned int depth)
 	const uint8_t *end = buf + len;
 	uint32_t clen, num, i;
 	uint8_t idb;
-
+#if 0
 	const char * const clsname[]={
 		"universal",
 		"application",
 		"context-specific",
 		"private",
 	};
-
+#endif
 again:
 	if ( buf >= end )
 		return;
