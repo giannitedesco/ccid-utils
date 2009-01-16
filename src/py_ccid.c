@@ -362,11 +362,26 @@ static PyObject *cp_cci_slots(struct cp_cci *self, PyObject *args)
 	return PyInt_FromLong(cci_slots(self->dev));
 }
 
+static PyObject *cp_log(struct cp_cci *self, PyObject *args)
+{
+	const char *str;
+
+	if ( !PyArg_ParseTuple(args, "s", &str) )
+		return NULL;
+	
+	cci_log(self->dev, "%s", str);
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyMethodDef cp_cci_methods[] = {
 	{"num_slots", (PyCFunction)cp_cci_slots, METH_VARARGS,	
 		"cci.num_slots() - Number of CCI slots on device."},
 	{"get_slot", (PyCFunction)cp_get_slot, METH_VARARGS,	
 		"cci.get_slots(slot) - Number of CCI slots on device."},
+	{"log",(PyCFunction)cp_log, METH_VARARGS,
+		"cci.log(string) - Log some text to the tracefile"},
 	{NULL, }
 };
 

@@ -33,6 +33,7 @@ _public cci_t cci_probe(ccidev_t dev, const char *tracefile);
 _public unsigned int cci_slots(cci_t cci);
 _public chipcard_t cci_get_slot(cci_t cci, unsigned int i);
 _public void cci_close(cci_t cci);
+_public void cci_log(cci_t cci, const char *fmt, ...) _printf(2, 3);
 
 /* -- Xfr */
 _public xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf);

@@ -64,7 +64,7 @@ class scsh:
 			if newrx != self.__rxlen:
 				self.__rxlen = newrx
 				self.__xfr = ccid.xfr(self.__txlen,
-					self.__rxlen)
+							self.__rxlen)
 
 		self.out("RX_LEN = %u"%self.__rxlen)
 
@@ -76,7 +76,7 @@ class scsh:
 			if newtx != self.__txlen:
 				self.__txlen = newtx
 				self.__xfr = ccid.xfr(self.__txlen,
-					self.__rxlen)
+							self.__rxlen)
 
 		self.out("TX_LEN = %u"%self.__txlen)
 
@@ -550,6 +550,9 @@ class scsh:
 		else:
 			return "ccid-# "
 
+	def trace(self, str):
+		self.__cci.log("ccid> " + str + "\n")
+
 	def out(self, str):
 		print "ccid> " + str
 
@@ -558,9 +561,11 @@ class scsh:
 		if len(arg) < 1:
 			return
 		str = str[len(arg[0]):].lstrip()
+
 		if not self.__cmd.has_key(arg[0]):
 			self.out("Unknown command: %s"%arg[0])
 			return
+
 		try:
 			self.__cmd[arg[0]](str, *arg[1:])
 		except IOError:
@@ -574,8 +579,7 @@ class scsh:
 ######### PROGRAM MAIN LOOP #########
 if __name__ == '__main__':
 	# TODO: Parse command line for log-file and databases
-
-	shell = scsh()  # "ccid-sh.log")
+	shell = scsh("ccid-sh.log")
 
 	# Command historry file
 	histfile = os.path.join(os.environ["HOME"], ".ccid-sh")

@@ -9,6 +9,7 @@
 #include <ccid.h>
 
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "ccid-internal.h"
 
@@ -722,4 +723,16 @@ chipcard_t cci_get_slot(cci_t cci, unsigned int i)
 	}else{
 		return NULL;
 	}
+}
+
+void cci_log(cci_t cci, const char *fmt, ...)
+{
+	va_list va;
+
+	if ( NULL == cci->cci_tf )
+		return;
+
+	va_start(va, fmt);
+	vfprintf(cci->cci_tf, fmt, va);
+	va_end(va);
 }
