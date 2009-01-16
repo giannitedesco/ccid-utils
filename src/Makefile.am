@@ -11,8 +11,6 @@ libccid_la_LIBADD = -lusb
 libccid_la_SOURCES = \
 	util.c \
 	ber.c \
-	emv.c \
-	gsm.c \
 	xfr.c \
 	chipcard.c \
 	dev.c \
@@ -24,4 +22,4 @@ ccid_la_LDFLAGS = -avoid-version -export-dynamic -module \
 			@PYTHON_LDADD@
 
 emvtool_LDADD = libccid.la -lusb
-emvtool_SOURCES = main.c
+emvtool_SOURCES = main.c emv.c
