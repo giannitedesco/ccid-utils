@@ -3,27 +3,24 @@
 import os, readline, atexit
 import ccid
 
-class cmd:
-	def __init__(self, func, help):
-		self.__func = func
-		self.__help = help
-	def func(self):
-		return self.__func
-	def help(self):
-		return self.__help
-
 class scsh:
 	def cmd_quit(self, str, *arg):
+		"Exit the shell."
+
 		raise SystemExit
 
 	def cmd_help(self, str, *arg):
+		"Print out a help message."
+
 		self.out("You need help:")
 		keys = self.__cmd.keys()
 		keys.sort()
 		for x in keys:
-			self.out("  %-10s: %s"%(x, self.__cmd[x].help()))
+			self.out("  %-10s: %s"%(x, self.__cmd[x].__doc__))
 
 	def cmd_on(self, str, *arg):
+		"Power on the slot and retrieve ATR."
+
 		if len(arg):
 			if arg[0].upper() == "AUTO":
 				v = ccid.CHIPCARD_AUTO_VOLTAGE
@@ -45,12 +42,18 @@ class scsh:
 		ccid.hex_dump(atr)
 
 	def cmd_off(self, str, *arg):
+		"Power off the slot."
+
 		self.__slot.off()
 
 	def cmd_wait(self, str, *arg):
+		"Wait for card insertion."
+
 		self.__slot.wait_for_card()
 
 	def cmd_rxlen(self, str, *arg):
+		"Set RX len."
+
 		if len(arg):
 			newrx = int(arg[0])
 			if newrx != self.__rxlen:
@@ -61,21 +64,27 @@ class scsh:
 		self.out("RX_LEN = %u"%self.__rxlen)
 
 	def cmd_txlen(self, str, *arg):
+		"Set TX len."
+
 		if len(arg):
 			newtx = int(arg[0])
 			if newtx != self.__txlen:
 				self.__txlen = newtx
 				self.__xfr = ccid.xfr(self.__txlen,
-					self.__txlen)
+					self.__rxlen)
 
 		self.out("TX_LEN = %u"%self.__txlen)
 
 	def cmd_cla(self, str, *arg):
+		"Set CLA."
+
 		if len(arg):
 			self.__cla = int(arg[0], 0) & 0xff
 		self.out("CLA = 0x%.2x"%self.__cla)
 
 	def cmd_transmit(self, str, *arg):
+		"Transmit a raw APDU (except for CLA)."
+
 		self.__xfr.reset()
 		self.__xfr.tx_byte(self.__cla)
 		for x in arg:
@@ -108,12 +117,15 @@ class scsh:
 		raise ValueError, "Not implemented"
 
 	def do_select(self, p1, p2, data = None):
-		(sw1, sw2, foo) = self.pdu(0xa4, p1, p2, data, 0)
-		del foo
+		(sw1, sw2, data) = self.pdu(0xa4, p1, p2, data, 0)
 		if sw1 == 0x61 or sw1 == 0x9f:
-			self.pdu(0xc0, 0, 0, le = sw2)
+			return self.pdu(0xc0, 0, 0, le = sw2)
+		else:
+			return (sw1, sw2, data)
 
 	def cmd_select(self, str, *arg):
+		"Select a file by ID, name or path."
+
 		if len(arg) == 0:
 			raise ValueError, "(id|name|path) [optional..]"
 
@@ -127,9 +139,55 @@ class scsh:
 		else:
 			raise ValueError, "by id name or path?"
 
-		self.__dump_results(ber=True)
+		self.__dump_results()
+
+	def cmd_ber(self, str, *arg):
+		"Enable or disable BER TLV decoding of responses."
+
+		if len(arg):
+			a = arg[0].lower()
+			if a in ["on", "true", "yes"]:
+				self.__ber = True
+			elif a in ["off", "false", "no"]:
+				self.__ber = False
+			else:
+				raise ValueError, "on/off"
+
+		self.out("BER TLV decoding: %s"%( \
+			self.__ber and "on" or "off"))
+
+	def cmd_hex(self, str, *arg):
+		"Enable or disable HEX decoding of responses."
+
+		if len(arg):
+			a = arg[0].lower()
+			if a in ["on", "true", "yes"]:
+				self.__hex = True
+			elif a in ["off", "false", "no"]:
+				self.__hex = False
+			else:
+				raise ValueError, "on/off"
+
+		self.out("HEX decoding: %s"%(self.__hex and "on" or "off"))
 
 	def cmd_get(self, str, *arg):
+		"Get a data object."
+
+		if not len(arg):
+			raise ValueError, "Must specify data object ID"
+
+		x = int(arg[0], 0)
+
+		(sw1, sw2, data) = self.pdu(0xca, x >> 8,  x & 0xff)
+		if sw1 == 0x6c:
+			self.out("0x%.4x"%x)
+			self.pdu(0xca, x >> 8, x & 0xff, le = sw2)
+			self.__dump_results()
+		self.__dump_results()
+
+	def cmd_bruteget(self, str, *arg):
+		"Brute force data objects."
+
 		if not len(arg):
 			raise ValueError, "Must specify data object ID"
 
@@ -137,39 +195,29 @@ class scsh:
 
 		x = 0
 		while x < 0x10000:
-			self.__xfr.reset()
-			self.__xfr.tx_byte(self.__cla)
-			self.__xfr.tx_byte(0xca)
-			self.__xfr.tx_byte((x >> 8))
-			self.__xfr.tx_byte(x)
-			self.__xfr.tx_byte(0)
-			self.__slot.transact(self.__xfr)
-			if self.__xfr.rx_sw1() == 0x6c:
-				self.out("0x%.2x"%x)
-				sw2 = self.__xfr.rx_sw2()
-				self.__xfr.reset()
-				self.__xfr.tx_byte(self.__cla)
-				self.__xfr.tx_byte(0xca)
-				self.__xfr.tx_byte((x >> 8))
-				self.__xfr.tx_byte(x)
-				self.__xfr.tx_byte(sw2)
-				self.__slot.transact(self.__xfr)
-				self.__dump_results(ber=True)
-			elif self.__xfr.rx_sw1() != 0x6a and \
-					self.__xfr.rx_sw1() != 0x69:
-				self.__dump_results(ber=True)
+			(sw1, sw2, data) = self.pdu(0xca, x >> 8,  x & 0xff)
+			if sw1 == 0x6c:
+				self.out("0x%.4x"%x)
+				(sw1, sw2, data) = self.pdu(0xca, x >> 8,
+							x & 0xff, le = sw2)
+			elif sw1 == 0x90:
+				self.__dump_results()
 			x += 1
 
 	def cmd_challenge(self, str, *arg):
+		"Retreive a random number from the card."
+
 		if len(arg):
 			le = int(arg[0])
 		else:
 			le = 8
 
 		self.pdu(0x84, 0, 0, le = le)
-		self.__dump_results()
+		self.__dump_results(ber=False)
 
 	def cmd_read_rec(self, str, *arg):
+		"Read a record from the currently selected file."
+
 		if len(arg) < 2:
 			raise ValueError, "Must specify data object ID"
 
@@ -186,31 +234,33 @@ class scsh:
 		if sw1 == 0x6c or sw1 == 0x67:
 			self.pdu(0xb2, rec, (sfi << 3) | 4, le = sw2)
 
-		self.__dump_results(ber=True)
-
+		self.__dump_results()
 
 	def cmd_status(self, str, *arg):
+		"Display hardware status."
+
 		# clock first because it updates status
 		c = self.__slot.clock_status()
 		s = self.__slot.status()
 
-		if s == ccid.CHIPCARD_ACTIVE:
-			self.out("Status: ACTIVE")
-		elif s == ccid.CHIPCARD_PRESENT:
-			self.out("Status: PRESENT")
-		elif s == ccid.CHIPCARD_NOT_PRESENT:
-			self.out("Status: NOT PRESENT")
+		cstr = {
+			ccid.CHIPCARD_ACTIVE: "ACTIVE",
+			ccid.CHIPCARD_PRESENT: "PRESENT",
+			ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
+		}
+		self.out("Status: " + cstr[c])
 
-		if c == ccid.CHIPCARD_CLOCK_START:
-			self.out("Clock: Running")
-		elif c == ccid.CHIPCARD_CLOCK_STOP_L:
-			self.out("Clock: Stopped in LO state")
-		elif c == ccid.CHIPCARD_CLOCK_STOP_H:
-			self.out("Clock: Stopped in HI state")
-		elif c == ccid.CHIPCARD_CLOCK_STOP:
-			self.out("Clock: Stopped")
+		sstr = {
+			ccid.CHIPCARD_CLOCK_START: "Running",
+			ccid.CHIPCARD_CLOCK_STOP_L: "Stopped in LO state",
+			ccid.CHIPCARD_CLOCK_STOP_H: "Stopped in HI state",
+			ccid.CHIPCARD_CLOCK_STOP: "Stopped"
+		}
+		self.out("Clock: " + sstr[s])
 
 	def cmd_brutecla(self, str, *arg):
+		"Brute force CLA."
+
 		ret = {}
 		i = 0
 		while i < 0xff:
@@ -222,41 +272,70 @@ class scsh:
 			self.__xfr.tx_byte(0)
 			self.__slot.transact(self.__xfr)
 			sw1 = self.__xfr.rx_sw1()
+			sw2 = self.__xfr.rx_sw2()
 			if sw1 != 0x6e:
-				if not ret.has_key(sw1):
-					ret[sw1] = []
-				ret[sw1].append(i)
+				if not ret.has_key((sw1, sw2)):
+					ret[(sw1, sw2)] = []
+				ret[(sw1, sw2)].append(i)
 			i += 1
 
-		for x in ret.keys():
-			self.out("Found %u classes, SW1 = %s (0x%.2x)"%(
-					len(ret[x]), self.get_str_sw1(x), x))
-			for y in ret[x]:
-				self.out(" o CLA %.2x"%y)
+		for k in ret.keys():
+			(sw1, sw2) = k
+			self.out("Found %u classes, SW1=%.2x SW2=%.2x: %s"%(
+					len(ret[k]), sw1, sw2,
+					self.get_str_sw(sw1, sw2)))
+			for v in ret[k]:
+				self.out(" o CLA %.2x"%v)
 
 	def cmd_brutefs(self, str, *arg):
+		"Brute force file ID's."
+
 		ret = {}
-		i = 0
+		i = 0x3f01
+
+		dir = []
+		for elem in arg:
+			x = int(elem, 0)
+			idbuf = chr(x >> 8) + chr(x & 0xff)
+			dir.append(idbuf)
+
+		for d in dir:
+			self.do_select(0, 0, d)
+
 		while i < 0x10000:
+			if i == 0x3f00:
+				i += 1
+				continue
 			idbuf = chr(i >> 8) + chr(i & 0xff)
-			self.do_select(0, 0, idbuf)
+			self.do_select(0x0, 0, idbuf)
 			sw1 = self.__xfr.rx_sw1()
-			if sw1 != 0x6e and sw1 != 0x6e and sw1 != 0x94:
-				if not ret.has_key(sw1):
-					ret[sw1] = []
-				ret[sw1].append(i)
+			sw2 = self.__xfr.rx_sw2()
+			if not ret.has_key((sw1, sw2)):
+				ret[(sw1, sw2)] = []
+			if len(ret[(sw1, sw2)]) < 100:
+				ret[(sw1, sw2)].append(i)
+			if len(ret[(sw1, sw2)]) == 100:
+				ret[(sw1, sw2)].append(None)
+			if sw1 == 0x90:
+				for d in dir:
+					self.do_select(0, 0, d)
+
 			i += 1
 
-		for x in ret.keys():
-			self.out("Found %u objects, SW1 = %s (0x%.2x)"%(
-					len(ret[x]), self.get_str_sw1(x), x))
-			for y in ret[x][:200]:
-				self.out(" o ID %.2x"%y)
-			if len(ret[x]) > 200:
-				self.out("Some results ommitted...")
-
+		for k in ret.keys():
+			(sw1, sw2) = k
+			self.out("Found %u objects, SW1=%.2x SW2=%.2x: %s"%(
+					len(ret[k]), sw1, sw2, 
+					self.get_str_sw(sw1, sw2)))
+			for v in ret[k]:
+				if v == None:
+					self.out(" o Some results ommitted...")
+				else:
+					self.out(" o ID 0x%.4x"%v)
 
 	def cmd_bruteins(self, str, *arg):
+		"Brute force INS."
+
 		ret = {}
 		i = 0
 		while i < 0x100:
@@ -268,96 +347,119 @@ class scsh:
 			else:
 				p1 = 0
 				p2 = 0
+
 			try:
-				(sw1, sw2, foo) = self.pdu(i, p1, p2, le = 0)
-				del foo
+				self.pdu(i, p1, p2, le = 0)
 			except:
 				print "INS %.2x made card freak"%i
 				i += 1
 				continue
+
+			sw1 = self.__xfr.rx_sw1()
+			sw2 = self.__xfr.rx_sw2()
 			if sw1 != 0x6d and sw1 != 0x6e:
-				if not ret.has_key(sw1):
-					ret[sw1] = []
-				ret[sw1].append((i, sw2))
+				if not ret.has_key((sw1, sw2)):
+					ret[(sw1, sw2)] = []
+				ret[(sw1, sw2)].append(i)
 			i += 1
 
-		for x in ret.keys():
-			self.out("Found %u instructions, SW1 = %s (0x%.2x)"%(
-					len(ret[x]), self.get_str_sw1(x), x))
-			for (y,sw2) in ret[x]:
-				str = self.get_str_ins(y)
-				if y == None:
+		for k in ret.keys():
+			(sw1, sw2) = k
+			self.out("Found %u objects, SW1=%.2x SW2=%.2x: %s"%(
+					len(ret[k]), sw1, sw2, 
+					self.get_str_sw(sw1, sw2)))
+			for v in ret[k]:
+				str = self.get_str_ins(v)
+				if str == None:
 					str = ""
 				else:
 					str = " (%s)"%str
 
-				self.out(" o INS %.2x%-22s SW2=0x%.2x"%(
-					y, str, sw2))
+				self.out(" o INS %.2x%s"%(v, str))
 
 	def get_str_ins(self, ins):
-		ret = {
-			0x0e: "ERASE_BINARY",
-			0x20: "VERIFY",
-			0x70: "MANAGE_CHANNEL",
-			0x82: "EXT_AUTHENTICATE",
-			0x88: "INT_AUTHENTICATE",
-			0xa4: "SELECT_FILE",
-			0xb0: "READ_BINARY",
-			0xb2: "READ_RECORDS",
-			0xb4: "GET_CHALLENGE",
-			0xc0: "GET_RESPONSE",
-			0xc2: "ENVELOPE",
-			0xca: "GET_DATA",
-			0xd0: "WRITE_BINARY",
-			0xd2: "WRITE_RECORD",
-			0xd6: "UPDATE_BINARY",
-			0xda: "PUT_DATA",
-			0xdc: "UPDATE_DATA",
-			0xe2: "APPEND_RECORD"
-		}
-		if ret.has_key(ins):
-			return ret[ins]
-
-		if self.__cla != 0xa0:
+		if not self.__ins_db.has_key(ins):
 			return None
-		gsm = {
-			0xa2: "GSM_SEEK",
-			0x32: "GSM_INCREASE",
-			0x20: "GSM_VERIFY_CHV",
-			0x26: "GSM_DISABLE_CHV",
-			0x28: "GSM_ENABLE_CHV",
-			0x2c: "GSM_UNBLOCK_CHV",
-			0x04: "GSM_INVALIDATE",
-			0x44: "GSM_REHABILITATE",
-			0x88: "GSM_RUN_GSM",
-			0xfa: "GSM_SLEEP",
-		}
-		if gsm.has_key(ins):
-			return gsm[ins]
-		return None
+		ent = self.__ins_db[ins]
+		if len(ent) == 1:
+			return ent[0][0]
 
-	def get_str_sw1(self, sw1):
-		ret = {
-			0x61: "Insufficient buffer space",
-			0x62: "RAM unchanged",
-			0x63: "RAM changed",
-			0x64: "NV-RAM unchanged",
-			0x65: "NV-RAM changed",
-			0x66: "Security Issues ;)",
-			0x67: "Wrong length",
-			0x68: "Functions in CLA not supported",
-			0x69: "Permission.... DENIED",
-			0x6a: "Bad parameters P1,P2",
-			0x6b: "Bad parameters P1,P2",
-			0x6c: "Wrong Le field",
-			0x6d: "Bad INS",
-			0x6e: "Bad CLA",
-			0x6f: "No precise diagnosis",
-			0x90: "Success" }
-		if ret.has_key(sw1):
-			return ret[sw1]
-		else:
-			return "%.2x"%sw1
+		for (name, cla) in ent:
+			if cla == None:
+				continue
+			if self.__cla == cla:
+				return name
+
+		return '/'.join(map(lambda x:x[0], ent))
+
+	def load_ins_db(self, fn = 'ins.db'):
+		f = open(fn)
+		while True:
+			l = f.readline()
+			if l == '':
+				break
+			if l[0] == '#':
+				continue
+
+			tok = l.split()
+
+			if len(tok) == 2:
+				cla = None
+			elif len(tok) == 3:
+				cla = int(tok[2], 0)
+			else:
+				raise ValueError, "Malformed INS file"
+
+			ins = int(tok[0], 0)
+			name = tok[1]
+			del tok
+
+			if not self.__ins_db.has_key(ins):
+				self.__ins_db[ins] = []
+			self.__ins_db[ins].append((name, cla))
+
+	def load_sw_db(self, fn = 'sw.db'):
+		f = open(fn)
+		cur = None
+		while True:
+			l = f.readline()
+			if l == '':
+				break
+			if l[0] == '#':
+				continue
+
+			tok = l[:-1].split(None, 1)
+			if len(tok) != 2:
+				raise ValueError, "Malformed SW file"
+
+			sw = int(tok[0], 0)
+			name = tok[1]
+			del tok
+
+			if l[0] == '\t':
+				(name, d) = cur
+				d[sw] = name
+			else:
+				if not self.__sw_db.has_key(sw):
+					self.__sw_db[sw] = (name, {})
+
+				cur = self.__sw_db[sw]
+
+	def get_str_sw(self, sw1 = None, sw2 = None):
+		if sw1 == None:
+			sw1 = self.__xfr.rx_sw1()
+		if sw2 == None:
+			sw2 = self.__xfr.rx_sw2()
+
+		if not self.__sw_db.has_key(sw1):
+			return 'Unknown'
+
+		(name, d) = self.__sw_db[sw1]
+
+		if not d.has_key(sw2):
+			return name
+
+		return d[sw2]
 
 	def pdu(self, ins, p1, p2, data = None, le = None):
 		self.__xfr.reset()
@@ -381,18 +483,25 @@ class scsh:
 				self.__xfr.rx_sw2(),
 				self.__xfr.rx_data())
 
-	def __dump_results(self, ber = False):
+	def __dump_results(self, ber = None):
 		ret = self.__xfr.rx_data()
 		self.out("SW1 = 0x%.2x : SW2 = 0x%.2x : %s (%u bytes)"%(
 				self.__xfr.rx_sw1(),
 				self.__xfr.rx_sw2(),
-				self.get_str_sw1(self.__xfr.rx_sw1()),
+				self.get_str_sw(),
 				len(ret)))
 		if len(ret):
-			if ber:
+			if ber == None:
+				if self.__hex:
+					ccid.hex_dump(ret);
+				if self.__ber:
+					ccid.ber_dump(ret);
+			elif ber == True:
 				ccid.ber_dump(ret);
-			else:
+			elif ber == False:
 				ccid.hex_dump(ret);
+			else:
+				raise ValueError, "ber == %r"%ber
 
 	def __init__(self, tracefile=None):
 		self.__cci = ccid.cci(tracefile)
@@ -401,29 +510,32 @@ class scsh:
 		self.__rxlen = 1024
 		self.__xfr = ccid.xfr(self.__txlen, self.__rxlen)
 		self.__cla = 0
+		self.__hex = True
+		self.__ber = False
+		self.__ins_db = {}
+		self.__sw_db = {}
 		self.__cmd = {
-			"status": cmd(self.cmd_status, "Slot status."),
-			"slot_on": cmd(self.cmd_on, "Enable Chipcard."),
-			"slot_off": cmd(self.cmd_off, "Disable Chipcard."),
-			"quit": cmd(self.cmd_quit, "Quit this shit."),
-			"help": cmd(self.cmd_help, "Print this message."),
-			"wait": cmd(self.cmd_wait, "Wait for card."),
-			"rx_len": cmd(self.cmd_rxlen, "Set RX len."),
-			"tx_len": cmd(self.cmd_txlen, "Set TX len."),
-			"cla": cmd(self.cmd_cla, "Set CLA."),
-			"transmit": cmd(self.cmd_transmit, "Send PDU."),
-			"brute_cla": cmd(self.cmd_brutecla,
-						"Brute-force CLA."),
-			"brute_ins": cmd(self.cmd_bruteins,
-						"Brute-force INS."),
-			"brute_fs": cmd(self.cmd_brutefs,
-						"Brute-force DF/EF."),
-			"select": cmd(self.cmd_select, "Select a file."),
-			"read_rec": cmd(self.cmd_read_rec, "Read a record."),
-			"challenge": cmd(self.cmd_challenge,
-						"Get a NONCE for EXT. AUTH."),
-			"get": cmd(self.cmd_get, "Get data object."),
-			"?": cmd(self.cmd_help, "Print this message.")
+			"status":	self.cmd_status,
+			"slot_on":	self.cmd_on,
+			"slot_off":	self.cmd_off,
+			"quit":		self.cmd_quit,
+			"wait":		self.cmd_wait,
+			"rx_len":	self.cmd_rxlen,
+			"tx_len":	self.cmd_txlen,
+			"cla":		self.cmd_cla,
+			"transmit":	self.cmd_transmit,
+			"brute_cla":	self.cmd_brutecla,
+			"brute_ins":	self.cmd_bruteins,
+			"brute_get":	self.cmd_bruteget,
+			"brute_fs":	self.cmd_brutefs,
+			"select":	self.cmd_select,
+			"read_rec":	self.cmd_read_rec,
+			"challenge":	self.cmd_challenge,
+			"get":		self.cmd_get,
+			"ber":		self.cmd_ber,
+			"hex":		self.cmd_hex,
+			"help":		self.cmd_help,
+			"?":		self.cmd_help,
 		}
 
 	def prompt(self):
@@ -445,32 +557,53 @@ class scsh:
 			self.out("Unknown command: %s"%arg[0])
 			return
 		try:
-			self.__cmd[arg[0]].func()(str, *arg[1:])
+			self.__cmd[arg[0]](str, *arg[1:])
 		except IOError:
 			if self.__slot.status() == ccid.CHIPCARD_NOT_PRESENT:
 				self.out("Card not present!!")
 			else:
 				pass
-		except Exception, e:
-			self.out("Bad Arguments: %s: %s"%(arg[0], e.message))
+		except ValueError, e:
+			self.out("Command failed: %s: %s"%(arg[0], e.message))
 
 ######### PROGRAM MAIN LOOP #########
 if __name__ == '__main__':
+	# TODO: Parse command line for log-file and databases
+
+	shell = scsh()  # "ccid-sh.log")
+
+	# Command historry file
 	histfile = os.path.join(os.environ["HOME"], ".ccid-sh")
 	try:
 		readline.read_history_file(histfile)
 	except IOError:
 		pass
-
 	atexit.register(readline.write_history_file, histfile)
 	del os, histfile
 
-	shell = scsh("ccid-sh.log")
+	# Instruction names
+	try:
+		shell.load_ins_db()
+	except IOError:
+		pass
+
+	# Error code names
+	try:
+		shell.load_sw_db()
+	except IOError:
+		pass
+
 	while True:
 		try:
 			str = raw_input(shell.prompt())
 		except EOFError:
 			print
 			break
+		except KeyboardInterrupt:
+			print
+			continue
 
-		shell.command(str);
+		try:
+			shell.command(str);
+		except KeyboardInterrupt:
+			continue

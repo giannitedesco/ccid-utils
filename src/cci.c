@@ -436,7 +436,7 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 
 static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 {
-	if ( len <  sizeof(cci->cci_desc) ) {
+	if ( len < sizeof(cci->cci_desc) ) {
 		fprintf(stderr, "*** error: truncated CCID descriptor\n");
 		return 0;
 	}

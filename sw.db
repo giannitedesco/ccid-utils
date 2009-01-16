@@ -1,0 +1,59 @@
+# sw1 name
+#	sw2 name
+0x61 Insufficient buffer space
+0x62 NV-RAM unchanged
+	0x81 Part of returned data may be corrupted
+	0x82 End of file/record reached before reading Le bytes
+	0x83 Selected file invalidated
+	0x84 FCI not formatted according to 1.1.5 
+0x63 NV-RAM changed
+	0x81 File filled up by the last write
+	0xC0 CTR=0
+	0xC1 CTR=1
+	0xC2 CTR=2
+	0xC3 CTR=3
+	0xC4 CTR=4
+	0xC5 CTR=5
+	0xC6 CTR=6
+	0xC7 CTR=7
+	0xC8 CTR=8
+	0xC9 CTR=9
+	0xCa CTR=10
+	0xCb CTR=11
+	0xCc CTR=12
+	0xCd CTR=13
+	0xCe CTR=14
+	0xCf CTR=15
+0x64 NV-RAM unchanged
+0x65 NV-RAM changed
+	0x81 Memory failure
+0x66 Security Issues ;)
+0x67 Wrong length
+0x68 Functions in CLA not supported
+	0x81 Logical channel not supported
+	0x82 Secure messaging not supported
+0x69 Permission.... DENIED
+	0x81 Command incompatible with file structure
+	0x82 Security status not satisfied
+	0x83 Authentication method blocked
+	0x84 Referenced data invalidated
+	0x85 Conditions of use not satisfied
+	0x86 Command not allowed (no current EF)
+	0x87 Expected SM data objects missing
+	0x88 SM data objects incorrect 
+0x6a Bad parameters P1-P2
+	0x80 Incorrect parameters in the data field
+	0x81 Function not supported
+	0x82 File not found
+	0x83 Record not found
+	0x84 Not enough memory space in the file
+	0x85 Lc inconsistent with TLV structure
+	0x86 Incorrect parameters P1-P2
+	0x87 Lc inconsistent with P1-P2
+	0x88 Referenced data not found 
+0x6b Bad parameters P1-P2
+0x6c Wrong Le field
+0x6d Bad INS
+0x6e Bad CLA
+0x6f No precise diagnosis
+0x90 Success
