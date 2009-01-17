@@ -6,16 +6,9 @@
 
 #include <ccid.h>
 #include <stdio.h>
+#include "sim.h"
 
 #if 0
-static int gsm_select(chipcard_t cc, uint16_t id)
-{
-	uint8_t buf[] = "\xa0\xa4\x00\x00\x02\xff\xff";
-	buf[5] = (id >> 8) & 0xff;
-	buf[6] = id & 0xff;
-	return chipcard_transmit(cc, buf, 7);
-}
-
 static void decode_sms(const uint8_t *inp, size_t len)
 {
 	uint8_t out[len + 1];
@@ -34,7 +27,7 @@ static void decode_sms(const uint8_t *inp, size_t len)
 	}
 
 	out[len] = '\0';
-	printf("-sms: \"%s\"\n", out);
+	printf("-sms: \"%sim\"\n", out);
 }
 
 static uint8_t hi_nibble(uint8_t byte)
@@ -49,19 +42,6 @@ static uint8_t lo_nibble(uint8_t byte)
 
 static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 {
-	uint8_t buf[] = "\xa0\xb2\xff\x04\xb0";
-	const uint8_t *ptr, *end;
-	size_t len;
-
-	printf("\nREAD RECORD %u\n", rec);
-	buf[2] = rec;
-	chipcard_transmit(cc, buf, 5);
-
-	ptr = chipcard_rcvbuf(cc, &len);
-	if ( ptr == NULL || len == 0 )
-		return;
-	end = ptr + len;
-	
 	switch( ptr[0] & 0x7 ) {
 	case 0:
 		printf("-sms: Status: free block\n");
@@ -121,19 +101,65 @@ static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 }
 #endif
 
-void do_gsm_stuff(chipcard_t cc)
+static int found_cci(ccidev_t dev)
 {
-#if 0
-	uint16_t i;
+	unsigned int i;
+	chipcard_t cc;
+	cci_t cci;
+	sim_t sim;
+	int ret = 0;
 
-	printf("\nSELECT TELECOM/SMS\n");
-	if ( !gsm_select(cc, 0x7f10) || !gsm_select(cc, 0x6f3c) )
-		return;
+	cci = cci_probe(dev, NULL);
+	if ( NULL == cci )
+		goto out;
+	
+	cc = cci_get_slot(cci, 0);
+	if ( NULL == cc ) {
+		fprintf(stderr, "ccid: error: no slots on CCI\n");
+		goto out_close;
+	}
 
-	chipcard_transmit(cc, (void *)"\xa0\xc0\x00\x00\x0f", 5); /* GET */
+	printf("simtool: wait for chipcard...\n");
+	if ( !chipcard_wait_for_card(cc) )
+		goto out_close;
 
-	//chipcard_transmit(cc, (void *)"\xa0\xb2\x01\x04\xb0", 5);
-	for(i = 1; i < 0xb; i++)
-		gsm_read_sms(cc, i);
-#endif
+	printf("simtool: SIM attached\n");
+	sim = sim_new(cc);
+	if ( NULL == sim )
+		goto out_close;
+
+	printf("simtool: Selecting DF: TELECOM\n");
+	sim_select(sim, SIM_DF_TELECOM);
+
+	printf("simtool: Selecting EF: SMS\n");
+	sim_select(sim, SIM_EF_SMS);
+
+	for(i = 1; i < 0xb; i++) {
+		printf("simtool: Reading SMS %u\n", i);
+		sim_read_record(sim, i, NULL);
+	}
+
+	printf("simtool: done\n");
+	sim_free(sim);
+
+	ret = 1;
+
+out_close:
+	cci_close(cci);
+out:
+	return ret;
+}
+
+int main(int argc, char **argv)
+{
+	ccidev_t dev;
+
+	dev = ccid_find_first_device();
+	if ( NULL == dev )
+		return EXIT_FAILURE;
+
+	if ( !found_cci(dev) )
+		return EXIT_FAILURE;
+
+	return EXIT_SUCCESS;
 }

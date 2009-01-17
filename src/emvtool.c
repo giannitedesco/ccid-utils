@@ -8,7 +8,6 @@
 
 #include <stdio.h>
 
-void do_gsm_stuff(chipcard_t cc);
 void do_emv_stuff(chipcard_t cc);
 
 static int found_cci(ccidev_t dev)
@@ -17,7 +16,7 @@ static int found_cci(ccidev_t dev)
 	cci_t cci;
 	int ret = 0;
 
-	cci = cci_probe(dev, "./scsh.log");
+	cci = cci_probe(dev, NULL);
 	if ( NULL == cci )
 		goto out;
 	
@@ -35,11 +34,7 @@ static int found_cci(ccidev_t dev)
 	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
-#if 0
-	do_gsm_stuff(cc);
-#else
 	do_emv_stuff(cc);
-#endif
 
 	printf("\nPOWER OFF SLOT\n");
 	chipcard_slot_off(cc);
