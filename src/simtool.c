@@ -8,7 +8,6 @@
 #include <stdio.h>
 #include "sim.h"
 
-#if 0
 static void decode_sms(const uint8_t *inp, size_t len)
 {
 	uint8_t out[len + 1];
@@ -27,7 +26,7 @@ static void decode_sms(const uint8_t *inp, size_t len)
 	}
 
 	out[len] = '\0';
-	printf("-sms: \"%sim\"\n", out);
+	printf(" o sms: \"%sim\"\n", out);
 }
 
 static uint8_t hi_nibble(uint8_t byte)
@@ -40,32 +39,34 @@ static uint8_t lo_nibble(uint8_t byte)
 	return byte & 0xf;
 }
 
-static void gsm_read_sms(chipcard_t cc, uint8_t rec)
+static void sms_dump(const uint8_t *ptr, size_t len)
 {
+	assert(len == 176);
+
 	switch( ptr[0] & 0x7 ) {
 	case 0:
-		printf("-sms: Status: free block\n");
+		printf(" o sms: Status: free block\n");
 		return;
 	case 1:
-		printf("-sms: Status: READ\n");
+		printf(" o sms: Status: READ\n");
 		break;
 	case 3:
-		printf("-sms: Status: UNREAD\n");
+		printf(" o sms: Status: UNREAD\n");
 		break;
 	case 5:
-		printf("-sms: Status: SENT\n");
+		printf(" o sms: Status: SENT\n");
 		break;
 	case 7:
-		printf("-sms: Status: UNSENT\n");
+		printf(" o sms: Status: UNSENT\n");
 		break;
 	default:
-		printf("-sms: Status: unknown status\n");
+		printf(" o sms: Status: unknown status\n");
 		return;
 	}
 
 	ptr++;
-	printf("-sms: %u bytes SMSC type 0x%.2x\n", ptr[0], ptr[1]);
-	printf("-sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
+	printf(" o sms: %u bytes SMSC type 0x%.2x\n", ptr[0], ptr[1]);
+	printf(" o sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
 		"%1x%1x %1x%1x\n",
 		lo_nibble(ptr[2]), hi_nibble(ptr[2]),
 		lo_nibble(ptr[3]), hi_nibble(ptr[3]),
@@ -74,11 +75,11 @@ static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 		lo_nibble(ptr[6]), hi_nibble(ptr[6]),
 		lo_nibble(ptr[7]), hi_nibble(ptr[7]));
 	ptr += ptr[0] + 1;
-	printf("-sms: SMS-DELIVER %u\n", *ptr);
+	printf(" o sms: SMS-DELIVER %u\n", *ptr);
 	ptr++;
-	printf("-sms: %u byte address type 0x%.2x\n", ptr[0], ptr[1]);
+	printf(" o sms: %u byte address type 0x%.2x\n", ptr[0], ptr[1]);
 	if ( ptr[1] == 0x91 ) {
-		printf("-sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
+		printf(" o sms: +%1x%1x %1x%1x %1x%1x %1x%1x "
 			"%1x%1x %1x%1x\n",
 			lo_nibble(ptr[2]), hi_nibble(ptr[2]),
 			lo_nibble(ptr[3]), hi_nibble(ptr[3]),
@@ -91,15 +92,14 @@ static void gsm_read_sms(chipcard_t cc, uint8_t rec)
 	}else{
 		ptr += ptr[0] + 1;
 	}
-	printf("-sms: TP-PID %u\n", *(ptr++));
-	printf("-sms: TP-DCS %u\n", *(ptr++));
+	printf(" o sms: TP-PID %u\n", *(ptr++));
+	printf(" o sms: TP-DCS %u\n", *(ptr++));
 	ptr += 7;
-	printf("-sms: %u septets\n", *ptr);
+	printf(" o sms: %u septets\n", *ptr);
 	ptr++;
 
 	decode_sms(ptr, ptr[-1]);
 }
-#endif
 
 static int found_cci(ccidev_t dev)
 {
@@ -108,6 +108,8 @@ static int found_cci(ccidev_t dev)
 	cci_t cci;
 	sim_t sim;
 	int ret = 0;
+
+	printf("simtool: Found a chipcard slot\n");
 
 	cci = cci_probe(dev, NULL);
 	if ( NULL == cci )
@@ -119,27 +121,46 @@ static int found_cci(ccidev_t dev)
 		goto out_close;
 	}
 
-	printf("simtool: wait for chipcard...\n");
+	printf("\nsimtool: wait for chipcard...\n");
 	if ( !chipcard_wait_for_card(cc) )
 		goto out_close;
 
-	printf("simtool: SIM attached\n");
+	printf("\nsimtool: SIM attached\n");
 	sim = sim_new(cc);
 	if ( NULL == sim )
 		goto out_close;
 
-	printf("simtool: Selecting DF: TELECOM\n");
+	printf("\nsimtool: Selecting MF\n");
+	sim_select(sim, SIM_MF);
+
+	printf("\nsimtool: Selecting EF: ICCID\n");
+	sim_select(sim, SIM_EF_ICCID);
+	do {
+		const uint8_t *iptr;
+		size_t ilen;
+		iptr = sim_read_binary(sim, &ilen);
+		if ( iptr )
+			hex_dump(iptr, ilen, 16);
+
+	}while(0);
+
+	printf("\nsimtool: Selecting DF: TELECOM\n");
 	sim_select(sim, SIM_DF_TELECOM);
 
-	printf("simtool: Selecting EF: SMS\n");
+	printf("\nsimtool: Selecting EF: SMS\n");
 	sim_select(sim, SIM_EF_SMS);
 
 	for(i = 1; i < 0xb; i++) {
-		printf("simtool: Reading SMS %u\n", i);
-		sim_read_record(sim, i, NULL);
+		const uint8_t *sms;
+		size_t sms_len;
+		printf("\nsimtool: Reading SMS %u\n", i);
+		sms = sim_read_record(sim, i, &sms_len);
+		if ( sms ) {
+			sms_dump(sms, sms_len);
+		}
 	}
 
-	printf("simtool: done\n");
+	printf("\nsimtool: done\n");
 	sim_free(sim);
 
 	ret = 1;

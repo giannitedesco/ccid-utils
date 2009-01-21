@@ -56,22 +56,27 @@ struct _xfr {
 	uint8_t 	*x_rxbuf;
 };
 
-int _private _probe_device(struct usb_device *dev, int *cp, int *ip, int *ap);
+_private int _probe_device(struct usb_device *dev, int *cp, int *ip, int *ap);
 
-int _private _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
-unsigned int _private _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);
-unsigned int _private _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr);
+_private int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
+_private unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);
+_private unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr);
 
-int _private _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
+_private int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
-int _private _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
+_private int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr,
 				unsigned int voltage);
-int _private _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
+_private int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
-int _private _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
+_private int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
 
-int _private _cci_wait_for_interrupt(struct _cci *cci);
+_private int _cci_wait_for_interrupt(struct _cci *cci);
+
+_private struct _xfr *_xfr_do_alloc(size_t txbuf, size_t rxbuf);
+_private void _xfr_do_free(struct _xfr *xfr);
+
+_private void _hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen);
 
 #endif /* _CCID_INTERNAL_H */

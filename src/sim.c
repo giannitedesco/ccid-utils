@@ -21,8 +21,8 @@ static int do_read_record(sim_t sim, uint8_t rec, uint8_t le)
 	xfr_reset(sim->s_xfr);
 	xfr_tx_byte(sim->s_xfr, SIM_CLA);
 	xfr_tx_byte(sim->s_xfr, SIM_INS_READ_RECORD);
-	xfr_tx_byte(sim->s_xfr, rec);
-	xfr_tx_byte(sim->s_xfr, 4);
+	xfr_tx_byte(sim->s_xfr, rec); /* p1 */
+	xfr_tx_byte(sim->s_xfr, 4); /* p2 */
 	xfr_tx_byte(sim->s_xfr, le);
 	return chipcard_transact(sim->s_cc, sim->s_xfr);
 }
@@ -38,10 +38,7 @@ static int do_select(sim_t sim, uint16_t id)
 	xfr_tx_byte(sim->s_xfr, 2); /* lc */
 	xfr_tx_byte(sim->s_xfr, (id >> 8));
 	xfr_tx_byte(sim->s_xfr, (id & 0xff));
-	if ( !chipcard_transact(sim->s_cc, sim->s_xfr) )
-		return 0;
-	sim->s_pwd = id;
-	return 1;
+	return chipcard_transact(sim->s_cc, sim->s_xfr);
 }
 
 static int do_get_response(sim_t sim, uint8_t le)
@@ -50,25 +47,45 @@ static int do_get_response(sim_t sim, uint8_t le)
 	xfr_reset(sim->s_xfr);
 	xfr_tx_byte(sim->s_xfr, SIM_CLA);
 	xfr_tx_byte(sim->s_xfr, SIM_INS_GET_RESPONSE);
-	xfr_tx_byte(sim->s_xfr, 0);
-	xfr_tx_byte(sim->s_xfr, 0);
+	xfr_tx_byte(sim->s_xfr, 0); /* p1 */
+	xfr_tx_byte(sim->s_xfr, 0); /* p2 */
 	xfr_tx_byte(sim->s_xfr, le);
 	return chipcard_transact(sim->s_cc, sim->s_xfr);
 }
 
+static int do_fci_ef(struct _sim *sim, const uint8_t *fci, size_t len)
+{
+	assert(len == 15);
+	sim->s_reclen = fci[14];
+	printf(" o Record len %u\n", sim->s_reclen);
+	return 1;
+}
+
+static int do_fci_df(struct _sim *sim, const uint8_t *fci, size_t len)
+{
+	assert(len >= 13);
+	printf(" o %u bytes under 0x%.4x\n",
+		(fci[2] << 8) | fci[3], sim->s_pwd);
+	printf(" o type of file (subclause 9.3): 0x%.2x\n", fci[6]);
+	printf(" o %u bytes app specific\n", fci[12]);
+	if ( fci[12] < 9 || fci[12] + 13 > len)
+		return 0;
+	printf(" o Contains %u DFs and %u EFs, %u CHV's\n",
+		fci[14], fci[15], fci[16]);
+	printf(" o CHV1: status=0x%.2x unblock=0x%.2x\n", fci[18], fci[19]);
+	printf(" o CHV2: status=0x%.2x unblock=0x%.2x\n", fci[20], fci[21]);
+	return 1;
+}
+
 static int parse_fci(struct _sim *sim, const uint8_t *fci, size_t len)
 {
-	switch ( sim->s_pwd & SIM_TYPE_MASK) {
+	switch ( sim->s_pwd & SIM_TYPE_MASK ) {
 	case SIM_TYPE_MF:
-		break;
 	case SIM_TYPE_DF:
-		break;
+		return do_fci_df(sim, fci, len);
 	case SIM_TYPE_EF:
 	case SIM_TYPE_ROOT_EF:
-		assert(len == 15);
-		sim->s_reclen = fci[14];
-		printf(" o Record len %u\n", fci[14]);
-		break;
+		return do_fci_ef(sim, fci, len);
 	default:
 		return 0;
 	}
@@ -78,13 +95,25 @@ static int parse_fci(struct _sim *sim, const uint8_t *fci, size_t len)
 	return 1;
 }
 
+/* Recover from an undefined state after an error. */
+static void undefined_state(sim_t sim)
+{
+	if ( do_select(sim, SIM_MF) )
+		sim->s_pwd = SIM_MF;
+}
+ 
+const uint8_t *sim_read_binary(sim_t sim, size_t *rec_len)
+{
+	return NULL;
+}
+
 const uint8_t *sim_read_record(sim_t sim, uint8_t rec, size_t *rec_len)
 {
 	const uint8_t *ptr;
 	uint8_t sw1, sw2;
 	size_t data_len;
 
-	switch ( sim->s_pwd & SIM_TYPE_MASK) {
+	switch ( sim->s_pwd & SIM_TYPE_MASK ) {
 	case SIM_TYPE_EF:
 	case SIM_TYPE_ROOT_EF:
 		break;
@@ -128,17 +157,12 @@ const uint8_t *sim_read_record(sim_t sim, uint8_t rec, size_t *rec_len)
 	if ( rec_len )
 		*rec_len = data_len;
 
+#if 0
 	printf(" o 0x%.4x record %u (%u bytes)\n",
 		sim->s_pwd, rec, data_len);
 	hex_dump(ptr, data_len, 16);
-
+#endif
 	return ptr;
-}
-
-/* Recover from an undefined state after an error. */
-static void undefined_state(sim_t sim)
-{
-	do_select(sim, SIM_MF);
 }
 
 int sim_select(sim_t sim, uint16_t id)
@@ -167,6 +191,8 @@ int sim_select(sim_t sim, uint16_t id)
 		return 0;
 	}
 
+	sim->s_pwd = id;
+
 	fci = xfr_rx_data(sim->s_xfr, &fci_len);
 	if ( NULL == fci || !parse_fci(sim, fci, fci_len) ) {
 		undefined_state(sim);
@@ -188,7 +214,7 @@ sim_t sim_new(chipcard_t cc)
 
 	sim->s_cc = cc;
 
-	sim->s_xfr = xfr_alloc(256, 256);
+	sim->s_xfr = xfr_alloc(502, 502);
 	if ( NULL == sim->s_xfr )
 		goto err_free;
 
@@ -196,11 +222,12 @@ sim_t sim_new(chipcard_t cc)
 	if ( NULL == atr )
 		goto err_free_xfr;
 
-	printf(" o Found SIM with %u byte ATR:\n", atr_len);
-	hex_dump(atr, atr_len, 16);
-
 	sim->s_pwd = SIM_MF;
 
+	/* FIXME: Verify CLA by selecting MF */
+
+	printf(" o Found SIM with %u byte ATR:\n", atr_len);
+	hex_dump(atr, atr_len, 16);
 	return sim;
 
 err_free_xfr:

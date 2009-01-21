@@ -4,16 +4,17 @@
  * Released under the terms of the GNU GPL version 3
 */
 #include <ccid.h>
+#include "ccid-internal.h"
 
 #include <stdio.h>
 #include <ctype.h>
 
-static void do_hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
+void _hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
 {
 	size_t i, j;
 	size_t line;
 
-	if ( llen == 0 )
+	if ( NULL == f || 0 == len )
 		return;
 
 	for(j = 0; j < len; j += line, tmp += line) {
@@ -46,11 +47,10 @@ static void do_hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
 
 void hex_dumpf(FILE *f, const uint8_t *ptr, size_t len, size_t llen)
 {
-	if ( f )
-		do_hex_dumpf(f, ptr, len, llen);
+	_hex_dumpf(f, ptr, len, llen);
 }
 
 void hex_dump(const uint8_t *ptr, size_t len, size_t llen)
 {
-	do_hex_dumpf(stdout, ptr, len, llen);
+	_hex_dumpf(stdout, ptr, len, llen);
 }

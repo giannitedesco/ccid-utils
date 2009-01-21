@@ -72,7 +72,7 @@ unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr)
 {
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_DataBlock);
 	trace(cci, "     : RDR_to_PC_DataBlock: %u bytes\n", xfr->x_rxlen);
-	hex_dumpf(cci->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
+	_hex_dumpf(cci->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
 	/* APDU chaining parameter */
 	return xfr->x_rxhdr->in.bApp;
 }
@@ -296,7 +296,7 @@ int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	ret = _PC_to_RDR(cci, slot, xfr);
 	if ( ret ) {
 		trace(cci, " Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
-		hex_dumpf(cci->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
+		_hex_dumpf(cci->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
 	}
 	return ret;
 }
@@ -559,7 +559,7 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 		break;
 	}
 
-	hex_dumpf(cci->cci_tf, ptr, len, 16);
+	_hex_dumpf(cci->cci_tf, ptr, len, 16);
 	return 1;
 }
 
@@ -674,7 +674,7 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 		goto out_close;
 	}
 
-	cci->cci_xfr = xfr_alloc(cci->cci_max_out, cci->cci_max_in);
+	cci->cci_xfr = _xfr_do_alloc(cci->cci_max_out, cci->cci_max_in);
 	if ( NULL == cci->cci_xfr )
 		goto out_close;
 
@@ -691,7 +691,7 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	goto out;
 
 out_freebuf:
-	xfr_free(cci->cci_xfr);
+	_xfr_do_free(cci->cci_xfr);
 out_close:
 	usb_close(cci->cci_dev);
 out_free:
@@ -706,7 +706,7 @@ void cci_close(cci_t cci)
 	if ( cci ) {
 		if ( cci->cci_dev )
 			usb_close(cci->cci_dev);
-		xfr_free(cci->cci_xfr);
+		_xfr_do_free(cci->cci_xfr);
 	}
 	free(cci);
 }

@@ -14,7 +14,7 @@
 
 #define MIN_RESP_LEN 2U
 
-xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf)
+struct _xfr *_xfr_do_alloc(size_t txbuf, size_t rxbuf)
 {
 	uint8_t *ptr;
 	struct _xfr *xfr;
@@ -43,6 +43,11 @@ xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf)
 	xfr->x_rxbuf = ptr;
 
 	return xfr;
+}
+
+xfr_t xfr_alloc(size_t txbuf, size_t rxbuf)
+{
+	return _xfr_do_alloc(txbuf, rxbuf);
 }
 
 void xfr_reset(xfr_t xfr)
@@ -96,7 +101,12 @@ const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len)
 	return xfr->x_rxbuf;
 }
 
-void xfr_free(xfr_t xfr)
+void _xfr_do_free(struct _xfr *xfr)
 {
 	free(xfr);
+}
+
+void xfr_free(xfr_t xfr)
+{
+	_xfr_do_free(xfr);
 }

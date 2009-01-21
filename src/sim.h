@@ -36,9 +36,11 @@
 
 typedef struct _sim *sim_t;
 
+/* SIM session */
 sim_t sim_new(chipcard_t cc);
 void sim_free(sim_t sim);
 int sim_select(sim_t sim, uint16_t id);
 const uint8_t *sim_read_record(sim_t sim, uint8_t rec, size_t *rec_len);
+const uint8_t *sim_read_binary(sim_t sim, size_t *len);
 
 #endif /* _GSM_H */
