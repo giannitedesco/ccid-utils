@@ -697,6 +697,7 @@ out_close:
 out_free:
 	free(cci);
 	cci = NULL;
+	fprintf(stderr, "cci: error probing device\n");
 out:
 	return cci;
 }

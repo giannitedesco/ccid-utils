@@ -74,5 +74,6 @@ ccidev_t ccid_find_first_device(void)
 				return dev;
 	}
 
+	fprintf(stderr, "ccidev: no USB CCID devices found\n");
 	return NULL;
 }
