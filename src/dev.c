@@ -23,6 +23,14 @@ static int check_interface(struct usb_device *dev, int c, int i)
 	return -1;
 }
 
+/** Probe a USB device for a CCID interface.
+ * @param dev \ref ccidev_t representing a physical device.
+ * @param cp Pointer to an integer to retrieve configuration number.
+ * @param ip Pointer to an integer to retrieve interface number.
+ * @param ap Pointer to an integer to retrieve alternate setting number.
+ *
+ * @return zero indicates failure.
+ */
 int _probe_device(struct usb_device *dev, int *cp, int *ip, int *ap)
 {
 	int c, i, a;
@@ -57,6 +65,11 @@ success:
 	return 1;
 }
 
+/** Find first physical CCI device on the system.
+ * \ingroup g_ccid
+ *
+ * @return Handle for the first device. Actually a libusb usb_device pointer.
+ */
 ccidev_t ccid_find_first_device(void)
 {
 	struct usb_bus *bus, *busses;

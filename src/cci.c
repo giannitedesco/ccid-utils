@@ -8,7 +8,6 @@
 
 #include <ccid.h>
 
-#include <stdio.h>
 #include <stdarg.h>
 
 #include "ccid-internal.h"
@@ -613,6 +612,18 @@ static int probe_descriptors(struct _cci *cci)
 	return 1;
 }
 
+/** Connect to a physical chipcard device.
+ * \ingroup g_cci
+ * @param dev \ref ccidev_t representing a physical device.
+ * @param tracefile filename to open for trace logging (or NULL).
+ *
+ * This function:
+ * #- Probes the USB device searching for a valid CCID interface.
+ * #- Optionally opens a file for trace logging.
+ * #- Perform any device specific initialisation.
+ *
+ * @return NULL on failure, valid \ref cci_t object otherwise.
+ */
 cci_t cci_probe(ccidev_t dev, const char *tracefile)
 {
 	struct _cci *cci = NULL;
@@ -702,6 +713,13 @@ out:
 	return cci;
 }
 
+/** Close connection to a chip card device.
+ * \ingroup g_cci
+ * @param cci The \ref cci_t to close.
+ * Closes connection to physical defice and frees the \ref cci_t. Note that
+ * any transaction buffers will have to be destroyed seperately. All references
+ * to slots will become invalid.
+ */
 void cci_close(cci_t cci)
 {
 	if ( cci ) {
@@ -712,20 +730,39 @@ void cci_close(cci_t cci)
 	free(cci);
 }
 
+/** Retrieve the number of slots in the CCID.
+ * \ingroup g_cci
+ * @param cci The \ref cci_t to return number of slots for.
+ * @return The number of slots.
+ */
 unsigned int cci_slots(cci_t cci)
 {
 	return cci->cci_num_slots;
 }
 
-chipcard_t cci_get_slot(cci_t cci, unsigned int i)
+/** Retrieve a handle to a CCID slot.
+ * \ingroup g_cci
+ * @param cci The \ref cci_t containing the required slot.
+ * @param num The slot number to retrieve (zero-based).
+ * @return \ref chipcard_t rerpesenting the required slot.
+ */
+chipcard_t cci_get_slot(cci_t cci, unsigned int num)
 {
-	if ( i < cci->cci_num_slots ) {
-		return cci->cci_slot + i;
+	if ( num < cci->cci_num_slots ) {
+		return cci->cci_slot + num;
 	}else{
 		return NULL;
 	}
 }
 
+/** Print a message in the trace log
+ * \ingroup g_cci
+ * @param cci The \ref cci_t to which the log message is pertinent.
+ * @param fmt Format string as per printf().
+ *
+ * Prints a message in the trace log of the specified CCI device. Does nothing
+ * if NULL was passed as tracefile paramater of \ref cci_open.
+ */
 void cci_log(cci_t cci, const char *fmt, ...)
 {
 	va_list va;
