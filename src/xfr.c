@@ -8,8 +8,6 @@
 
 #include <ccid.h>
 
-#include <stdio.h>
-
 #include "ccid-internal.h"
 
 #define MIN_RESP_LEN 2U

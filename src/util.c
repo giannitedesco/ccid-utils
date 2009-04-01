@@ -6,7 +6,6 @@
 #include <ccid.h>
 #include "ccid-internal.h"
 
-#include <stdio.h>
 #include <ctype.h>
 
 void _hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)

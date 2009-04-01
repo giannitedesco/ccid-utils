@@ -5,7 +5,6 @@
 */
 
 #include <ccid.h>
-#include <stdio.h>
 
 #include "ccid-internal.h"
 

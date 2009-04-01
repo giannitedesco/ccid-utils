@@ -5,7 +5,6 @@
 */
 
 #include <ccid.h>
-#include <stdio.h>
 #include "sim.h"
 
 static void decode_sms(const uint8_t *inp, size_t len)

@@ -5,7 +5,6 @@
 */
 
 #include <ccid.h>
-#include <stdio.h>
 
 static int emv_select(chipcard_t cc, xfr_t xfr, uint8_t *name, size_t nlen)
 {

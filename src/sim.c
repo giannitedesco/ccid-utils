@@ -5,7 +5,6 @@
 */
 
 #include <ccid.h>
-#include <stdio.h>
 #include "sim.h"
 
 struct _sim {
