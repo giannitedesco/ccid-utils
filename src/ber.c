@@ -82,6 +82,7 @@ again:
 	if ( buf >= end )
 		return;
 
+	printf("TAG %.02x ", *buf);
 	idb = *buf;
 	num = ber_id_octet_tag(*buf);
 	buf++;
@@ -89,6 +90,7 @@ again:
 	/* FIXME: if ( tag == 0x1f ) get rest of type... */
 	if ( num >= 0x1f ) {
 		for(num = 0, i = 0; buf < end; i++) {
+			printf("%.02x ", *buf);
 			num <<= 7;
 			num |= *buf & 0x7f;
 			buf++;
@@ -97,6 +99,7 @@ again:
 		}
 	}
 
+	printf("\n");
 	printf("%*c.tag = %u (0x%x)\n", depth, ' ', num, num);
 
 	if ( buf >= end )

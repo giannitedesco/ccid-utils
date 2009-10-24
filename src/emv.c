@@ -63,7 +63,7 @@ static int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	xfr_reset(e->e_xfr);
 	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
 	xfr_tx_byte(e->e_xfr, 0xb2);		/* INS: READ RECORD */
-	xfr_tx_byte(e->e_xfr, record);	/* P1: record index */
+	xfr_tx_byte(e->e_xfr, record);		/* P1: record index */
 	xfr_tx_byte(e->e_xfr, p2);		/* P2 */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le: 0 this time around */
 
@@ -77,7 +77,7 @@ static int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	xfr_reset(e->e_xfr);
 	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
 	xfr_tx_byte(e->e_xfr, 0xb2);		/* INS: READ RECORD */
-	xfr_tx_byte(e->e_xfr, record);	/* P1: record index */
+	xfr_tx_byte(e->e_xfr, record);		/* P1: record index */
 	xfr_tx_byte(e->e_xfr, p2); 		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le: got it now */
 
@@ -98,10 +98,31 @@ static int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {
+                struct _emv_app *a, *t;
+ 
+ 		printf("\nEMV FINI\n");
+		list_for_each_entry_safe(a, t, &e->e_apps, a_list) {
+			list_del(&a->a_list);
+			free(a);
+		}
+ 
 		if ( e->e_xfr )
 			xfr_free(e->e_xfr);
 		free(e);
 	}
+}
+
+static struct _emv_app *add_app(emv_t e)
+{
+	struct _emv_app *app;
+
+	app = calloc(1, sizeof(*app));
+	if ( app ) {
+		/* recno, id_sz/id, names */
+		list_add_tail(&app->a_list, &e->e_apps);
+		e->e_num_apps++;
+	}
+	return app;
 }
 
 static void init_apps(emv_t e)
@@ -112,10 +133,15 @@ static void init_apps(emv_t e)
 	emv_select(e, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
 
 	for (i = 1; ; i++) {
-		printf("\nREAD RECORD REC %u\n", i);
+		struct _emv_app *app;
+
 		if ( !emv_read_record(e, 1, i) )
 			break;
-		e->e_num_apps++;
+		app = add_app(e);
+		if ( app ) {
+			printf("\nRECORD %u is %.16s / %.16s\n",
+				i, app->a_name, app->a_pname);
+		}
 	}
 
 	printf("\n%u APPS DISCOVERED IN PAY SYS\n", e->e_num_apps);
@@ -150,6 +176,7 @@ emv_t emv_init(chipcard_t cc)
 	e = calloc(1, sizeof(*e));
 	if ( e ) {
 		e->e_dev = cc;
+		INIT_LIST_HEAD(&e->e_apps);
 
 		e->e_xfr = xfr_alloc(1024, 1204);
 		if ( NULL == e->e_xfr )
