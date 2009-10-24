@@ -5,10 +5,23 @@
 */
 
 #include <ccid.h>
+#include <emv.h>
 
 #include <stdio.h>
 
-void do_emv_stuff(chipcard_t cc);
+static int do_emv_stuff(chipcard_t cc)
+{
+	emv_t emv;
+
+	emv = emv_init(cc);
+	if ( NULL == emv ) {
+		fprintf(stderr, "emv: init error\n");
+		return 0;
+	}
+
+	emv_fini(emv);
+	return 1;
+}
 
 static int found_cci(ccidev_t dev)
 {
@@ -34,13 +47,13 @@ static int found_cci(ccidev_t dev)
 	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
-	do_emv_stuff(cc);
-
-	printf("\nPOWER OFF SLOT\n");
-	chipcard_slot_off(cc);
+	if ( !do_emv_stuff(cc) )
+		goto out_close;
 
 	ret = 1;
 
+	printf("\nPOWER OFF SLOT\n");
+	chipcard_slot_off(cc);
 out_close:
 	cci_close(cci);
 out:
