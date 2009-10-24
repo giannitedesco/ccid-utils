@@ -187,25 +187,19 @@ class scsh:
 		if sw1 == 0x6c:
 			self.out("0x%.4x"%x)
 			self.pdu(0xca, x >> 8, x & 0xff, le = sw2)
-			self.__dump_results()
 		self.__dump_results()
 
 	def cmd_bruteget(self, str, *arg):
 		"Brute force data objects."
 
-		if not len(arg):
-			raise ValueError, "Must specify data object ID"
-
-		x = int(arg[0], 0)
-
 		x = 0
 		while x < 0x10000:
 			(sw1, sw2, data) = self.pdu(0xca, x >> 8,  x & 0xff)
 			if sw1 == 0x6c:
-				self.out("0x%.4x"%x)
 				(sw1, sw2, data) = self.pdu(0xca, x >> 8,
 							x & 0xff, le = sw2)
-			elif sw1 == 0x90:
+			if sw1 == 0x90:
+				self.out("0x%.4x"%x)
 				self.__dump_results()
 			x += 1
 
