@@ -19,6 +19,10 @@ static int do_emv_stuff(chipcard_t cc)
 		return 0;
 	}
 
+	if ( emv_link_init(emv) ) {
+		printf("emvtool: LINK application initialized\n");
+	}
+
 	emv_fini(emv);
 	return 1;
 }
@@ -39,11 +43,9 @@ static int found_cci(ccidev_t dev)
 		goto out_close;
 	}
 
-	printf("\nWAIT FOR CHIP CARD\n");
 	if ( !chipcard_wait_for_card(cc) )
 		goto out_close;
 
-	printf("\nPOWER ON SLOT\n");
 	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
@@ -52,7 +54,6 @@ static int found_cci(ccidev_t dev)
 
 	ret = 1;
 
-	printf("\nPOWER OFF SLOT\n");
 	chipcard_slot_off(cc);
 out_close:
 	cci_close(cci);

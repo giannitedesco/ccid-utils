@@ -7,7 +7,7 @@
 #define _BER_H
 
 struct ber_tag {
-	const uint8_t *tag;
+	const char *tag;
 	size_t tag_len;
 	int(*op)(const uint8_t *ptr, size_t len, void *priv);
 };

@@ -10,7 +10,7 @@
 #include <ber.h>
 #include "emv-internal.h"
 
-static int emv_select(emv_t e, uint8_t *name, size_t nlen)
+int emv_select(emv_t e, uint8_t *name, size_t nlen)
 {
 	const uint8_t *res;
 	size_t len;
@@ -53,7 +53,7 @@ static int emv_select(emv_t e, uint8_t *name, size_t nlen)
 	return 1;
 }
 
-static int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
+int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 {
 	const uint8_t *res;
 	size_t len;
@@ -101,7 +101,6 @@ static void do_emv_fini(emv_t e)
 	if ( e ) {
                 struct _emv_app *a, *t;
  
- 		printf("\nEMV FINI\n");
 		list_for_each_entry_safe(a, t, &e->e_apps, a_list) {
 			list_del(&a->a_list);
 			free(a);
@@ -116,9 +115,9 @@ static void do_emv_fini(emv_t e)
 static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
-	assert(0x100 > len);
+	assert(len >= EMV_RID_LEN && len <= EMV_MAX_ADF_LEN);
 	a->a_id_sz = len;
-	snprintf(a->a_id, sizeof(a->a_id), "%.*s", len, ptr);
+	memcpy(a->a_id, ptr, sizeof(a->a_id));
 	return 1;
 }
 
@@ -160,7 +159,8 @@ static int bop_dtemp(const uint8_t *ptr, size_t len, void *priv)
 		return 0;
 
 	if ( ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, app) ) {
-		printf("Added %s application\n", app->a_pname);
+		printf(" o '%s' / '%s' application\n",
+			app->a_name, app->a_pname);
 		list_add_tail(&app->a_list, &e->e_apps);
 		e->e_num_apps++;
 		return 1;
@@ -188,7 +188,7 @@ static int add_app(emv_t e)
 
 	res = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == res )
-		return NULL;
+		return 0;
 
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
 }
@@ -197,37 +197,15 @@ static void init_apps(emv_t e)
 {
 	unsigned int i;
 
-	printf("\nSELECT PAY SYS\n");
+	printf("Enumerating ICC applications:\n");
 	emv_select(e, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
 
 	for (i = 1; ; i++) {
-		struct _emv_app *app;
-
 		if ( !emv_read_record(e, 1, i) )
 			break;
 		add_app(e);
 	}
-
-	printf("\n%u APPS DISCOVERED IN PAY SYS\n", e->e_num_apps);
-#if 0
-	printf("\nSELECT LINK APPLICATION\n");
-	emv_select(e->e_dev, e->e_xfr, (void *)"\xa0\x00\x00\x00\x29\x10\x10", 7);
-	for(i = 1; i < 11; i++ ) {
-		printf("\nREAD RECORD SFI=%u\n", i);
-		emv_read_record(e->e_dev, e->e_xfr, i, 1);
-		if ( xfr_rx_sw1(e->e_xfr) == 0x6a )
-			break;
-	}
-
-	printf("\nSELECT VISA APPLICATION\n");
-	emv_select(e->e_dev, e->e_xfr, (void *)"\xa0\x00\x00\x00\x03\x10\x10", 7);
-	for(i = 1; i < 11; i++ ) {
-		printf("\nREAD RECORD SFI=%u\n", i);
-		emv_read_record(e->e_dev, e->e_xfr, i, 1);
-		if ( xfr_rx_sw1(e->e_xfr) == 0x6a )
-			break;
-	}
-#endif
+	printf("\n");
 }
 
 emv_t emv_init(chipcard_t cc)

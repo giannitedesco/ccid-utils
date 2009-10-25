@@ -164,7 +164,7 @@ static const struct ber_tag *find_tag(const struct ber_tag *tags,
 			num_tags = i;
 		}else if ( cmp > 0 ) {
 			tags = tags + (i + 1U);
-			num_tags = num_tags - (i - 1U);
+			num_tags = num_tags - (i + 1U);
 		}else
 			return tags + i;
 	}
@@ -233,6 +233,7 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 			for(i = 0; i < tag_len; i++)
 				printf("%.2x ", idb[i]);
 			printf("\n");
+			hex_dump(ptr, clen, 16, 0);
 		}
 
 		if ( ptr + clen > end )
