@@ -116,6 +116,8 @@ static void do_emv_fini(emv_t e)
 static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
+	assert(0x100 > len);
+	a->a_id_sz = len;
 	snprintf(a->a_id, sizeof(a->a_id), "%.*s", len, ptr);
 	return 1;
 }
