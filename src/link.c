@@ -14,18 +14,18 @@ static const uint8_t link_rid[] = "\xa0\x00\x00\x00\x29";
 
 static int bop_cardholder(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("cardholder name: %.*s\n", len, ptr);
+	printf("Cardholder name: %.*s\n", len, ptr);
 	return 1;
 }
 static int bop_track2(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("track 2 magstrip equivalent:\n");
+	printf("Track 2 magstrip equivalent:\n");
 	hex_dump(ptr, len, 16);
 	return 1;
 }
 static int bop_track1d(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("track 1 magstrip discretionary data:\n");
+	printf("Track 1 magstrip discretionary data:\n");
 	hex_dump(ptr, len, 16);
 	return 1;
 }

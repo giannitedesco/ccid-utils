@@ -19,9 +19,17 @@ static int do_emv_stuff(chipcard_t cc)
 		return 0;
 	}
 
-	if ( emv_link_init(emv) ) {
-		printf("emvtool: LINK application initialized\n");
+	printf("emvtool: Initializing VISA application\n");
+	if ( emv_visa_init(emv) ) {
+		printf("SUCCESS\n");
 	}
+
+#if 0
+	printf("emvtool: Initializing LINK application\n");
+	if ( emv_link_init(emv) ) {
+		printf("SUCCESS\n");
+	}
+#endif
 
 	emv_fini(emv);
 	return 1;
