@@ -4,6 +4,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <ber.h>
+
 static void hex_dump(const uint8_t *tmp, size_t len,
 			size_t llen, unsigned int depth)
 {
@@ -82,7 +84,6 @@ again:
 	if ( buf >= end )
 		return;
 
-	printf("TAG %.02x ", *buf);
 	idb = *buf;
 	num = ber_id_octet_tag(*buf);
 	buf++;
@@ -90,7 +91,6 @@ again:
 	/* FIXME: if ( tag == 0x1f ) get rest of type... */
 	if ( num >= 0x1f ) {
 		for(num = 0, i = 0; buf < end; i++) {
-			printf("%.02x ", *buf);
 			num <<= 7;
 			num |= *buf & 0x7f;
 			buf++;
@@ -99,7 +99,6 @@ again:
 		}
 	}
 
-	printf("\n");
 	printf("%*c.tag = %u (0x%x)\n", depth, ' ', num, num);
 
 	if ( buf >= end )
@@ -139,4 +138,106 @@ again:
 
 	buf += clen;
 	goto again;
+}
+
+static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
+{
+	if ( tag->tag_len < len )
+		return 1;
+	if ( tag->tag_len > len )
+		return -1;
+	return memcmp(idb, tag->tag, len);
+}
+
+static const struct ber_tag *find_tag(const struct ber_tag *tags,
+				unsigned int num_tags,
+				const uint8_t *idb,
+				size_t tag_len)
+{
+	while ( num_tags ) {
+		unsigned int i;
+		int cmp;
+
+		i = num_tags / 2U;
+		cmp = tag_cmp(tags + i, idb, tag_len);
+		if ( cmp < 0 ) {
+			num_tags = i;
+		}else if ( cmp > 0 ) {
+			tags = tags + (i + 1U);
+			num_tags = num_tags - (i - 1U);
+		}else
+			return tags + i;
+	}
+
+	return NULL;
+}
+
+int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
+		const uint8_t *ptr, size_t len, void *priv)
+{
+	const uint8_t *end = ptr + len;
+	uint32_t clen;
+
+//	printf("BER DECODE:\n");
+//	hex_dump(ptr, len, 16, 0);
+
+	for(clen = 1; ptr < end; ptr += clen) {
+		const uint8_t *idb;
+		const struct ber_tag *tag;
+		uint32_t num, i;
+		size_t tag_len;
+
+		idb = ptr;
+		num = ber_id_octet_tag(*idb);
+		ptr++;
+
+		if ( num >= 0x1f ) {
+			for(num = 0, i = 0; ptr < end; i++) {
+				num <<= 7;
+				num |= *ptr& 0x7f;
+				ptr++;
+				if ( !(*ptr & 0x80) )
+					break;
+			}
+		}
+
+		tag_len = ptr - idb;
+
+		if ( ptr >= end )
+			break;
+
+		if ( ber_len_form_short(*ptr) ) {
+			clen = ber_len_short(*ptr);
+			ptr++;
+		}else{
+			uint32_t l;
+
+			l = ber_len_short(*ptr);
+			if ( l > 4 || ptr + l > end )
+				return 0;
+			ptr++;
+			for(clen = i = 0; i < l; i++, ptr++) {
+				clen <<= 8;
+				clen |= *ptr;
+			}
+
+		}
+
+		tag = find_tag(tags, num_tags, idb, tag_len);
+		if ( tag ) {
+			if ( tag->op && !(*tag->op)(ptr, clen, priv) )
+				return 0;
+		}else{
+			size_t i;
+			printf("unknown tag: ");
+			for(i = 0; i < tag_len; i++)
+				printf("%.2x ", idb[i]);
+			printf("\n");
+		}
+
+		if ( ptr + clen > end )
+			break;
+	}
+
+	return 1;
 }

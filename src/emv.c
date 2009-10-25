@@ -7,6 +7,7 @@
 #include <ccid.h>
 #include <list.h>
 #include <emv.h>
+#include <ber.h>
 #include "emv-internal.h"
 
 static int emv_select(emv_t e, uint8_t *name, size_t nlen)
@@ -48,7 +49,7 @@ static int emv_select(emv_t e, uint8_t *name, size_t nlen)
 	if ( NULL == res )
 		return 0;
 
-	ber_dump(res, len, 1);
+	//ber_dump(res, len, 1);
 	return 1;
 }
 
@@ -91,7 +92,7 @@ static int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	if ( NULL == res )
 		return 0;
 
-	ber_dump(res, len, 1);
+	//ber_dump(res, len, 1);
 	return 1;
 }
 
@@ -112,17 +113,82 @@ static void do_emv_fini(emv_t e)
 	}
 }
 
-static struct _emv_app *add_app(emv_t e)
+static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
 {
+	struct _emv_app *a = priv;
+	snprintf(a->a_id, sizeof(a->a_id), "%.*s", len, ptr);
+	return 1;
+}
+
+static int bop_label(const uint8_t *ptr, size_t len, void *priv)
+{
+	struct _emv_app *a = priv;
+	snprintf(a->a_name, sizeof(a->a_name), "%.*s", len, ptr);
+	return 1;
+}
+
+static int bop_pname(const uint8_t *ptr, size_t len, void *priv)
+{
+	struct _emv_app *a = priv;
+	snprintf(a->a_pname, sizeof(a->a_pname), "%.*s", len, ptr);
+	return 1;
+}
+
+static int bop_prio(const uint8_t *ptr, size_t len, void *priv)
+{
+	struct _emv_app *a = priv;
+	assert(1U == len);
+	a->a_prio = *ptr;
+	return 1;
+}
+
+static int bop_dtemp(const uint8_t *ptr, size_t len, void *priv)
+{
+	struct _emv *e = priv;
 	struct _emv_app *app;
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x4f", .tag_len = 1, .op = bop_adfname },
+		{ .tag = "\x50", .tag_len = 1, .op = bop_label },
+		{ .tag = "\x87", .tag_len = 1, .op = bop_prio },
+		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname },
+	};
 
 	app = calloc(1, sizeof(*app));
-	if ( app ) {
-		/* recno, id_sz/id, names */
+	if ( NULL == app )
+		return 0;
+
+	if ( ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, app) ) {
+		printf("Added %s application\n", app->a_pname);
 		list_add_tail(&app->a_list, &e->e_apps);
 		e->e_num_apps++;
+		return 1;
+	}else{
+		free(app);
+		return 0;
 	}
-	return app;
+}
+
+static int bop_psd(const uint8_t *ptr, size_t len, void *priv)
+{
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x61", .tag_len = 1, .op = bop_dtemp },
+	};
+	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
+}
+
+static int add_app(emv_t e)
+{
+	const uint8_t *res;
+	size_t len;
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x70", .tag_len = 1, .op = bop_psd },
+	};
+
+	res = xfr_rx_data(e->e_xfr, &len);
+	if ( NULL == res )
+		return NULL;
+
+	return ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
 }
 
 static void init_apps(emv_t e)
@@ -137,11 +203,7 @@ static void init_apps(emv_t e)
 
 		if ( !emv_read_record(e, 1, i) )
 			break;
-		app = add_app(e);
-		if ( app ) {
-			printf("\nRECORD %u is %.16s / %.16s\n",
-				i, app->a_name, app->a_pname);
-		}
+		add_app(e);
 	}
 
 	printf("\n%u APPS DISCOVERED IN PAY SYS\n", e->e_num_apps);

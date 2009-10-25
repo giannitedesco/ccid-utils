@@ -8,8 +8,9 @@
 
 struct _emv_app {
 	uint8_t a_recno;
+	uint8_t a_prio;
 	uint8_t a_id_sz;
-	/* uint16_t a_pad0; */
+	/* uint8_t a_pad0; */
 	uint8_t a_id[16];
 	char a_name[16];
 	char a_pname[16];
