@@ -10,11 +10,35 @@
 #include <ber.h>
 #include "emv-internal.h"
 
+static int emsa_pss_decode(const uint8_t *msg, size_t msg_len,
+				const uint8_t *em, size_t em_len)
+{
+	uint8_t md[SHA_DIGEST_LENGTH];
+	size_t mdb_len;
+
+	/* 2. mHash < Hash(m) */
+	SHA1(msg, msg_len, md);
+
+	/* 4. if the rightmost octet of em does not have hexadecimal
+	 * value 0xBC, output “invalid” */
+	if ( em[em_len - 1] != 0xbc ) {
+		printf("emsa-pss: bad trailer\n");
+		return 0;
+	}
+	
+	mdb_len = em_len - sizeof(md) - 1;
+
+	if ( memcmp(em + mdb_len, md, SHA_DIGEST_LENGTH) )
+		return 0;
+
+	return 1;
+}
+
 static int check_iss_cert(struct _sda *s)
 {
 	size_t key_len = s->iss_cert_len;
-	char md[SHA_DIGEST_LENGTH];
-	SHA_CTX sha;
+	uint8_t *msg, *tmp;
+	size_t msg_len;
 
 	if ( s->iss_cert[0] != 0x6a ) {
 		printf("error: certificate header b0rk\n");
@@ -31,29 +55,25 @@ static int check_iss_cert(struct _sda *s)
 		return 0;
 	}
 
-	if ( s->iss_cert[key_len - 1] != 0xbc ) {
-		printf("error: certificate trailer b0rk\n");
+	//printf("Decoded issuer certificate:\n");
+	//hex_dump(s->iss_cert, key_len, 16);
+
+	msg_len = key_len - (SHA_DIGEST_LENGTH + 2) +
+			s->iss_pubkey_r_len + s->iss_exp_len;
+	tmp = msg = malloc(msg_len);
+	if ( NULL == msg )
 		return 0;
-	}
 
-	printf("Decoded issuer certificate:\n");
-	hex_dump(s->iss_cert, key_len, 16);
+	memcpy(tmp, s->iss_cert + 1, key_len - (SHA_DIGEST_LENGTH + 2));
+	tmp += key_len - (SHA_DIGEST_LENGTH + 2);
+	memcpy(tmp, s->iss_pubkey_r, s->iss_pubkey_r_len);
+	tmp += s->iss_pubkey_r_len;
+	memcpy(tmp, s->iss_exp, s->iss_exp_len);
 
-	/* TODO: EMSA-PSS decoding */
-	SHA1_Init(&sha);
-	SHA_Update(&sha, s->iss_cert + 1,
-			key_len - (SHA_DIGEST_LENGTH + 2));
-	SHA_Update(&sha, s->iss_pubkey_r, s->iss_pubkey_r_len);
-	SHA_Update(&sha, s->iss_exp, s->iss_exp_len);
-	SHA_Final(md, &sha);
+	//printf("Encoded message of %u bytes:\n", msg_len);
+	//hex_dump(msg, msg_len, 16);
 
-	printf("Hash computed:\n");
-	hex_dump(md, SHA_DIGEST_LENGTH, 20);
-
-	printf("Certificate hash:\n");
-	hex_dump(s->iss_cert + (key_len - 21), 20, 20);
-
-	return 1;
+	return emsa_pss_decode(msg, msg_len, s->iss_cert, s->iss_cert_len);
 }
 
 int _sda_get_issuer_key(struct _sda *s, RSA *ca_key, size_t key_len)
@@ -95,6 +115,8 @@ int _sda_get_issuer_key(struct _sda *s, RSA *ca_key, size_t key_len)
 		return 0;
 	}
 
+	printf("Issuer certificate hash OK\n");
+
 	/* stitch together key bytes from certificate and separate
 	 * key remainder field... */
 	memcpy(tmp, kb, kb_len);
@@ -113,6 +135,22 @@ int _sda_get_issuer_key(struct _sda *s, RSA *ca_key, size_t key_len)
 					s->iss_exp_len, NULL);
 	free(tmp);
 	return 1;
+}
+
+static int check_ssa_data(struct _sda *s)
+{
+	if ( s->ssa_data[0] != 0x6a ) {
+		printf("error: SSA data bad signature byte\n");
+		return 0;
+	}
+	
+	if ( s->ssa_data[1] != 0x03 ) {
+		printf("error: SSA data bad format\n");
+		return 0;
+	}
+
+//	printf("Recovered SSA data:\n");
+//	hex_dump(s->ssa_data, s->ssa_data_len, 16);
 }
 
 int _sda_verify_ssa_data(struct _sda *s)
@@ -134,12 +172,18 @@ int _sda_verify_ssa_data(struct _sda *s)
 		return 0;
 	}
 
-	printf("Recovered SSA data:\n");
-	hex_dump(tmp, ret, 16);
-
 	memcpy(s->ssa_data, tmp, s->ssa_data_len);
-
 	free(tmp);
+
+	if ( s->ssa_data_len != s->iss_cert_len ) {
+		printf("error: SSA data length check failed\n");
+		return 0;
+	}
+
+	if ( !check_ssa_data(s) ) {
+		return 0;
+	}
+
 	return 1;
 }
 

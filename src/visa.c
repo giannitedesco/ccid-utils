@@ -215,8 +215,8 @@ static int bop_psd2(const uint8_t *ptr, size_t len, void *priv)
 static int bop_issuer_cert(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("Issuer public key certificate:\n");
-	hex_dump(ptr, len, 16);
+	//printf("Issuer public key certificate:\n");
+	//hex_dump(ptr, len, 16);
 	e->e_sda.iss_cert = malloc(len);
 	assert(NULL != e->e_sda.iss_cert);
 	memcpy(e->e_sda.iss_cert, ptr, len);
@@ -226,8 +226,8 @@ static int bop_issuer_cert(const uint8_t *ptr, size_t len, void *priv)
 static int bop_pk_rem(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("Issuer public key remainder:\n");
-	hex_dump(ptr, len, 16);
+	//printf("Issuer public key remainder:\n");
+	//hex_dump(ptr, len, 16);
 	e->e_sda.iss_pubkey_r = malloc(len);
 	assert(NULL != e->e_sda.iss_pubkey_r);
 	memcpy(e->e_sda.iss_pubkey_r, ptr, len);
@@ -237,8 +237,8 @@ static int bop_pk_rem(const uint8_t *ptr, size_t len, void *priv)
 static int bop_ssa_data(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("Signed SSA data:\n");
-	hex_dump(ptr, len, 16);
+	//printf("Signed SSA data:\n");
+	//hex_dump(ptr, len, 16);
 	e->e_sda.ssa_data = malloc(len);
 	assert(NULL != e->e_sda.ssa_data);
 	memcpy(e->e_sda.ssa_data, ptr, len);
@@ -248,8 +248,8 @@ static int bop_ssa_data(const uint8_t *ptr, size_t len, void *priv)
 static int bop_pk_exp(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("Issuer public key exponent:\n");
-	hex_dump(ptr, len, 16);
+	//printf("Issuer public key exponent:\n");
+	//hex_dump(ptr, len, 16);
 	e->e_sda.iss_exp = malloc(len);
 	assert(NULL != e->e_sda.iss_exp);
 	memcpy(e->e_sda.iss_exp, ptr, len);
