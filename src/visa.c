@@ -172,14 +172,24 @@ static int bop_cvm(const uint8_t *ptr, size_t len, void *priv)
 /* List of tags for GENERATE AC commands */
 static int bop_cdol1(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("CDOL1\n");
+	struct _emv *e = priv;
+	printf("CDOL1:\n");
 	hex_dump(ptr, len, 16);
+	e->e_sda.cdol1 = malloc(len);
+	assert(NULL != e->e_sda.cdol1);
+	memcpy(e->e_sda.cdol1, ptr, len);
+	e->e_sda.cdol1_len = len;
 	return 1;
 }
 static int bop_cdol2(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("CDOL2\n");
+	struct _emv *e = priv;
+	printf("CDOL2:\n");
 	hex_dump(ptr, len, 16);
+	e->e_sda.cdol2 = malloc(len);
+	assert(NULL != e->e_sda.cdol2);
+	memcpy(e->e_sda.cdol2, ptr, len);
+	e->e_sda.cdol2_len = len;
 	return 1;
 }
 
@@ -323,6 +333,20 @@ static int get_issuer_key(struct _sda *s)
 	return _sda_get_issuer_key(s, key, key_len);
 }
 
+static int get_aip(emv_t e)
+{
+	static const uint8_t pdol[] = {0x83, 0x00};
+	const uint8_t *res;
+	size_t len;
+
+	if ( !_emv_get_proc_opts(e, pdol, sizeof(pdol)) )
+		return 0;
+	printf("Got AIP:\n");
+	res = xfr_rx_data(e->e_xfr, &len);
+	ber_decode(NULL, 0, res, len, NULL);
+	return 1;
+}
+
 int emv_visa_init(emv_t e)
 {
 	struct _emv_app *a, *cur = NULL;
@@ -348,8 +372,8 @@ int emv_visa_init(emv_t e)
 	if ( NULL == res )
 		return 1;
 
-//	printf("VISA directory descriptor thingy:\n");
-//	ber_decode(NULL, 0, res, len, NULL);
+	printf("VISA directory descriptor thingy:\n");
+	ber_decode(NULL, 0, res, len, NULL);
 
 	rinse_sfi(e, 1, bop_psd1);
 	rinse_sfi(e, 2, bop_psd2);
@@ -364,8 +388,10 @@ int emv_visa_init(emv_t e)
 	_emv_get_data(e, 0x9f, 0x4f);
 #endif
 
-	if ( get_issuer_key(&e->e_sda) )
-		_sda_verify_ssa_data(&e->e_sda);
+	if ( !get_issuer_key(&e->e_sda) ) {
+		printf("visa: error: unable to determine issuer key\n");
+		return 0;
+	}
 
 	return 1;
 }
@@ -396,6 +422,19 @@ static int get_pin_try_counter(struct _emv *e)
 		return -1;
 	return ctr;
 }
+
+int emv_visa_init_sda(emv_t e)
+{
+	if ( !get_aip(e) ) {
+		printf("error: no application interchange profile\n");
+		return 0;
+	}
+
+	//_emv_generate_ac(e, 0x40, e->e_sda.cdol1, e->e_sda.cdol1_len);
+	_sda_verify_ssa_data(&e->e_sda);
+	return 1;
+}
+
 
 int emv_visa_pin(emv_t e, char *pin)
 {

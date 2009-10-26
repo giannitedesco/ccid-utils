@@ -138,6 +138,74 @@ int _emv_verify(emv_t e, uint8_t fmt, const uint8_t *pin, uint8_t plen)
 	return 1;
 }
 
+int _emv_get_proc_opts(emv_t e, const uint8_t *dol, uint8_t len)
+{
+	uint8_t sw2;
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x80);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xa8);		/* INS: GET DATA*/
+	xfr_tx_byte(e->e_xfr, 0);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
+	xfr_tx_byte(e->e_xfr, len);		/* Lc */
+	xfr_tx_buf(e->e_xfr, dol, len);	/* Data: PDOL */
+	xfr_tx_byte(e->e_xfr, 0);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	printf("GET PROCESSING OPTIONS SW1=%.2x SW2=%.2x\n",
+		xfr_rx_sw1(e->e_xfr), xfr_rx_sw2(e->e_xfr));
+	if ( xfr_rx_sw1(e->e_xfr) != 0x61 )
+		return 0;
+	sw2 = xfr_rx_sw2(e->e_xfr);
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x80);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xa8);		/* INS: GET DATA */
+	xfr_tx_byte(e->e_xfr, 0);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0); 		/* P2 */
+	xfr_tx_byte(e->e_xfr, len);		/* Lc */
+	xfr_tx_buf(e->e_xfr, dol, len);	/* Data: PDOL */
+	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	printf("GET PROCESSING OPTIONS SW1=%.2x SW2=%.2x\n",
+		xfr_rx_sw1(e->e_xfr), xfr_rx_sw2(e->e_xfr));
+	if ( xfr_rx_sw1(e->e_xfr) != 0x90 )
+		return 0;
+
+	return 1;
+}
+
+int _emv_generate_ac(emv_t e, uint8_t ref,
+			const uint8_t *data, uint8_t len)
+{
+	uint8_t sw2;
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x80);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xae);		/* INS: GENERATE AC */
+	xfr_tx_byte(e->e_xfr, ref);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
+	xfr_tx_byte(e->e_xfr, len);		/* Lc */
+	xfr_tx_buf(e->e_xfr, data, len);	/* Data: */
+	xfr_tx_byte(e->e_xfr, 0);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	printf("GENERATE AC SW1=%.2x SW2=%.2x\n",
+		xfr_rx_sw1(e->e_xfr), xfr_rx_sw2(e->e_xfr));
+	if ( xfr_rx_sw1(e->e_xfr) != 0x61 )
+		return 0;
+	sw2 = xfr_rx_sw2(e->e_xfr);
+
+	return 1;
+}
+
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {

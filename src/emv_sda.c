@@ -151,6 +151,7 @@ static int check_ssa_data(struct _sda *s)
 
 //	printf("Recovered SSA data:\n");
 //	hex_dump(s->ssa_data, s->ssa_data_len, 16);
+	return 1;
 }
 
 int _sda_verify_ssa_data(struct _sda *s)
