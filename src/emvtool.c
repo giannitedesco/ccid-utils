@@ -34,6 +34,7 @@ static int do_emv_stuff(chipcard_t cc)
 #if 0
 	printf("emvtool: Initializing LINK application\n");
 	if ( emv_link_init(emv) ) {
+		emv_link_init_sda(emv);
 		printf("SUCCESS\n");
 	}
 #endif

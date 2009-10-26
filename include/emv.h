@@ -20,5 +20,7 @@ _public int emv_visa_pin(emv_t emv, char *pin);
 
 /* LINK application */
 _public int emv_link_init(emv_t emv);
+_public int emv_link_init_sda(emv_t emv);
+_public int emv_link_pin(emv_t emv, char *pin);
 
 #endif /* _EMV_H */
