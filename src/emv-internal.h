@@ -6,6 +6,10 @@
 #ifndef _EMV_INTERNAL_H
 #define _EMV_INTERNAL_H
 
+#include <openssl/sha.h>
+#include <openssl/rsa.h>
+#include <openssl/engine.h>
+
 #define EMV_RID_LEN 5
 #define EMV_MAX_ADF_LEN 11
 
@@ -30,6 +34,18 @@ struct _emv {
 #define EMV_APP_VISA 1
 #define EMV_APP_LINK 2
 	unsigned int e_cur;
+	struct {
+		unsigned int key_idx;
+		uint8_t *iss_cert;
+		size_t iss_cert_len;
+		uint8_t *iss_exp;
+		size_t iss_exp_len;
+		uint8_t *iss_pubkey_r;
+		size_t iss_pubkey_r_len;
+		uint8_t *ssa_data;
+		size_t ssa_data_len;
+		RSA *iss_pubkey;
+	}e_sda;
 	union {
 		struct {
 		}a_link;

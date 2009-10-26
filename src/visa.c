@@ -10,6 +10,27 @@
 #include <ber.h>
 #include "emv-internal.h"
 
+#include "visa_pubkeys.h"
+
+static struct {
+	unsigned int idx;
+	size_t key_len;
+	RSA *key;
+}keytbl[] = {
+	{.idx = 1, }, /* 1024 bit key / 2009 */
+	{.idx = 7, }, /* 1152 bit key / 2015 */
+	{.idx = 8, }, /* 1408 bit key / 2018 */
+	{.idx = 9, }, /* 1984 bit key / 2018 */
+};
+static const unsigned int num_keys = sizeof(keytbl)/sizeof(*keytbl);
+static void __attribute__((constructor)) visa_ctor(void)
+{
+	keytbl[1].key_len = visa1152_mod_len;
+	keytbl[1].key = RSA_new();
+	keytbl[1].key->n = BN_bin2bn(visa1152_mod, visa1152_mod_len, NULL);
+	keytbl[1].key->e = BN_bin2bn(visa1152_exp, visa1152_exp_len, NULL);
+}
+
 static const uint8_t visa_rid[] = "\xa0\x00\x00\x00\x03";
 
 static int bop_cardholder(const uint8_t *ptr, size_t len, void *priv)
@@ -37,26 +58,6 @@ static int bop_psd1(const uint8_t *ptr, size_t len, void *priv)
 		{ .tag = "\x9f\x1f", .tag_len = 2, .op = bop_track1d},
 	};
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
-}
-
-static int do_sfi1(emv_t e)
-{
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x70", .tag_len = 1, .op = bop_psd1 },
-	};
-	const uint8_t *res;
-	size_t len;
-
-	if ( !emv_read_record(e, 1, 1) )
-		return 0;
-
-	res = xfr_rx_data(e->e_xfr, &len);
-	if ( NULL == res )
-		return 1;
-
-	ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
-
-	return 1;
 }
 
 static int bop_exp_date(const uint8_t *ptr, size_t len, void *priv)
@@ -131,55 +132,56 @@ static int bop_psd2(const uint8_t *ptr, size_t len, void *priv)
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
 }
 
-static int do_sfi2(emv_t e)
-{
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x70", .tag_len = 1, .op = bop_psd2 },
-	};
-	const uint8_t *res;
-	size_t len;
-	unsigned int i;
-
-	for(i = 1; i < 0x10; i++) {
-		if ( !emv_read_record(e, 2, i) )
-			return 0;
-
-		res = xfr_rx_data(e->e_xfr, &len);
-		if ( NULL == res )
-			return 1;
-
-		ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
-	}
-
-	return 1;
-}
-
 static int bop_issuer_cert(const uint8_t *ptr, size_t len, void *priv)
 {
+	struct _emv *e = priv;
 	printf("Issuer public key certificate:\n");
 	hex_dump(ptr, len, 16);
+	e->e_sda.iss_cert = malloc(len);
+	assert(NULL != e->e_sda.iss_cert);
+	memcpy(e->e_sda.iss_cert, ptr, len);
+	e->e_sda.iss_cert_len = len;
 	return 1;
 }
 static int bop_pk_rem(const uint8_t *ptr, size_t len, void *priv)
 {
+	struct _emv *e = priv;
 	printf("Issuer public key remainder:\n");
 	hex_dump(ptr, len, 16);
+	e->e_sda.iss_pubkey_r = malloc(len);
+	assert(NULL != e->e_sda.iss_pubkey_r);
+	memcpy(e->e_sda.iss_pubkey_r, ptr, len);
+	e->e_sda.iss_pubkey_r_len = len;
 	return 1;
 }
 static int bop_ssa_data(const uint8_t *ptr, size_t len, void *priv)
 {
+	struct _emv *e = priv;
 	printf("Signed SSA data:\n");
 	hex_dump(ptr, len, 16);
+	e->e_sda.ssa_data = malloc(len);
+	assert(NULL != e->e_sda.ssa_data);
+	memcpy(e->e_sda.ssa_data, ptr, len);
+	e->e_sda.ssa_data_len = len;
 	return 1;
 }
 static int bop_pk_exp(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("Issuer public key exponent: %u\n", *ptr);
+	struct _emv *e = priv;
+	printf("Issuer public key exponent:\n");
+	hex_dump(ptr, len, 16);
+	e->e_sda.iss_exp = malloc(len);
+	assert(NULL != e->e_sda.iss_exp);
+	memcpy(e->e_sda.iss_exp, ptr, len);
+	e->e_sda.iss_exp_len = len;
 	return 1;
 }
 static int bop_ca_key_idx(const uint8_t *ptr, size_t len, void *priv)
 {
+	struct _emv *e = priv;
+	assert(1 == len);
 	printf("Certification authority public key index: %u\n", *ptr);
+	e->e_sda.key_idx = *ptr;
 	return 1;
 }
 
@@ -195,17 +197,18 @@ static int bop_psd3(const uint8_t *ptr, size_t len, void *priv)
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
 }
 
-static int do_sfi3(emv_t e)
+static int rinse_sfi(emv_t e, unsigned int sfi,
+			int (*bop)(const uint8_t *, size_t, void *))
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x70", .tag_len = 1, .op = bop_psd3 },
+	struct ber_tag tags[] = {
+		{ .tag = "\x70", .tag_len = 1, .op = bop},
 	};
 	const uint8_t *res;
 	size_t len;
 	unsigned int i;
 
 	for(i = 1; i < 0x10; i++ ) {
-		if ( !emv_read_record(e, 3, i) )
+		if ( !emv_read_record(e, sfi, i) )
 			break;
 
 		res = xfr_rx_data(e->e_xfr, &len);
@@ -218,6 +221,124 @@ static int do_sfi3(emv_t e)
 	return 1;
 }
 
+static int check_iss_cert(struct _emv *e)
+{
+	size_t key_len = e->e_sda.iss_cert_len;
+	char md[SHA_DIGEST_LENGTH];
+	SHA_CTX sha;
+
+	if ( e->e_sda.iss_cert[0] != 0x6a ) {
+		printf("error: certificate header b0rk\n");
+		return 0;
+	}
+
+	if ( e->e_sda.iss_cert[1] != 0x02 ) {
+		printf("error: certificate format b0rk\n");
+		return 0;
+	}
+
+	if ( e->e_sda.iss_cert[11] != 0x01 ) {
+		printf("error: unexpected hash format in certificate\n");
+		return 0;
+	}
+
+	if ( e->e_sda.iss_cert[key_len - 1] != 0xbc ) {
+		printf("error: certificate trailer b0rk\n");
+		return 0;
+	}
+
+	printf("Decoded issuer certificate:\n");
+	hex_dump(e->e_sda.iss_cert, key_len, 16);
+
+	/* TODO: EMSA-PSS decoding */
+	SHA1_Init(&sha);
+	SHA_Update(&sha, e->e_sda.iss_cert + 1,
+			key_len - (SHA_DIGEST_LENGTH + 2));
+	SHA_Update(&sha, e->e_sda.iss_pubkey_r, e->e_sda.iss_pubkey_r_len);
+	SHA_Update(&sha, e->e_sda.iss_exp, e->e_sda.iss_exp_len);
+	SHA_Final(md, &sha);
+
+	printf("Hash computed:\n");
+	hex_dump(md, SHA_DIGEST_LENGTH, 20);
+
+	printf("Certificate hash:\n");
+	hex_dump(e->e_sda.iss_cert + (key_len - 21), 20, 20);
+
+	return 1;
+}
+
+static int get_issuer_key(struct _emv *e)
+{
+	unsigned int i;
+	size_t key_len, kb_len;
+	uint8_t *tmp, *kb;
+	int ret;
+	RSA *key = NULL;
+
+	for(i = 0; i < num_keys; i++) {
+		if ( keytbl[i].idx == e->e_sda.key_idx ) {
+			key = keytbl[i].key;
+			key_len = keytbl[i].key_len;
+			break;
+		}
+	}
+
+	assert(key_len >= 16);
+
+	if ( NULL == key ) {
+		printf("error: key %u not found\n", e->e_sda.key_idx);
+		return 0;
+	}
+
+	if ( e->e_sda.iss_cert_len != key_len ) {
+		printf("error: issuer key/cert len mismatch\n");
+		return 0;
+	}
+
+	tmp = malloc(key_len);
+	assert(NULL != tmp);
+
+	ret = RSA_public_encrypt(key_len, e->e_sda.iss_cert, tmp, key,
+					RSA_NO_PADDING);
+	if ( ret < 0 || (unsigned)ret != key_len ) {
+		printf("error: rsa failed on issuer key certificate\n");
+		free(tmp);
+		return 0;
+	}
+
+	memcpy(e->e_sda.iss_cert, tmp, key_len);
+	kb = e->e_sda.iss_cert + 15;
+	kb_len = key_len - (15 + 21);
+
+	if ( kb_len + e->e_sda.iss_pubkey_r_len != key_len ) {
+		printf("error: not enough bytes for issuer public key\n");
+		free(tmp);
+		return 0;
+	}
+
+	if ( !check_iss_cert(e) ) {
+		free(tmp);
+		return 0;
+	}
+
+	/* stitch together key bytes from certificate and separate
+	 * key remainder field... */
+	memcpy(tmp, kb, kb_len);
+	memcpy(tmp + kb_len, e->e_sda.iss_pubkey_r, e->e_sda.iss_pubkey_r_len);
+	printf("Retrieved issuer public key:\n");
+	hex_dump(tmp, key_len, 16);
+
+	/* key remainder no longer required */
+	free(e->e_sda.iss_pubkey_r);
+	e->e_sda.iss_pubkey_r = NULL;
+	e->e_sda.iss_pubkey_r_len = 0;
+
+	e->e_sda.iss_pubkey = RSA_new();
+	e->e_sda.iss_pubkey->n = BN_bin2bn(tmp, key_len, NULL);
+	e->e_sda.iss_pubkey->e = BN_bin2bn(e->e_sda.iss_exp,
+					e->e_sda.iss_exp_len, NULL);
+	return 1;
+}
 
 int emv_visa_init(emv_t e)
 {
@@ -247,9 +368,11 @@ int emv_visa_init(emv_t e)
 //	printf("VISA directory descriptor thingy:\n");
 //	ber_decode(NULL, 0, res, len, NULL);
 
-	do_sfi1(e);
-	do_sfi2(e);
-	do_sfi3(e);
+	rinse_sfi(e, 1, bop_psd1);
+	rinse_sfi(e, 2, bop_psd2);
+	rinse_sfi(e, 3, bop_psd3);
+
+	get_issuer_key(e);
 
 	return 1;
 }

@@ -106,6 +106,12 @@ static void do_emv_fini(emv_t e)
 			free(a);
 		}
  
+ 		free(e->e_sda.iss_cert);
+ 		free(e->e_sda.iss_exp);
+ 		free(e->e_sda.iss_pubkey_r);
+ 		free(e->e_sda.ssa_data);
+		RSA_free(e->e_sda.iss_pubkey);
+
 		if ( e->e_xfr )
 			xfr_free(e->e_xfr);
 		free(e);
