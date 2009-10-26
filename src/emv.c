@@ -10,7 +10,7 @@
 #include <ber.h>
 #include "emv-internal.h"
 
-int emv_select(emv_t e, uint8_t *name, size_t nlen)
+int _emv_select(emv_t e, uint8_t *name, size_t nlen)
 {
 	const uint8_t *res;
 	size_t len;
@@ -53,7 +53,7 @@ int emv_select(emv_t e, uint8_t *name, size_t nlen)
 	return 1;
 }
 
-int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
+int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 {
 	const uint8_t *res;
 	size_t len;
@@ -93,6 +93,28 @@ int emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 		return 0;
 
 	//ber_dump(res, len, 1);
+	return 1;
+}
+
+int _emv_verify(emv_t e, uint8_t fmt, const uint8_t *pin, uint8_t plen)
+{
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0x20);		/* INS: VERIFY */
+	xfr_tx_byte(e->e_xfr, 0);		/* P1: record index */
+	xfr_tx_byte(e->e_xfr, fmt);		/* P2 */
+	xfr_tx_byte(e->e_xfr, plen);		/* P2 */
+	xfr_tx_buf(e->e_xfr, pin, plen);
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	if ( xfr_rx_sw1(e->e_xfr) != 0x90 ) {
+		printf("VERIFY fail with sw1=%.2x sw2=%.2x\n",
+			xfr_rx_sw1(e->e_xfr), xfr_rx_sw2(e->e_xfr));
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -204,10 +226,10 @@ static void init_apps(emv_t e)
 	unsigned int i;
 
 	printf("Enumerating ICC applications:\n");
-	emv_select(e, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
+	_emv_select(e, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
 
 	for (i = 1; ; i++) {
-		if ( !emv_read_record(e, 1, i) )
+		if ( !_emv_read_record(e, 1, i) )
 			break;
 		add_app(e);
 	}

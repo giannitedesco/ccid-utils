@@ -286,7 +286,7 @@ static int rinse_sfi(emv_t e, unsigned int sfi,
 	unsigned int i;
 
 	for(i = 1; i < 0x10; i++ ) {
-		if ( !emv_read_record(e, sfi, i) )
+		if ( !_emv_read_record(e, sfi, i) )
 			break;
 
 		res = xfr_rx_data(e->e_xfr, &len);
@@ -340,7 +340,7 @@ int emv_visa_init(emv_t e)
 	e->e_cur = EMV_APP_VISA;
 	e->e_app = cur;
 
-	emv_select(e, e->e_app->a_id, e->e_app->a_id_sz);
+	_emv_select(e, e->e_app->a_id, e->e_app->a_id_sz);
 
 	res = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == res )
@@ -357,4 +357,32 @@ int emv_visa_init(emv_t e)
 		_sda_verify_ssa_data(&e->e_sda);
 
 	return 1;
+}
+
+int emv_visa_pin(emv_t emv, char *pin)
+{
+	uint8_t pb[8];
+	size_t plen;
+	unsigned int i;
+
+	plen = strlen(pin);
+	if ( plen < 4 || plen > 12 )
+		return 0;
+
+	memset(pb, 0xff, sizeof(pb));
+
+	pb[0] = 0x20 | (plen & 0xf);
+	for(i = 0; pin[i]; i++) {
+		if ( !isdigit(pin[i]) )
+			return 0;
+		if ( i & 0x1 ) {
+			pb[1 + (i >> 1)] = (pb[1 + (i >> 1)] & 0xf0) |
+					((pin[i] - '0') & 0xf);
+		}else{
+			pb[1 + (i >> 1)] = ((pin[i] - '0') << 4) | 0xf;
+		}
+	}
+
+	hex_dump(pb, sizeof(pb), 16);
+	return _emv_verify(emv, 0x80, pb, sizeof(pb));
 }

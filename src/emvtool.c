@@ -21,7 +21,11 @@ static int do_emv_stuff(chipcard_t cc)
 
 	printf("emvtool: Initializing VISA application\n");
 	if ( emv_visa_init(emv) ) {
-		printf("SUCCESS\n");
+		if ( emv_visa_pin(emv, "1337") ) {
+			printf("SUCCESS\n");
+		}else{
+			printf("FAIL\n");
+		}
 	}
 
 #if 0

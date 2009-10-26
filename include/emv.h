@@ -15,6 +15,7 @@ _public void emv_fini(emv_t emv);
 
 /* VISA application */
 _public int emv_visa_init(emv_t emv);
+_public int emv_visa_pin(emv_t emv, char *pin);
 
 /* LINK application */
 _public int emv_link_init(emv_t emv);

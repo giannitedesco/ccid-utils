@@ -47,7 +47,7 @@ static int do_sfi1(emv_t e)
 	const uint8_t *res;
 	size_t len;
 
-	if ( !emv_read_record(e, 1, 1) )
+	if ( !_emv_read_record(e, 1, 1) )
 		return 0;
 
 	res = xfr_rx_data(e->e_xfr, &len);
@@ -141,7 +141,7 @@ static int do_sfi2(emv_t e)
 	unsigned int i;
 
 	for(i = 1; i < 0x10; i++) {
-		if ( !emv_read_record(e, 2, i) )
+		if ( !_emv_read_record(e, 2, i) )
 			return 0;
 
 		res = xfr_rx_data(e->e_xfr, &len);
@@ -205,7 +205,7 @@ static int do_sfi3(emv_t e)
 	unsigned int i;
 
 	for(i = 1; i < 0x10; i++ ) {
-		if ( !emv_read_record(e, 3, i) )
+		if ( !_emv_read_record(e, 3, i) )
 			break;
 
 		res = xfr_rx_data(e->e_xfr, &len);
@@ -238,7 +238,7 @@ int emv_link_init(emv_t e)
 	e->e_cur = EMV_APP_LINK;
 	e->e_app = cur;
 
-	emv_select(e, e->e_app->a_id, e->e_app->a_id_sz);
+	_emv_select(e, e->e_app->a_id, e->e_app->a_id_sz);
 
 	res = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == res )
