@@ -81,11 +81,89 @@ static int bop_pan(const uint8_t *ptr, size_t len, void *priv)
 		ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]);
 	return 1;
 }
-static int bop_mac(const uint8_t *ptr, size_t len, void *priv)
+static int bop_cvm(const uint8_t *ptr, size_t len, void *priv)
 {
-	printf("MAC: %.2x%.2x-%.2x%.2x-%.2x%.2x-%.2x%.2x\n",
-		ptr[8], ptr[9], ptr[10], ptr[11],
-		ptr[12], ptr[13], ptr[14], ptr[15]);
+	printf("Cardholder verification methods:\n");
+	//hex_dump(ptr, len, 16);
+
+	if ( len <= 8 )
+		return 1;
+	
+	for(ptr += 8, len -= 8; len >= 2; ptr += 2, len -= 2) {
+		switch(ptr[0] & 0x3f) {
+		case 0:
+			printf(" o Fail CVM processing");
+			break;
+		case 1:
+			printf(" o Plaintext offline PIN");
+			break;
+		case 2:
+			printf(" o Enciphered online PIN");
+			break;
+		case 3:
+			printf(" o Plaintext offline PIN + paperr sig");
+			break;
+		case 4:
+			printf(" o Enciphered offline PIN");
+			break;
+		case 5:
+			printf(" o Enciphered offline PIN + paper sig");
+			break;
+		case 0x3e:
+			printf(" o Paper signature");
+			break;
+		case 0x3f:
+			printf(" o No CVM required");
+			break;
+		default:
+			printf(" o Proprietary/RFU CVM (%.2x)",
+				ptr[0] & 0x3f);
+			break;
+		}
+
+		switch(ptr[1]) {
+		case 0:
+			printf(" always");
+			break;
+		case 1:
+			printf(" if unattended cash");
+			break;
+		case 2:
+			printf(" if not cash");
+			break;
+		case 3:
+			printf(" if terminal supports it");
+			break;
+		case 4:
+			printf(" if manual cash");
+			break;
+		case 5:
+			printf(" if purchase with cashback");
+			break;
+		case 6:
+			printf(" for cash < X in app currency");
+			break;
+		case 7:
+			printf(" for cash > X in app currency");
+			break;
+		case 8:
+			printf(" for cash < Y in app currency");
+			break;
+		case 9:
+			printf(" for cash > Y in app currency");
+			break;
+		default:
+			break;
+		}
+
+		if ( ptr[0] & 0x40 ) {
+			printf("\n");
+		}else{
+			printf(" [TERMINATE]\n");
+		}
+	}
+
+	printf("\n");
 	return 1;
 }
 
@@ -116,7 +194,7 @@ static int bop_psd2(const uint8_t *ptr, size_t len, void *priv)
 		{ .tag = "\x5a", .tag_len = 1, .op = bop_pan},
 		{ .tag = "\x8c", .tag_len = 1, .op = bop_cdol1},
 		{ .tag = "\x8d", .tag_len = 1, .op = bop_cdol2},
-		{ .tag = "\x8e", .tag_len = 1, .op = bop_mac},
+		{ .tag = "\x8e", .tag_len = 1, .op = bop_cvm},
 		{ .tag = "\x5f\x24", .tag_len = 2, .op = bop_exp_date},
 		{ .tag = "\x5f\x25", .tag_len = 2, .op = bop_eff_date},
 		{ .tag = "\x5f\x28", .tag_len = 2, /* country code */ },
