@@ -12,8 +12,6 @@
 
 int _emv_select(emv_t e, uint8_t *name, size_t nlen)
 {
-	const uint8_t *res;
-	size_t len;
 	uint8_t sw2;
 
 	assert(nlen < 0x100);
@@ -45,18 +43,11 @@ int _emv_select(emv_t e, uint8_t *name, size_t nlen)
 	if ( xfr_rx_sw1(e->e_xfr) != 0x90 )
 		return 0;
 
-	res = xfr_rx_data(e->e_xfr, &len);
-	if ( NULL == res )
-		return 0;
-
-	//ber_dump(res, len, 1);
 	return 1;
 }
 
 int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 {
-	const uint8_t *res;
-	size_t len;
 	uint8_t sw2, p2;
 
 	p2 = (sfi << 3) | (1 << 2);
@@ -88,11 +79,40 @@ int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	if ( xfr_rx_sw1(e->e_xfr) != 0x90 )
 		return 0;
 
-	res = xfr_rx_data(e->e_xfr, &len);
-	if ( NULL == res )
+	return 1;
+}
+
+int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2)
+{
+	uint8_t sw2;
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x80);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xca);		/* INS: GET DATA*/
+	xfr_tx_byte(e->e_xfr, p1);		/* P1 */
+	xfr_tx_byte(e->e_xfr, p2);		/* P2 */
+	xfr_tx_byte(e->e_xfr, 0);		/* Le: 0 this time around */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
 		return 0;
 
-	//ber_dump(res, len, 1);
+	if ( xfr_rx_sw1(e->e_xfr) != 0x6c )
+		return 0;
+	sw2 = xfr_rx_sw2(e->e_xfr);
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x80);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xca);		/* INS: GET DATA */
+	xfr_tx_byte(e->e_xfr, p1);		/* P1 */
+	xfr_tx_byte(e->e_xfr, p2); 		/* P2 */
+	xfr_tx_byte(e->e_xfr, sw2);		/* Le: got it now */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	if ( xfr_rx_sw1(e->e_xfr) != 0x90 )
+		return 0;
+
 	return 1;
 }
 

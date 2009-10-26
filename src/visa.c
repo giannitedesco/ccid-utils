@@ -12,6 +12,8 @@
 
 #include "visa_pubkeys.h"
 
+#include <ctype.h>
+
 static struct {
 	unsigned int idx;
 	size_t key_len;
@@ -353,17 +355,54 @@ int emv_visa_init(emv_t e)
 	rinse_sfi(e, 2, bop_psd2);
 	rinse_sfi(e, 3, bop_psd3);
 
+#if 0
+	printf("Application transaction counter:\n");
+	_emv_get_data(e, 0x9f, 0x36);
+	printf("Last online ATC:\n");
+	_emv_get_data(e, 0x9f, 0x13);
+	printf("Lower consecutive offline limit:\n");
+	_emv_get_data(e, 0x9f, 0x4f);
+#endif
+
 	if ( get_issuer_key(&e->e_sda) )
 		_sda_verify_ssa_data(&e->e_sda);
 
 	return 1;
 }
 
-int emv_visa_pin(emv_t emv, char *pin)
+static int bop_ptc(const uint8_t *ptr, size_t len, void *priv)
+{
+	int *ctr = priv;
+	assert(1 == len);
+	*ctr = *ptr;
+	return 1;
+}
+
+static int get_pin_try_counter(struct _emv *e)
+{
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x9f\x17", .tag_len = 2, .op = bop_ptc},
+	};
+	const uint8_t *ptr;
+	size_t len;
+	int ctr = -1;
+
+	if ( !_emv_get_data(e, 0x9f, 0x17) )
+		return -1;
+	ptr = xfr_rx_data(e->e_xfr, &len);
+	if ( NULL == ptr )
+		return -1;
+	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) )
+		return -1;
+	return ctr;
+}
+
+int emv_visa_pin(emv_t e, char *pin)
 {
 	uint8_t pb[8];
 	size_t plen;
 	unsigned int i;
+	int try;
 
 	plen = strlen(pin);
 	if ( plen < 4 || plen > 12 )
@@ -383,6 +422,10 @@ int emv_visa_pin(emv_t emv, char *pin)
 		}
 	}
 
+	try = get_pin_try_counter(e);
+	if ( try >= 0 )
+		printf("%i PIN tries remaining\n", try);
+	printf("Attempting VERIFY with plaintext PIN block:\n");
 	hex_dump(pb, sizeof(pb), 16);
-	return _emv_verify(emv, 0x80, pb, sizeof(pb));
+	return _emv_verify(e, 0x80, pb, sizeof(pb));
 }

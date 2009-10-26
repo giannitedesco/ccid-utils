@@ -59,6 +59,7 @@ struct _emv {
 _private int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record);
 _private int _emv_select(emv_t e, uint8_t *name, size_t nlen);
 _private int _emv_verify(emv_t e, uint8_t fmt, const uint8_t *p, uint8_t plen);
+_private int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2);
 
 _private int _sda_get_issuer_key(struct _sda *s, RSA *key, size_t key_len);
 _private int _sda_verify_ssa_data(struct _sda *s);
