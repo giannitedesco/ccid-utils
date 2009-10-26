@@ -221,123 +221,26 @@ static int rinse_sfi(emv_t e, unsigned int sfi,
 	return 1;
 }
 
-static int check_iss_cert(struct _emv *e)
-{
-	size_t key_len = e->e_sda.iss_cert_len;
-	char md[SHA_DIGEST_LENGTH];
-	SHA_CTX sha;
-
-	if ( e->e_sda.iss_cert[0] != 0x6a ) {
-		printf("error: certificate header b0rk\n");
-		return 0;
-	}
-
-	if ( e->e_sda.iss_cert[1] != 0x02 ) {
-		printf("error: certificate format b0rk\n");
-		return 0;
-	}
-
-	if ( e->e_sda.iss_cert[11] != 0x01 ) {
-		printf("error: unexpected hash format in certificate\n");
-		return 0;
-	}
-
-	if ( e->e_sda.iss_cert[key_len - 1] != 0xbc ) {
-		printf("error: certificate trailer b0rk\n");
-		return 0;
-	}
-
-	printf("Decoded issuer certificate:\n");
-	hex_dump(e->e_sda.iss_cert, key_len, 16);
-
-	/* TODO: EMSA-PSS decoding */
-	SHA1_Init(&sha);
-	SHA_Update(&sha, e->e_sda.iss_cert + 1,
-			key_len - (SHA_DIGEST_LENGTH + 2));
-	SHA_Update(&sha, e->e_sda.iss_pubkey_r, e->e_sda.iss_pubkey_r_len);
-	SHA_Update(&sha, e->e_sda.iss_exp, e->e_sda.iss_exp_len);
-	SHA_Final(md, &sha);
-
-	printf("Hash computed:\n");
-	hex_dump(md, SHA_DIGEST_LENGTH, 20);
-
-	printf("Certificate hash:\n");
-	hex_dump(e->e_sda.iss_cert + (key_len - 21), 20, 20);
-
-	return 1;
-}
-
-static int get_issuer_key(struct _emv *e)
+static int get_issuer_key(struct _sda *s)
 {
 	unsigned int i;
-	size_t key_len, kb_len;
-	uint8_t *tmp, *kb;
-	int ret;
+	size_t key_len;
 	RSA *key = NULL;
 
 	for(i = 0; i < num_keys; i++) {
-		if ( keytbl[i].idx == e->e_sda.key_idx ) {
+		if ( keytbl[i].idx == s->key_idx ) {
 			key = keytbl[i].key;
 			key_len = keytbl[i].key_len;
 			break;
 		}
 	}
 
-	assert(key_len >= 16);
-
 	if ( NULL == key ) {
-		printf("error: key %u not found\n", e->e_sda.key_idx);
+		printf("error: key %u not found\n", s->key_idx);
 		return 0;
 	}
-
-	if ( e->e_sda.iss_cert_len != key_len ) {
-		printf("error: issuer key/cert len mismatch\n");
-		return 0;
-	}
-
-	tmp = malloc(key_len);
-	assert(NULL != tmp);
-
-	ret = RSA_public_encrypt(key_len, e->e_sda.iss_cert, tmp, key,
-					RSA_NO_PADDING);
-	if ( ret < 0 || (unsigned)ret != key_len ) {
-		printf("error: rsa failed on issuer key certificate\n");
-		free(tmp);
-		return 0;
-	}
-
-	memcpy(e->e_sda.iss_cert, tmp, key_len);
-	kb = e->e_sda.iss_cert + 15;
-	kb_len = key_len - (15 + 21);
-
-	if ( kb_len + e->e_sda.iss_pubkey_r_len != key_len ) {
-		printf("error: not enough bytes for issuer public key\n");
-		free(tmp);
-		return 0;
-	}
-
-	if ( !check_iss_cert(e) ) {
-		free(tmp);
-		return 0;
-	}
-
-	/* stitch together key bytes from certificate and separate
-	 * key remainder field... */
-	memcpy(tmp, kb, kb_len);
-	memcpy(tmp + kb_len, e->e_sda.iss_pubkey_r, e->e_sda.iss_pubkey_r_len);
-	printf("Retrieved issuer public key:\n");
-	hex_dump(tmp, key_len, 16);
-
-	/* key remainder no longer required */
-	free(e->e_sda.iss_pubkey_r);
-	e->e_sda.iss_pubkey_r = NULL;
-	e->e_sda.iss_pubkey_r_len = 0;
-
-	e->e_sda.iss_pubkey = RSA_new();
-	e->e_sda.iss_pubkey->n = BN_bin2bn(tmp, key_len, NULL);
-	e->e_sda.iss_pubkey->e = BN_bin2bn(e->e_sda.iss_exp,
-					e->e_sda.iss_exp_len, NULL);
-	return 1;
+	
+	return _sda_get_issuer_key(s, key, key_len);
 }
 
 int emv_visa_init(emv_t e)
@@ -372,7 +275,8 @@ int emv_visa_init(emv_t e)
 	rinse_sfi(e, 2, bop_psd2);
 	rinse_sfi(e, 3, bop_psd3);
 
-	get_issuer_key(e);
+	if ( get_issuer_key(&e->e_sda) )
+		_sda_verify_ssa_data(&e->e_sda);
 
 	return 1;
 }
