@@ -82,7 +82,8 @@ uint8_t *_emv_construct_dol(struct ber_tag *tags,
 
 		tmp += tag_len;
 
-		if ( NULL == tag || !(*tag->op)(dtmp, *tmp, priv) )
+		if ( NULL == tag || NULL == tag->op ||
+				!(*tag->op)(dtmp, *tmp, priv) )
 			memset(dtmp, 0, *tmp);
 
 		dtmp += *tmp;

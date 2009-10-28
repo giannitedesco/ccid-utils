@@ -170,8 +170,8 @@ static int check_ssa_data(struct _sda *s)
 	msg = malloc(msg_len);
 	memcpy(msg, cf, cf_len);
 	memcpy(msg + cf_len, s->data, s->data_len);
-	printf("%u byte SSA message:\n", msg_len);
-	hex_dump(msg, msg_len, 16);
+//	printf("%u byte SSA message:\n", msg_len);
+//	hex_dump(msg, msg_len, 16);
 
 	if ( !emsa_pss_decode(msg, msg_len, s->ssa_data, s->ssa_data_len) ) {
 		free(msg);
