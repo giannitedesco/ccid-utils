@@ -19,25 +19,8 @@ static int do_emv_stuff(chipcard_t cc)
 		return 0;
 	}
 
-	printf("emvtool: Initializing VISA application\n");
-	if ( emv_visa_init(emv) ) {
-		emv_visa_init_sda(emv);
-#if 0
-		if ( emv_visa_pin(emv, "1337") ) {
-			printf("SUCCESS\n");
-		}else{
-			printf("FAIL\n");
-		}
-#endif
-	}
-
-#if 0
-	printf("emvtool: Initializing LINK application\n");
-	if ( emv_link_init(emv) ) {
-		emv_link_init_sda(emv);
-		printf("SUCCESS\n");
-	}
-#endif
+	emv_visa_select(emv);
+	emv_visa_offline_auth(emv);
 
 	emv_fini(emv);
 	return 1;
@@ -49,7 +32,7 @@ static int found_cci(ccidev_t dev)
 	cci_t cci;
 	int ret = 0;
 
-	cci = cci_probe(dev, NULL);
+	cci = cci_probe(dev, "./emvtool.log");
 	if ( NULL == cci )
 		goto out;
 	

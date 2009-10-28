@@ -139,6 +139,9 @@ int _sda_get_issuer_key(struct _sda *s, RSA *ca_key, size_t key_len)
 
 static int check_ssa_data(struct _sda *s)
 {
+	uint8_t *msg, *cf;
+	size_t msg_len, cf_len;
+
 	if ( s->ssa_data[0] != 0x6a ) {
 		printf("error: SSA data bad signature byte\n");
 		return 0;
@@ -149,8 +152,32 @@ static int check_ssa_data(struct _sda *s)
 		return 0;
 	}
 
-//	printf("Recovered SSA data:\n");
+	if ( s->ssa_data[2] != 0x01 ) {
+		printf("error: unexpected hash format in SSA data\n");
+		return 0;
+	}
+
+	cf = s->ssa_data + 1;
+	cf_len = s->ssa_data_len - (SHA_DIGEST_LENGTH + 2);
+	msg_len = cf_len + s->data_len;
+
+//	printf("Signed SSA data:\n");
 //	hex_dump(s->ssa_data, s->ssa_data_len, 16);
+
+//	printf("Data for authentication:\n");
+//	hex_dump(s->data, s->data_len, 16);
+
+	msg = malloc(msg_len);
+	memcpy(msg, cf, cf_len);
+	memcpy(msg + cf_len, s->data, s->data_len);
+	printf("%u byte SSA message:\n", msg_len);
+	hex_dump(msg, msg_len, 16);
+
+	if ( !emsa_pss_decode(msg, msg_len, s->ssa_data, s->ssa_data_len) ) {
+		free(msg);
+		return 0;
+	}
+	free(msg);
 	return 1;
 }
 
@@ -182,9 +209,11 @@ int _sda_verify_ssa_data(struct _sda *s)
 	}
 
 	if ( !check_ssa_data(s) ) {
+		printf("SSA data verification failed\n");
 		return 0;
 	}
 
+	printf("SSA data verified\n");
 	return 1;
 }
 
