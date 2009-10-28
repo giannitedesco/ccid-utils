@@ -19,8 +19,14 @@ static int do_emv_stuff(chipcard_t cc)
 		return 0;
 	}
 
-	emv_visa_select(emv);
-	emv_visa_offline_auth(emv);
+	if ( emv_visa_select(emv) ) {
+		if ( emv_visa_offline_auth(emv) ) {
+			printf("CARD VERIFIED\n");
+			if ( emv_visa_cvm_pin(emv, "1337") ) {
+				printf("CARDHOLDER VERIFIED\n");
+			}
+		}
+	}
 
 	emv_fini(emv);
 	return 1;

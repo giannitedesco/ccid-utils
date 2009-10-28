@@ -10,6 +10,34 @@
 #include <ber.h>
 #include "emv-internal.h"
 
+#include <ctype.h>
+
+int _emv_pin2pb(const char *pin, emv_pb_t pb)
+{
+	unsigned int i;
+
+	size_t plen;
+	plen = strlen(pin);
+	if ( plen < 4 || plen > 12 )
+		return 0;
+
+	memset(pb, 0xff, EMV_PIN_BLOCK_LEN);
+
+	pb[0] = 0x20 | (plen & 0xf);
+	for(i = 0; pin[i]; i++) {
+		if ( !isdigit(pin[i]) )
+			return 0;
+		if ( i & 0x1 ) {
+			pb[1 + (i >> 1)] = (pb[1 + (i >> 1)] & 0xf0) |
+					((pin[i] - '0') & 0xf);
+		}else{
+			pb[1 + (i >> 1)] = ((pin[i] - '0') << 4) | 0xf;
+		}
+	}
+
+	return 1;
+}
+
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {

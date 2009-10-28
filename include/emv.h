@@ -11,12 +11,12 @@ typedef struct _emv_app *emv_app_t;
 
 /* EMV spec */
 _public emv_t emv_init(chipcard_t cc);
-_public int _emv_pin_try_counter(emv_t e);
 _public void emv_fini(emv_t emv);
 
 /* VISA application */
 _public int emv_visa_select(emv_t emv);
 _public int emv_visa_offline_auth(emv_t emv);
+_public int emv_visa_cvm_pin(emv_t emv, const char *pin);
 
 /* LINK application */
 _public int emv_link_select(emv_t emv);

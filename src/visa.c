@@ -10,7 +10,7 @@
 #include <ber.h>
 #include "emv-internal.h"
 
-#include "visa_pubkeys.h"
+#include "ca_pubkeys.h"
 
 #include <ctype.h>
 
@@ -106,4 +106,29 @@ int emv_visa_select(emv_t e)
 		return 0;
 
 	return 1;
+}
+
+int emv_visa_cvm_pin(emv_t e, const char *pin)
+{
+	emv_pb_t pb;
+	int try;
+
+	if ( !_emv_pin2pb(pin, pb) ) {
+		printf("error: invalid PIN\n");
+		return 0;
+	}
+
+	try = _emv_pin_try_counter(e);
+	if ( try >= 0 )
+		printf("%i PIN tries remaining\n", try);
+
+	if ( _emv_verify(e, 0x80, pb, sizeof(pb)) )
+		return 1;
+
+	printf("PIN auth failed");
+	if ( xfr_rx_sw1(e->e_xfr) == 0x63)
+		printf(" with %u tries remaining",
+			xfr_rx_sw2(e->e_xfr));
+	printf("\n");
+	return 0;
 }

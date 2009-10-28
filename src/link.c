@@ -10,7 +10,7 @@
 #include <ber.h>
 #include "emv-internal.h"
 
-#include "visa_pubkeys.h"
+#include "ca_pubkeys.h"
 
 #include <ctype.h>
 
@@ -56,18 +56,29 @@ static RSA *find_ca_pubkey(struct _sda *s, size_t *key_len)
 	return key;
 }
 
-int emv_link_sda(emv_t e)
+int emv_link_offline_auth(emv_t e)
 {
 	RSA *key;
 	size_t key_len;
+
+	/* This terminal only supports offline auth heh */
+
+	if ( 0 == (e->e_aip[0] & EMV_AIP_SDA) ) {
+		printf("error: SDA not supported, auth failed\n");
+		return 0;
+	}
 
 	key = find_ca_pubkey(&e->e_sda, &key_len);
 	if ( NULL == key )
 		return 0;
 	if ( !_sda_get_issuer_key(&e->e_sda, key, key_len) )
 		return 0;
+	if ( !_emv_read_sda_data(e) )
+		return 0;
 	if ( !_sda_verify_ssa_data(&e->e_sda) )
 		return 0;
+	
+	printf("Card is authorized\n");
 	return 1;
 }
 
@@ -95,4 +106,29 @@ int emv_link_select(emv_t e)
 		return 0;
 
 	return 1;
+}
+
+int emv_link_cvm_pin(emv_t e, const char *pin)
+{
+	emv_pb_t pb;
+	int try;
+
+	if ( !_emv_pin2pb(pin, pb) ) {
+		printf("error: invalid PIN\n");
+		return 0;
+	}
+
+	try = _emv_pin_try_counter(e);
+	if ( try >= 0 )
+		printf("%i PIN tries remaining\n", try);
+
+	if ( _emv_verify(e, 0x80, pb, sizeof(pb)) )
+		return 1;
+
+	printf("PIN auth failed");
+	if ( xfr_rx_sw1(e->e_xfr) == 0x63)
+		printf(" with %u tries remaining",
+			xfr_rx_sw2(e->e_xfr));
+	printf("\n");
+	return 0;
 }

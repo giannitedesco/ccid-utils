@@ -10,6 +10,8 @@
 #define EMV_MAX_ADF_LEN 11
 #define EMV_AIP_LEN 2
 
+#define EMV_PIN_BLOCK_LEN 8
+
 #define EMV_AIP_ISS	0x04 /* issuer authentication support */
 #define EMV_AIP_TRM	0x08 /* terminal risk management required */
 #define EMV_AIP_CVM	0x10 /* cardholder verification support */
@@ -19,6 +21,8 @@
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
+
+typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
 struct _emv_app {
 	uint8_t a_recno;
@@ -92,6 +96,9 @@ struct _emv {
 	}e_u;
 };
 
+/* Utility functions */
+_private int _emv_pin2pb(const char *pin, uint8_t *pb);
+
 /* Application selection */
 _private void _emv_free_applist(emv_t e);
 _private void _emv_init_applist(emv_t e);
@@ -102,6 +109,7 @@ _private int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len);
 /* Application data retrieval */
 _private int _emv_read_app_data(struct _emv *e);
 _private int _emv_read_sda_data(struct _emv *e);
+_private int _emv_pin_try_counter(struct _emv *e);
 
 /* APDU construction + transactions */
 _private int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record);
