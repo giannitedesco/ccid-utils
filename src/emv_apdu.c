@@ -201,11 +201,22 @@ int _emv_generate_ac(emv_t e, uint8_t ref,
 	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
 		return 0;
 
-	printf("GENERATE AC SW1=%.2x SW2=%.2x\n",
-		xfr_rx_sw1(e->e_xfr), xfr_rx_sw2(e->e_xfr));
 	if ( xfr_rx_sw1(e->e_xfr) != 0x61 )
 		return 0;
 	sw2 = xfr_rx_sw2(e->e_xfr);
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xc0);		/* INS: GET RESPONSE */
+	xfr_tx_byte(e->e_xfr, 0);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
+	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) )
+		return 0;
+
+	if ( xfr_rx_sw1(e->e_xfr) != 0x90 )
+		return 0;
 
 	return 1;
 }

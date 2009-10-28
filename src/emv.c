@@ -12,6 +12,86 @@
 
 #include <ctype.h>
 
+static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
+{
+	if ( tag->tag_len < len )
+		return 1;
+	if ( tag->tag_len > len )
+		return -1;
+	return memcmp(idb, tag->tag, len);
+}
+
+static const struct ber_tag *find_tag(const struct ber_tag *tags,
+					unsigned int num_tags,
+					const uint8_t *idb,
+					size_t tag_len)
+{
+	while ( num_tags ) {
+		unsigned int i;
+		int cmp;
+
+		i = num_tags / 2U;
+		cmp = tag_cmp(tags + i, idb, tag_len);
+		if ( cmp < 0 ) {
+			num_tags = i;
+		}else if ( cmp > 0 ) {
+			tags = tags + (i + 1U);
+			num_tags = num_tags - (i + 1U);
+		}else
+			return tags + i;
+	}
+
+	return NULL;
+}
+
+uint8_t *_emv_construct_dol(struct ber_tag *tags,
+					size_t num_tags,
+					const uint8_t *ptr, size_t len,
+					size_t *ret_len, void *priv)
+{
+	const uint8_t *tmp, *end;
+	uint8_t *dol, *dtmp;
+	size_t sz;
+
+	end = ptr + len;
+
+	for(sz = 0, tmp = ptr; tmp < end; tmp++) {
+		size_t tag_len;
+
+		tag_len = ber_tag_len(tmp, end);
+		if ( tag_len == 0 )
+			return NULL;
+
+		tmp += tag_len;
+		sz += *tmp;
+	}
+
+	dol = dtmp = malloc(sz);
+	if ( NULL == dol )
+		return NULL;
+
+	for(tmp = ptr; tmp < end; tmp++) {
+		const struct ber_tag *tag;
+		size_t tag_len;
+
+		tag_len = ber_tag_len(tmp, end);
+		if ( tag_len == 0 )
+			return NULL;
+
+		tag = find_tag(tags, num_tags, tmp, tag_len);
+
+		tmp += tag_len;
+
+		if ( NULL == tag || !(*tag->op)(dtmp, *tmp, priv) )
+			memset(dtmp, 0, *tmp);
+
+		dtmp += *tmp;
+	}
+
+	*ret_len = sz;
+	return dol;
+}
+
 int _emv_pin2pb(const char *pin, emv_pb_t pb)
 {
 	unsigned int i;

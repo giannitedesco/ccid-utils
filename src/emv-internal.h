@@ -12,11 +12,12 @@
 
 #define EMV_PIN_BLOCK_LEN 8
 
+#define EMV_AIP_CDA	0x01 /* CDA support */
 #define EMV_AIP_ISS	0x04 /* issuer authentication support */
 #define EMV_AIP_TRM	0x08 /* terminal risk management required */
 #define EMV_AIP_CVM	0x10 /* cardholder verification support */
-#define EMV_AIP_DDA	0x20 /* dda support */
-#define EMV_AIP_SDA	0x40 /* sda support */
+#define EMV_AIP_DDA	0x20 /* DDA support */
+#define EMV_AIP_SDA	0x40 /* SDA support */
 
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
@@ -98,6 +99,10 @@ struct _emv {
 
 /* Utility functions */
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
+_private uint8_t *_emv_construct_dol(struct ber_tag *tags,
+					size_t num_tags,
+					const uint8_t *ptr, size_t len,
+					size_t *ret_len, void *priv);
 
 /* Application selection */
 _private void _emv_free_applist(emv_t e);

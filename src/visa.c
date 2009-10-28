@@ -108,6 +108,53 @@ int emv_visa_select(emv_t e)
 	return 1;
 }
 
+#if 0
+static int get_tc(emv_t e)
+{
+	const uint8_t *res;
+	uint8_t *dol;
+	size_t len;
+	int ret;
+
+	dol = _emv_construct_dol(NULL, 0,
+				e->e_cdol1, e->e_cdol1_len,
+				&len, NULL);
+	if ( NULL == dol )
+		return 0;
+
+	printf("First GENERATE AC with payload:\n");
+	hex_dump(dol, len, 16);
+	ret = _emv_generate_ac(e, 0x80, dol, len);
+	free(dol);
+
+	if ( !ret )
+		return 0;
+
+	printf("Received ARCQ:\n");
+	res = xfr_rx_data(e->e_xfr, &len);
+	hex_dump(res, len, 16);
+
+	dol = _emv_construct_dol(NULL, 0,
+				e->e_cdol2, e->e_cdol2_len,
+				&len, NULL);
+	if ( NULL == dol )
+		return 0;
+
+	printf("Second GENERATE AC with payload:\n");
+	hex_dump(dol, len, 16);
+	ret = _emv_generate_ac(e, 0x40, dol, len);
+	free(dol);
+
+	if ( !ret )
+		return 0;
+
+	printf("Received TC:\n");
+	res = xfr_rx_data(e->e_xfr, &len);
+	hex_dump(res, len, 16);
+	return 1;
+}
+#endif
+
 int emv_visa_cvm_pin(emv_t e, const char *pin)
 {
 	emv_pb_t pb;

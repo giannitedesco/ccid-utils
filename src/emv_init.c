@@ -97,6 +97,8 @@ int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len)
 		printf("AIP: Dynamic data authentication\n");
 	if ( e->e_aip[0] & EMV_AIP_SDA)
 		printf("AIP: Static data authentication\n");
+	if ( e->e_aip[0] & EMV_AIP_CDA)
+		printf("AIP: Combined data authentication\n");
 
 	return 1;
 }

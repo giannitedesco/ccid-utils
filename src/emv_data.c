@@ -140,8 +140,6 @@ static int bop_cvm(const uint8_t *ptr, size_t len, void *priv)
 static int bop_cdol1(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("CDOL1:\n");
-	hex_dump(ptr, len, 16);
 	e->e_cdol1 = malloc(len);
 	assert(NULL != e->e_cdol1);
 	memcpy(e->e_cdol1, ptr, len);
@@ -151,8 +149,6 @@ static int bop_cdol1(const uint8_t *ptr, size_t len, void *priv)
 static int bop_cdol2(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv *e = priv;
-	printf("CDOL2:\n");
-	hex_dump(ptr, len, 16);
 	e->e_cdol2 = malloc(len);
 	assert(NULL != e->e_cdol2);
 	memcpy(e->e_cdol2, ptr, len);

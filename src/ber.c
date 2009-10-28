@@ -150,9 +150,9 @@ static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
 }
 
 static const struct ber_tag *find_tag(const struct ber_tag *tags,
-				unsigned int num_tags,
-				const uint8_t *idb,
-				size_t tag_len)
+					unsigned int num_tags,
+					const uint8_t *idb,
+					size_t tag_len)
 {
 	while ( num_tags ) {
 		unsigned int i;
@@ -172,6 +172,39 @@ static const struct ber_tag *find_tag(const struct ber_tag *tags,
 	return NULL;
 }
 
+static const uint8_t *ber_decode_tag(const uint8_t **ptr,
+					const uint8_t *end,
+					size_t *tag_len)
+{
+	const uint8_t *tmp = *ptr;
+
+	if ( tmp >= end )
+		return NULL;
+
+	if ( ber_id_octet_tag(*tmp) < 0x1f ) {
+		tmp++;
+	}else{
+		for( tmp++; tmp < end; ) {
+			tmp++;
+			if ( 0 == (*tmp & 0x80) )
+				break;
+		}
+	}
+
+	*tag_len = tmp - *ptr;
+	end = *ptr;
+	*ptr = tmp;
+	return end;
+}
+
+size_t ber_tag_len(const uint8_t *ptr, const uint8_t *end)
+{
+	size_t ret;
+	if ( NULL == ber_decode_tag(&ptr, end, &ret) )
+		return 0;
+	return ret;
+}
+
 int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 		const uint8_t *ptr, size_t len, void *priv)
 {
@@ -184,24 +217,9 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 	for(clen = 1; ptr < end; ptr += clen) {
 		const uint8_t *idb;
 		const struct ber_tag *tag;
-		uint32_t num, i;
 		size_t tag_len;
 
-		idb = ptr;
-		num = ber_id_octet_tag(*idb);
-		ptr++;
-
-		if ( num >= 0x1f ) {
-			for(num = 0, i = 0; ptr < end; i++) {
-				num <<= 7;
-				num |= *ptr& 0x7f;
-				ptr++;
-				if ( !(*ptr & 0x80) )
-					break;
-			}
-		}
-
-		tag_len = ptr - idb;
+		idb = ber_decode_tag(&ptr, end, &tag_len);
 
 		if ( ptr >= end )
 			break;
@@ -210,7 +228,7 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 			clen = ber_len_short(*ptr);
 			ptr++;
 		}else{
-			uint32_t l;
+			size_t i, l;
 
 			l = ber_len_short(*ptr);
 			if ( l > 4 || ptr + l > end )
