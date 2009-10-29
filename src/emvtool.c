@@ -9,16 +9,34 @@
 
 #include <stdio.h>
 
+static const emv_rid_t rids[] = {
+	"\xa0\x00\x00\x00\x03",
+	"\xa0\x00\x00\x00\x29",
+};
+
 static int do_emv_stuff(chipcard_t cc)
 {
-	emv_t emv;
+	emv_t e;
 
-	emv = emv_init(cc);
-	if ( NULL == emv ) {
+	e = emv_init(cc);
+	if ( NULL == e ) {
 		fprintf(stderr, "emv: init error\n");
 		return 0;
 	}
 
+	if ( emv_appsel_pse(e) ) {
+		emv_app_t app;
+
+		for(app = emv_appsel_pse_first(e); app;
+			app = emv_appsel_pse_next(e, app)) {
+			printf("emvtool: PSE app: %s\n",
+				emv_app_pname(app));
+		}
+
+	}else{
+	}
+
+#if 0
 	if ( emv_visa_select(emv) ) {
 		if ( emv_visa_offline_auth(emv) ) {
 			printf("CARD VERIFIED\n");
@@ -27,8 +45,9 @@ static int do_emv_stuff(chipcard_t cc)
 			}
 		}
 	}
+#endif
 
-	emv_fini(emv);
+	emv_fini(e);
 	return 1;
 }
 

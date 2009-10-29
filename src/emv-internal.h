@@ -6,7 +6,6 @@
 #ifndef _EMV_INTERNAL_H
 #define _EMV_INTERNAL_H
 
-#define EMV_RID_LEN 5
 #define EMV_MAX_ADF_LEN 11
 #define EMV_AIP_LEN 2
 
@@ -28,7 +27,37 @@
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
 
+#include <gang.h>
+
 typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
+
+#define EMV_DATA_SDA		0x80000000U
+#define EMV_DATA_TYPE_MASK 	0x7fffffffU
+#define EMV_DATA_BINARY		0x0
+#define EMV_DATA_TEXT		0x1
+#define EMV_DATA_NUMERIC	0x2
+#define EMV_DATA_BCD		0x3
+#define EMV_DATA_DATE		0x4
+#define EMV_DATA_DOL		0x5
+struct _emv_data {
+	uint32_t d_flags;
+	uint8_t d_tag[2];
+	size_t d_len;
+	uint8_t *d_data;
+};
+static inline unsigned int emv_data_type(struct _emv_data *d)
+{
+	return d->d_flags & EMV_DATA_TYPE_MASK;
+}
+static inline int emv_data_sda(struct _emv_data *d)
+{
+	return !!(d->d_flags & EMV_DATA_SDA);
+}
+
+struct _emv_db {
+	unsigned int db_nmemb;
+	struct _emv_data *db_elem;
+};
 
 struct _emv_app {
 	uint8_t a_recno;
@@ -41,65 +70,26 @@ struct _emv_app {
 	struct list_head a_list;
 };
 
-struct _sda {
-	/* CA public key index */
-	unsigned int key_idx;
-
-	/* Issuer certificate */
-	uint8_t *iss_cert;
-	size_t iss_cert_len;
-
-	/* issuer public key exponent */
-	uint8_t *iss_exp;
-	size_t iss_exp_len;
-
-	/* issuer public key remainder */
-	uint8_t *iss_pubkey_r;
-	size_t iss_pubkey_r_len;
-
-	/* Signed ssa data */
-	uint8_t *ssa_data;
-	size_t ssa_data_len;
-
-	uint8_t *data;
-	size_t data_len;
-
-	RSA *iss_pubkey;
-};
-
 struct _emv {
 	/* hardware */
 	chipcard_t e_dev;
 	xfr_t e_xfr;
 
+	gang_t e_files;
+	gang_t e_data;
+
 	/* application selection */
 	unsigned int e_num_apps;
 	struct list_head e_apps;
 	struct _emv_app *e_app;
-#define EMV_APP_NONE 0
-#define EMV_APP_VISA 1
-#define EMV_APP_LINK 2
-	unsigned int e_cur;
 
-	/* ICC data */
-	uint8_t e_aip[EMV_AIP_LEN];
+	uint8_t e_aip[2];
 	uint8_t *e_afl;
 	size_t e_afl_len;
-	uint8_t *e_cdol1;
-	size_t e_cdol1_len;
-	uint8_t *e_cdol2;
-	size_t e_cdol2_len;
 
-	/* Data for SDA */
-	struct _sda e_sda;
-
-	/* Any app specific data */
-	union {
-		struct {
-		}a_link;
-		struct {
-		}a_visa;
-	}e_u;
+	/* crypto stuff */
+	RSA *e_ca_pk;
+	RSA *e_iss_pk;
 };
 
 #define DOL_NUM_TAGS(x) (sizeof(x)/sizeof(struct dol_tag))
@@ -110,6 +100,8 @@ struct dol_tag {
 };
 
 /* Utility functions */
+_private uint8_t emv_sw1(emv_t e);
+_private uint8_t emv_sw2(emv_t e);
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
 _private uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 					size_t num_tags,
@@ -125,8 +117,6 @@ _private int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len);
 
 /* Application data retrieval */
 _private int _emv_read_app_data(struct _emv *e);
-_private int _emv_read_sda_data(struct _emv *e);
-_private int _emv_pin_try_counter(struct _emv *e);
 
 /* APDU construction + transactions */
 _private int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record);
@@ -139,7 +129,7 @@ _private int _emv_generate_ac(emv_t e, uint8_t ref,
 				const uint8_t *data, uint8_t len);
 
 /* Static data authentication */
-_private int _sda_get_issuer_key(struct _sda *s, RSA *key, size_t key_len);
-_private int _sda_verify_ssa_data(struct _sda *s);
+//_private int _sda_get_issuer_key(struct _sda *s, RSA *key, size_t key_len);
+//_private int _sda_verify_ssa_data(struct _sda *s);
 
 #endif /* _EMV_INTERNAL_H */

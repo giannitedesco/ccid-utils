@@ -100,12 +100,41 @@ void _emv_free_applist(emv_t e)
 	}
 }
 
-void _emv_init_applist(emv_t e)
+void emv_app_rid(emv_app_t a, emv_rid_t ret)
+{
+	memcpy(ret, a->a_id, EMV_RID_LEN);
+}
+
+const char *emv_app_label(emv_app_t a)
+{
+	return a->a_name;
+}
+
+const char *emv_app_pname(emv_app_t a)
+{
+	if ( '\0' != *a->a_pname )
+		return a->a_pname;
+	return a->a_name;
+}
+
+uint8_t emv_app_prio(emv_app_t a)
+{
+	return a->a_prio & 0x7f;
+}
+
+int emv_app_confirm(emv_app_t a)
+{
+	return a->a_prio >> 7;
+}
+
+int emv_appsel_pse(emv_t e)
 {
 	unsigned int i;
+	const char *pse = "1PAY.SYS.DDF01";
 
 	printf("Enumerating ICC applications:\n");
-	_emv_select(e, (void *)"1PAY.SYS.DDF01", strlen("1PAY.SYS.DDF01"));
+	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )
+		return 0;
 
 	for (i = 1; ; i++) {
 		if ( !_emv_read_record(e, 1, i) )
@@ -113,5 +142,18 @@ void _emv_init_applist(emv_t e)
 		add_app(e);
 	}
 	printf("\n");
+	return 1;
+}
+
+emv_app_t emv_appsel_pse_first(emv_t e)
+{
+	return list_entry(e->e_apps.next, struct _emv_app, a_list);
+}
+
+emv_app_t emv_appsel_pse_next(emv_t e, emv_app_t app)
+{
+	if ( app->a_list.next == &e->e_apps )
+		return NULL;
+	return list_entry(app->a_list.next, struct _emv_app, a_list);
 }
 

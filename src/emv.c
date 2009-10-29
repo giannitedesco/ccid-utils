@@ -12,6 +12,16 @@
 
 #include <ctype.h>
 
+uint8_t emv_sw1(emv_t e)
+{
+	return xfr_rx_sw1(e->e_xfr);
+}
+
+uint8_t emv_sw2(emv_t e)
+{
+	return xfr_rx_sw2(e->e_xfr);
+}
+
 static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 {
 	if ( tag->tag_len < len )
@@ -130,16 +140,17 @@ int _emv_pin2pb(const char *pin, emv_pb_t pb)
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {
- 		free(e->e_sda.iss_cert);
- 		free(e->e_sda.iss_exp);
- 		free(e->e_sda.iss_pubkey_r);
- 		free(e->e_sda.ssa_data);
-		RSA_free(e->e_sda.iss_pubkey);
+		RSA_free(e->e_ca_pk);
+		RSA_free(e->e_iss_pk);
 
 		_emv_free_applist(e);
+
+		gang_free(e->e_data);
+		gang_free(e->e_files);
  
 		if ( e->e_xfr )
 			xfr_free(e->e_xfr);
+
 		free(e);
 	}
 }
@@ -160,11 +171,21 @@ emv_t emv_init(chipcard_t cc)
 		if ( NULL == e->e_xfr )
 			goto err;
 
-		_emv_init_applist(e);
+		e->e_data = gang_new(0, 0);
+		if ( NULL == e->e_data )
+			goto err;
+
+		e->e_files = gang_new(0, 0);
+		if ( NULL == e->e_files )
+			goto err_free_data;
 	}
 
 	return e;
 
+//err_free_files:
+//	gang_free(e->e_files);
+err_free_data:
+	gang_free(e->e_data);
 err:
 	do_emv_fini(e);
 	return NULL;
