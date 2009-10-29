@@ -49,12 +49,14 @@ static int get_aip(emv_t e)
 static int bop_fci2(const uint8_t *ptr, size_t len, void *priv)
 {
 	static const struct ber_tag tags[] = {
+#if 0
 		{ .tag = "\x50", .tag_len = 1, .op = NULL},
 		{ .tag = "\x87", .tag_len = 1, .op = NULL},
 		{ .tag = "\x5f\x2d", .tag_len = 2, .op = NULL},
 		{ .tag = "\x9f\x11", .tag_len = 2, .op = NULL},
 		{ .tag = "\x9f\x12", .tag_len = 2, .op = NULL},
 		{ .tag = "\xbf\x0c", .tag_len = 2, .op = NULL},
+#endif
 	};
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
 }

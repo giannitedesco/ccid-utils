@@ -12,7 +12,7 @@
 
 #include <ctype.h>
 
-static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
+static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 {
 	if ( tag->tag_len < len )
 		return 1;
@@ -21,7 +21,7 @@ static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
 	return memcmp(idb, tag->tag, len);
 }
 
-static const struct ber_tag *find_tag(const struct ber_tag *tags,
+static const struct dol_tag *find_tag(const struct dol_tag *tags,
 					unsigned int num_tags,
 					const uint8_t *idb,
 					size_t tag_len)
@@ -44,7 +44,7 @@ static const struct ber_tag *find_tag(const struct ber_tag *tags,
 	return NULL;
 }
 
-uint8_t *_emv_construct_dol(struct ber_tag *tags,
+uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 					size_t num_tags,
 					const uint8_t *ptr, size_t len,
 					size_t *ret_len, void *priv)
@@ -71,7 +71,7 @@ uint8_t *_emv_construct_dol(struct ber_tag *tags,
 		return NULL;
 
 	for(tmp = ptr; tmp < end; tmp++) {
-		const struct ber_tag *tag;
+		const struct dol_tag *tag;
 		size_t tag_len;
 
 		tag_len = ber_tag_len(tmp, end);
@@ -83,8 +83,16 @@ uint8_t *_emv_construct_dol(struct ber_tag *tags,
 		tmp += tag_len;
 
 		if ( NULL == tag || NULL == tag->op ||
-				!(*tag->op)(dtmp, *tmp, priv) )
+				!(*tag->op)(dtmp, *tmp, priv) ) {
+			if ( NULL == tag ) {
+				size_t i;
+				printf("Unknown tag in DOL: ");
+				for (i = 0; i < tag_len; i++)
+					printf("%.2x", tmp[i - tag_len]);
+				printf("\n");
+			}
 			memset(dtmp, 0, *tmp);
+		}
 
 		dtmp += *tmp;
 	}

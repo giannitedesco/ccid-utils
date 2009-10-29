@@ -19,6 +19,11 @@
 #define EMV_AIP_DDA	0x20 /* DDA support */
 #define EMV_AIP_SDA	0x40 /* SDA support */
 
+#define EMV_AC_AAC	0x00 /* app authnticate  cryptogram . decliend */
+#define EMV_AC_TC	0x40 /* transaction certificate / approved */
+#define EMV_AC_ARQC	0x80 /* authorisation request / online requested */
+#define EMV_AC_CDA	0x10 /* cda signature requested */
+
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
@@ -97,9 +102,16 @@ struct _emv {
 	}e_u;
 };
 
+#define DOL_NUM_TAGS(x) (sizeof(x)/sizeof(struct dol_tag))
+struct dol_tag {
+	const char *tag;
+	size_t tag_len;
+	int(*op)(uint8_t *ptr, size_t len, void *priv);
+};
+
 /* Utility functions */
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
-_private uint8_t *_emv_construct_dol(struct ber_tag *tags,
+_private uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 					size_t num_tags,
 					const uint8_t *ptr, size_t len,
 					size_t *ret_len, void *priv);

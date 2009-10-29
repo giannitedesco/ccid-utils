@@ -183,7 +183,7 @@ static int check_ssa_data(struct _sda *s)
 
 int _sda_verify_ssa_data(struct _sda *s)
 {
-	const uint8_t *tmp;
+	uint8_t *tmp;
 	unsigned int ret;
 
 	tmp = malloc(s->ssa_data_len);

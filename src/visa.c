@@ -108,50 +108,184 @@ int emv_visa_select(emv_t e)
 	return 1;
 }
 
-#if 0
-static int get_tc(emv_t e)
+#if 1
+static int dop_arc(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Authorization response code: %u bytes\n", len);
+	return 0;
+}
+
+static int dop_tvr(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Terminal verification results\n");
+	if ( 0 ) {
+		/* online pin entered */
+		memset(ptr, 0, len);
+		ptr[2] = 0x4;
+		return 1;
+	}else
+		return 0;
+}
+
+static int dop_date(uint8_t *ptr, size_t len, void *priv)
+{
+	if ( len != 3 )
+		return 0;
+	ptr[0] = 0x09;
+	ptr[1] = 0x10;
+	ptr[2] = 0x28;
+	printf(" Transaction date: 20%.2x-%.2x-%.2x\n",
+		ptr[0], ptr[1], ptr[2]);
+	return 1;
+}
+
+static int dop_currency(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Transaction currency code: %u bytes\n", len);
+	return 0;
+}
+
+static int dop_amount(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Transaction amount authorized: %u bytes\n", len);
+	return 0;
+}
+
+static int dop_amt_other(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Transaction amount (other): %u bytes\n", len);
+	return 0;
+}
+
+static int dop_country(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Terminal country code: %u bytes\n", len);
+	ptr[0] = 0x08;
+	ptr[1] = 0x26;
+	return 1;
+}
+
+static int dop_rand(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Unpredictable number: %u bytes\n", len);
+	return 0;
+}
+
+static int dop_type(uint8_t *ptr, size_t len, void *priv)
+{
+	printf(" Transaction type: %u bytes\n", len);
+	return 0;
+}
+
+static const struct dol_tag trans_data[] = {
+	{.tag = "\x8a", .tag_len = 1, .op = dop_arc },
+	{.tag = "\x95", .tag_len = 1, .op = dop_tvr },
+	{.tag = "\x9a", .tag_len = 1, .op = dop_date },
+	{.tag = "\x9c", .tag_len = 1, .op = dop_type },
+	{.tag = "\x5f\x2a", .tag_len = 2, .op = dop_currency },
+	{.tag = "\x9f\x02", .tag_len = 2, .op = dop_amount },
+	{.tag = "\x9f\x03", .tag_len = 2, .op = dop_amt_other },
+	{.tag = "\x9f\x1a", .tag_len = 2, .op = dop_country },
+	{.tag = "\x9f\x37", .tag_len = 2, .op = dop_rand },
+};
+
+static int decode_ac(const uint8_t *ptr, size_t len)
+{
+	size_t ac_len;
+
+	if ( ptr[0] != 0x80 ) {
+		printf("error: invalid AC response\n");
+		return 0;
+	}
+
+	ac_len = ptr[1] - 2;
+	if ( ptr[1] < 2 || ac_len + 4 > len ) {
+		printf("error: bad tag len in AC\n");
+		return 0;
+	}
+
+	/* Cryptogram information data */
+	switch(ptr[2] & 0xc0) {
+	case EMV_AC_AAC:
+		printf("AAC: Transaction declined\n");
+		break;
+	case EMV_AC_TC:
+		printf("TC: Transaction approved\n");
+		break;
+	case EMV_AC_ARQC:
+		printf("ARQC: Online processing requested\n");
+		break;
+	default:
+		printf("RFU\n");
+		return 0;
+	}
+
+	/* application trans. counter */
+	printf("Transaction counter: %u\n", ptr[3]);
+
+	printf("Application cryptogram:\n");
+	hex_dump(ptr + 4, ac_len, 16);
+
+	if ( ac_len + 4 < len ) {
+		printf("Optional issuer application data:\n");
+		hex_dump(ptr + ac_len + 4, len - (ac_len + 4), 16);
+	}
+
+	return 1;
+}
+static int arqc(emv_t e)
 {
 	const uint8_t *res;
 	uint8_t *dol;
 	size_t len;
 	int ret;
 
-	dol = _emv_construct_dol(NULL, 0,
+	printf("Sending ARQC:\n");
+	dol = _emv_construct_dol(trans_data, DOL_NUM_TAGS(trans_data),
 				e->e_cdol1, e->e_cdol1_len,
-				&len, NULL);
+				&len, e);
 	if ( NULL == dol )
 		return 0;
 
-	printf("First GENERATE AC with payload:\n");
 	hex_dump(dol, len, 16);
-	ret = _emv_generate_ac(e, 0x80, dol, len);
+	ret = _emv_generate_ac(e, EMV_AC_ARQC, dol, len);
 	free(dol);
 
-	if ( !ret )
+	if ( !ret ) {
+		printf("Cryptogram not generated\n");
 		return 0;
+	}
 
-	printf("Received ARCQ:\n");
 	res = xfr_rx_data(e->e_xfr, &len);
-	hex_dump(res, len, 16);
+	return decode_ac(res, len);
+}
 
-	dol = _emv_construct_dol(NULL, 0,
+static int tc(emv_t e)
+{
+	const uint8_t *res;
+	uint8_t *dol;
+	size_t len;
+	int ret;
+
+	printf("Sending TC req:\n");
+	dol = _emv_construct_dol(trans_data, DOL_NUM_TAGS(trans_data),
 				e->e_cdol2, e->e_cdol2_len,
-				&len, NULL);
+				&len, e);
 	if ( NULL == dol )
 		return 0;
 
-	printf("Second GENERATE AC with payload:\n");
 	hex_dump(dol, len, 16);
-	ret = _emv_generate_ac(e, 0x40, dol, len);
+	ret = _emv_generate_ac(e, EMV_AC_TC, dol, len);
 	free(dol);
 
-	if ( !ret )
+	if ( !ret ) {
+		printf("Cryptogram not generated\n");
 		return 0;
+	}
 
 	printf("Received TC:\n");
 	res = xfr_rx_data(e->e_xfr, &len);
-	hex_dump(res, len, 16);
-	return 1;
+	return decode_ac(res, len);
 }
 #endif
 
@@ -169,13 +303,17 @@ int emv_visa_cvm_pin(emv_t e, const char *pin)
 	if ( try >= 0 )
 		printf("%i PIN tries remaining\n", try);
 
-	if ( _emv_verify(e, 0x80, pb, sizeof(pb)) )
+	if ( !_emv_verify(e, 0x80, pb, sizeof(pb)) ) {
+		printf("PIN auth failed");
+		if ( xfr_rx_sw1(e->e_xfr) == 0x63)
+			printf(" with %u tries remaining",
+				xfr_rx_sw2(e->e_xfr));
+		printf("\n");
 		return 1;
+	}
 
-	printf("PIN auth failed");
-	if ( xfr_rx_sw1(e->e_xfr) == 0x63)
-		printf(" with %u tries remaining",
-			xfr_rx_sw2(e->e_xfr));
-	printf("\n");
-	return 0;
+	if ( arqc(e) )
+		tc(e);
+
+	return 1;
 }
