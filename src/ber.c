@@ -172,14 +172,16 @@ static const struct ber_tag *find_tag(const struct ber_tag *tags,
 	return NULL;
 }
 
-static const uint8_t *ber_decode_tag(const uint8_t **ptr,
+static const uint8_t *decode_tag(const uint8_t **ptr,
 					const uint8_t *end,
 					size_t *tag_len)
 {
 	const uint8_t *tmp = *ptr;
 
-	if ( tmp >= end )
+	if ( tmp >= end ) {
+		*ptr = end;
 		return NULL;
+	}
 
 	if ( ber_id_octet_tag(*tmp) < 0x1f ) {
 		tmp++;
@@ -200,9 +202,50 @@ static const uint8_t *ber_decode_tag(const uint8_t **ptr,
 size_t ber_tag_len(const uint8_t *ptr, const uint8_t *end)
 {
 	size_t ret;
-	if ( NULL == ber_decode_tag(&ptr, end, &ret) )
+	if ( NULL == decode_tag(&ptr, end, &ret) )
 		return 0;
 	return ret;
+}
+
+const uint8_t *ber_decode_tag(const uint8_t **ptr,
+					const uint8_t *end,
+					size_t *tag_len)
+{
+	return decode_tag(ptr, end, tag_len);
+}
+
+static size_t decode_len(const uint8_t **ptr, const uint8_t *end)
+{
+	const uint8_t *tmp = *ptr;
+	size_t ret;
+
+	if ( ber_len_form_short(*tmp) ) {
+		ret = ber_len_short(*tmp);
+		tmp++;
+	}else{
+		size_t i, l;
+
+		l = ber_len_short(*tmp);
+		if ( l > 4 || tmp + l > end ) {
+			*ptr = end;
+			return 1;
+		}
+
+		tmp++;
+		for(ret = i = 0; i < l; i++, tmp++) {
+			ret <<= 8;
+			ret |= *tmp;
+		}
+
+	}
+
+	*ptr = tmp;
+	return ret;
+}
+
+size_t ber_decode_len(const uint8_t **ptr, const uint8_t *end)
+{
+	return decode_len(ptr, end);
 }
 
 int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
@@ -219,27 +262,13 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 		const struct ber_tag *tag;
 		size_t tag_len;
 
-		idb = ber_decode_tag(&ptr, end, &tag_len);
-
+		idb = decode_tag(&ptr, end, &tag_len);
 		if ( ptr >= end )
-			break;
+			return 0;
 
-		if ( ber_len_form_short(*ptr) ) {
-			clen = ber_len_short(*ptr);
-			ptr++;
-		}else{
-			size_t i, l;
-
-			l = ber_len_short(*ptr);
-			if ( l > 4 || ptr + l > end )
-				return 0;
-			ptr++;
-			for(clen = i = 0; i < l; i++, ptr++) {
-				clen <<= 8;
-				clen |= *ptr;
-			}
-
-		}
+		clen = decode_len(&ptr, end);
+		if ( ptr + clen > end )
+			return 0;
 
 		tag = find_tag(tags, num_tags, idb, tag_len);
 		if ( tag ) {
@@ -253,9 +282,6 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 			printf("\n");
 			hex_dump(ptr, clen, 16, 0);
 		}
-
-		if ( ptr + clen > end )
-			break;
 	}
 
 	return 1;
