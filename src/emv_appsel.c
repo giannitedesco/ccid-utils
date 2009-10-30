@@ -184,6 +184,7 @@ static int bop_fci2(const uint8_t *ptr, size_t len, void *priv)
 		{ .tag = "\x9f\x11", .tag_len = 2, .op = NULL},
 		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname},
 		{ .tag = "\xbf\x0c", .tag_len = 2, .op = NULL},
+		/* FIXME: retrieve optional PDOL if present */
 	};
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
 }

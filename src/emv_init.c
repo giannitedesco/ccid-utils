@@ -38,6 +38,8 @@ static int get_aip(emv_t e)
 	const uint8_t *res;
 	size_t len;
 
+	/* TODO: handle case where PDOL was specified */
+
 	if ( !_emv_get_proc_opts(e, pdol, sizeof(pdol)) )
 		return 0;
 	res = xfr_rx_data(e->e_xfr, &len);
@@ -46,27 +48,8 @@ static int get_aip(emv_t e)
 	return ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
 }
 
-int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len)
+int emv_app_init(emv_t e)
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x6f", .tag_len = 1, .op = bop_fci},
-	};
-	const uint8_t *res;
-	size_t len;
-
-	if ( !_emv_select(e, aid, aid_len) ) {
-		printf("emv: app not supported\n");
-		return 0;
-	}
-
-	do {
-		res = xfr_rx_data(e->e_xfr, &len);
-		if ( NULL == res )
-			return 1;
-
-		ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
-	}while( _emv_select_next(e, aid, aid_len) );
-
 	if ( !get_aip(e) )
 		return 0;
 

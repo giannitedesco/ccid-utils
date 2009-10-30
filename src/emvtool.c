@@ -120,6 +120,8 @@ static int do_emv_stuff(chipcard_t cc)
 		goto end;
 
 	/* Step 1. Initiate application processing */
+	if ( !emv_app_init(e) )
+		goto end;
 
 	/* Step 2. Authenticate card */
 

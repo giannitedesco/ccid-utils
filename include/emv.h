@@ -26,6 +26,9 @@ _public int emv_app_select_pse(emv_t e, emv_app_t app);
 _public int emv_app_select_aid(emv_t e, const uint8_t *aid, size_t len);
 _public int emv_app_select_aid_next(emv_t e, const uint8_t *aid, size_t len);
 
+/* Application initiation */
+_public int emv_app_init(emv_t e);
+
 /* EMV applications */
 _public void emv_app_delete(emv_app_t a);
 _public void emv_app_rid(emv_app_t a, emv_rid_t ret);
