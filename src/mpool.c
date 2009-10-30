@@ -170,8 +170,8 @@ void mpool_free(mpool_t m)
 		return;
 
 	for(h = m->slabs; (f = h); free(f)) {
-		POISON(h, m->slab_size);
 		h = h->next;
+		POISON(f, m->slab_size);
 	}
 
 	POISON(m, sizeof(*m));
