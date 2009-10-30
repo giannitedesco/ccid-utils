@@ -27,7 +27,7 @@ struct _gang {
 	uint8_t *g_ptr;
 };
 
-gang_t gang_new(size_t align, size_t alloc)
+gang_t gang_new(size_t alloc, size_t align)
 {
 	struct _gang *g;
 
@@ -61,10 +61,11 @@ static void *do_alloc_slow(struct _gang *g, size_t sz, size_t align)
 	POISON(s, g->g_alloc);
 
 	ret = ptr_align(s->s_data, align);
-	if ( ret + sz > (uint8_t *)g->g_slab + g->g_alloc ) {
+	if ( ret + sz > (uint8_t *)s + g->g_alloc ) {
 		free(s);
 		return NULL;
 	}
+
 	s->s_next = g->g_slab;
 	g->g_slab = s;
 	g->g_ptr = ret + sz;
@@ -80,9 +81,9 @@ static void *do_alloc(struct _gang *g, size_t sz, size_t align)
 		return do_alloc_slow(g, sz, align);
 
 	nxt = ptr_align(g->g_ptr, align);
-	if ( nxt >= (uint8_t *)g->g_slab + g->g_alloc )
+	if ( nxt + sz >= (uint8_t *)g->g_slab + g->g_alloc )
 		return do_alloc_slow(g, sz, align);
-	
+
 	g->g_ptr += sz;
 	return nxt;
 }
@@ -96,7 +97,6 @@ void *gang_alloc_a(gang_t g, size_t sz, size_t align)
 {
 	return do_alloc(g, sz, align);
 }
-
 
 void *gang_alloc0(gang_t g, size_t sz)
 {
@@ -124,8 +124,8 @@ void gang_free(gang_t g)
 		return;
 
 	for(s = g->g_slab; (tmp = s); free(tmp)) {
-		POISON(s, g->g_alloc);
 		s = s->s_next;
+		POISON(tmp, g->g_alloc);
 	}
 
 	POISON(g, sizeof(*g));

@@ -13,7 +13,7 @@
 
 typedef struct _gang *gang_t;
 
-_private gang_t gang_new(size_t align, size_t alloc);
+_private gang_t gang_new(size_t alloc, size_t align);
 _private void *gang_alloc(gang_t g, size_t sz) _malloc;
 _private void *gang_alloc_a(gang_t g, size_t sz, size_t align) _malloc;
 _private void *gang_alloc0(gang_t g, size_t sz) _malloc;
