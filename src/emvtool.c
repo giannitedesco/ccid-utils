@@ -9,10 +9,102 @@
 
 #include <stdio.h>
 
-static const emv_rid_t rids[] = {
-	"\xa0\x00\x00\x00\x03",
-	"\xa0\x00\x00\x00\x29",
+struct t_app {
+	const uint8_t *aid;
+	size_t aid_len;
+	uint8_t asi;
 };
+
+static const struct t_app apps[] = {
+	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x03", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x29", .aid_len = 5, .asi = 1},
+};
+
+static int app_cmp(emv_app_t a, const struct t_app *b)
+{
+	if ( b->asi ) {
+		emv_rid_t rid;
+		emv_app_rid(a, rid);
+		return memcmp(rid, b->aid, EMV_RID_LEN);
+	}else{
+		uint8_t aid[EMV_AID_LEN];
+		size_t sz;
+		emv_app_aid(a, aid, &sz);
+		if ( sz < b->aid_len )
+			return -1;
+		if ( sz > b->aid_len )
+			return 1;
+		return memcmp(aid, b->aid, sz);
+	}
+}
+
+static int app_supported(emv_app_t a)
+{
+	unsigned int i;
+
+	for(i = 0; i < sizeof(apps)/sizeof(*apps); i++) {
+		if ( !app_cmp(a, apps + i) )
+			return 1;
+	}
+
+	return 0;
+}
+
+/* Step 0. Select application */
+static int select_app(emv_t e)
+{
+	emv_app_t app;
+	unsigned int i;
+
+	/* Selection of apps by PSE directory */
+	if ( emv_appsel_pse(e) ) {
+		for(app = emv_appsel_pse_first(e); app;
+			app = emv_appsel_pse_next(e, app)) {
+			if ( !app_supported(app) ) {
+				printf("emvtool: unsupported PSE app: %s\n",
+					emv_app_pname(app));
+				emv_app_delete(app);
+				continue;
+			}
+			printf("emvtool: PSE app: %s\n",
+				emv_app_pname(app));
+		}
+
+		for(app = emv_appsel_pse_first(e); app;
+			app = emv_appsel_pse_next(e, app)) {
+			if ( emv_app_select_pse(e, app) ) {
+				printf("emvtool: Selected PSE app: %s\n",
+					emv_app_pname(app));
+				return 1;
+			}
+		}
+	}
+
+	/* Selection of apps by terminal list */
+	for(i = 0; i < sizeof(apps)/sizeof(*apps); i++) {
+		if ( !emv_app_select_aid(e, apps[i].aid, apps[i].aid_len) )
+			continue;
+
+		app = emv_current_app(e);
+		if ( !app_cmp(app, apps + i) ) {
+			printf("emvtool: Selected AID app: %s\n",
+				emv_app_pname(app));
+			return 1;
+		}
+
+		while ( emv_app_select_aid_next(e, apps[i].aid,
+						apps[i].aid_len) ) {
+			app = emv_current_app(e);
+			if ( app_cmp(app, apps + i) )
+				continue;
+			printf("emvtool: Selected partial AID app: %s\n",
+				emv_app_pname(app));
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 static int do_emv_stuff(chipcard_t cc)
 {
@@ -24,29 +116,18 @@ static int do_emv_stuff(chipcard_t cc)
 		return 0;
 	}
 
-	if ( emv_appsel_pse(e) ) {
-		emv_app_t app;
+	if ( !select_app(e) )
+		goto end;
 
-		for(app = emv_appsel_pse_first(e); app;
-			app = emv_appsel_pse_next(e, app)) {
-			printf("emvtool: PSE app: %s\n",
-				emv_app_pname(app));
-		}
+	/* Step 1. Initiate application processing */
 
-	}else{
-	}
+	/* Step 2. Authenticate card */
 
-#if 0
-	if ( emv_visa_select(emv) ) {
-		if ( emv_visa_offline_auth(emv) ) {
-			printf("CARD VERIFIED\n");
-			if ( emv_visa_cvm_pin(emv, "1337") ) {
-				printf("CARDHOLDER VERIFIED\n");
-			}
-		}
-	}
-#endif
+	/* Step 3. Authenticate cardholder */
 
+	/* Step 4. Authorize transaction */
+
+end:	/* Step 5. terminate processing */
 	emv_fini(e);
 	return 1;
 }

@@ -6,7 +6,6 @@
 #ifndef _EMV_INTERNAL_H
 #define _EMV_INTERNAL_H
 
-#define EMV_MAX_ADF_LEN 11
 #define EMV_AIP_LEN 2
 
 #define EMV_PIN_BLOCK_LEN 8

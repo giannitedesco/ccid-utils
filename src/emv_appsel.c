@@ -13,7 +13,7 @@
 static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
-	assert(len >= EMV_RID_LEN && len <= EMV_MAX_ADF_LEN);
+	assert(len >= EMV_RID_LEN && len <= EMV_AID_LEN);
 	a->a_id_sz = len;
 	memcpy(a->a_id, ptr, sizeof(a->a_id));
 	return 1;
@@ -105,6 +105,12 @@ void emv_app_rid(emv_app_t a, emv_rid_t ret)
 	memcpy(ret, a->a_id, EMV_RID_LEN);
 }
 
+void emv_app_aid(emv_app_t a, uint8_t *ret, size_t *len)
+{
+	memcpy(ret, a->a_id, a->a_id_sz);
+	*len = a->a_id_sz;
+}
+
 const char *emv_app_label(emv_app_t a)
 {
 	return a->a_name;
@@ -132,6 +138,9 @@ int emv_appsel_pse(emv_t e)
 	unsigned int i;
 	const char *pse = "1PAY.SYS.DDF01";
 
+	if ( !list_empty(&e->e_apps) )
+		return 1;
+
 	printf("Enumerating ICC applications:\n");
 	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )
 		return 0;
@@ -142,6 +151,9 @@ int emv_appsel_pse(emv_t e)
 		add_app(e);
 	}
 	printf("\n");
+
+	/* TODO: Sort by priority */
+
 	return 1;
 }
 
@@ -157,3 +169,77 @@ emv_app_t emv_appsel_pse_next(emv_t e, emv_app_t app)
 	return list_entry(app->a_list.next, struct _emv_app, a_list);
 }
 
+_public void emv_app_delete(emv_app_t a)
+{
+	list_del(&a->a_list);
+	free(a);
+}
+
+static int bop_fci2(const uint8_t *ptr, size_t len, void *priv)
+{
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x50", .tag_len = 1, .op = bop_label},
+		{ .tag = "\x87", .tag_len = 1, .op = bop_prio},
+		{ .tag = "\x5f\x2d", .tag_len = 2, .op = NULL},
+		{ .tag = "\x9f\x11", .tag_len = 2, .op = NULL},
+		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname},
+		{ .tag = "\xbf\x0c", .tag_len = 2, .op = NULL},
+	};
+	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
+}
+
+static int bop_fci(const uint8_t *ptr, size_t len, void *priv)
+{
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x84", .tag_len = 1, .op = bop_adfname},
+		{ .tag = "\xa5", .tag_len = 1, .op = bop_fci2},
+	};
+	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
+}
+
+static int set_app(emv_t e)
+{
+	static const struct ber_tag tags[] = {
+		{ .tag = "\x6f", .tag_len = 1, .op = bop_fci},
+	};
+	struct _emv_app *cur;
+	const uint8_t *fci;
+	size_t len;
+
+	fci = xfr_rx_data(e->e_xfr, &len);
+	if ( NULL == fci )
+		return 0;
+
+	cur = calloc(1, sizeof(*cur));
+	if ( NULL == cur )
+		return 0;
+
+	if ( !ber_decode(tags, BER_NUM_TAGS(tags), fci, len, cur) ) {
+		free(cur);
+		return 0;
+	}
+
+	e->e_app = cur;
+	return 1;
+}
+
+int emv_app_select_pse(emv_t e, emv_app_t a)
+{
+	if ( !_emv_select(e, a->a_id, a->a_id_sz) )
+		return 0;
+	return set_app(e);
+}
+
+int emv_app_select_aid(emv_t e, const uint8_t *aid, size_t aid_len)
+{
+	if ( !_emv_select(e, aid, aid_len) )
+		return 0;
+	return set_app(e);
+}
+
+int emv_app_select_aid_next(emv_t e, const uint8_t *aid, size_t aid_len)
+{
+	if ( !_emv_select_next(e, aid, aid_len) )
+		return 0;
+	return set_app(e);
+}

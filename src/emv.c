@@ -145,6 +145,8 @@ static void do_emv_fini(emv_t e)
 
 		_emv_free_applist(e);
 
+		free(e->e_app);
+
 		gang_free(e->e_data);
 		gang_free(e->e_files);
  
@@ -153,6 +155,11 @@ static void do_emv_fini(emv_t e)
 
 		free(e);
 	}
+}
+
+emv_app_t emv_current_app(emv_t e)
+{
+	return e->e_app;
 }
 
 emv_t emv_init(chipcard_t cc)
