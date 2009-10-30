@@ -8,14 +8,16 @@
 #define _GANG_HEADER_INCLDUED
 
 #define GANG_DEFAULT_ALLOC	0x1000U
+#define GANG_POISON 		1
+#define GANG_POISON_PATTERN 	0xa5
 
 typedef struct _gang *gang_t;
 
-gang_t gang_new(size_t align, size_t alloc);
-void *gang_alloc(gang_t g, size_t sz);
-void *gang_alloc_a(gang_t g, size_t sz, size_t align);
-void *gang_alloc0(gang_t g, size_t sz);
-void *gang_alloc0_a(gang_t g, size_t sz, size_t align);
-void gang_free(gang_t g);
+_private gang_t gang_new(size_t align, size_t alloc);
+_private void *gang_alloc(gang_t g, size_t sz) _malloc;
+_private void *gang_alloc_a(gang_t g, size_t sz, size_t align) _malloc;
+_private void *gang_alloc0(gang_t g, size_t sz) _malloc;
+_private void *gang_alloc0_a(gang_t g, size_t sz, size_t align) _malloc;
+_private void gang_free(gang_t g);
 
 #endif /* _GANG_HEADER_INCLUDED */

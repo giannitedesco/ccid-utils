@@ -3,11 +3,17 @@
  * Copyright (c) 2009 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
 */
-
+#include <compiler.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <gang.h>
+
+#if GANG_POISON
+#define POISON(ptr, len) memset(ptr, GANG_POISON_PATTERN, len)
+#else
+#define POISON(ptr, len) do { } while(0);
+#endif
 
 struct _slab {
 	struct _slab *s_next;
@@ -51,12 +57,16 @@ static void *do_alloc_slow(struct _gang *g, size_t sz, size_t align)
 	s = malloc(g->g_alloc);
 	if ( NULL == s )
 		return NULL;
-	
+
+	POISON(s, g->g_alloc);
+
+	ret = ptr_align(s->s_data, align);
+	if ( ret + sz > (uint8_t *)g->g_slab + g->g_alloc ) {
+		free(s);
+		return NULL;
+	}
 	s->s_next = g->g_slab;
 	g->g_slab = s;
-	ret = ptr_align(s->s_data, align);
-	if ( ret + sz > (uint8_t *)g->g_slab + g->g_alloc )
-		return NULL;
 	g->g_ptr = ret + sz;
 
 	return ret;
@@ -109,13 +119,15 @@ void *gang_alloc0_a(gang_t g, size_t sz, size_t align)
 void gang_free(gang_t g)
 {
 	struct _slab *s, *tmp;
+
 	if ( NULL == g )
 		return;
 
-	for(s = tmp = g->g_slab; s; s = tmp) {
-		tmp = s->s_next;
-		free(s);
+	for(s = g->g_slab; (tmp = s); free(tmp)) {
+		POISON(s, g->g_alloc);
+		s = s->s_next;
 	}
 
+	POISON(g, sizeof(*g));
 	free(g);
 }
