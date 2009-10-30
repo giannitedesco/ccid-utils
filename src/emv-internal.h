@@ -27,11 +27,13 @@
 #include <openssl/engine.h>
 
 #include <gang.h>
+#include <mpool.h>
 
 typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
-#define EMV_DATA_SDA		0x80000000U
-#define EMV_DATA_TYPE_MASK 	0x7fffffffU
+#define EMV_DATA_SDA		0x8000U
+#define EMV_DATA_ATOMIC		0x4000U
+#define EMV_DATA_TYPE_MASK 	0x3fffU
 #define EMV_DATA_BINARY		0x0
 #define EMV_DATA_TEXT		0x1
 #define EMV_DATA_NUMERIC	0x2
@@ -39,11 +41,29 @@ typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 #define EMV_DATA_DATE		0x4
 #define EMV_DATA_DOL		0x5
 struct _emv_data {
-	uint32_t d_flags;
-	uint8_t d_tag[2];
-	size_t d_len;
-	uint8_t *d_data;
+	uint16_t d_flags;
+	uint16_t d_tag;
+	union {
+		struct {
+			const uint8_t *data;
+			size_t len;
+		}du_atomic;
+		struct {
+			struct _emv_data **elem;
+			unsigned int nmemb;
+		}du_comp;
+	}d_u;
 };
+
+struct _emv_db {
+	unsigned int db_nmemb;
+	struct _emv_data **db_elem;
+	unsigned int db_numrec;
+	struct _emv_data **db_rec;
+	unsigned int db_numsda;
+	struct _emv_data **db_sda;
+};
+
 static inline unsigned int emv_data_type(struct _emv_data *d)
 {
 	return d->d_flags & EMV_DATA_TYPE_MASK;
@@ -52,11 +72,10 @@ static inline int emv_data_sda(struct _emv_data *d)
 {
 	return !!(d->d_flags & EMV_DATA_SDA);
 }
-
-struct _emv_db {
-	unsigned int db_nmemb;
-	struct _emv_data *db_elem;
-};
+static inline int emv_data_atomic(struct _emv_data *d)
+{
+	return !!(d->d_flags & EMV_DATA_ATOMIC);
+}
 
 struct _emv_app {
 	uint8_t a_recno;
@@ -74,8 +93,9 @@ struct _emv {
 	chipcard_t e_dev;
 	xfr_t e_xfr;
 
+	mpool_t e_data;
 	gang_t e_files;
-	gang_t e_data;
+	struct _emv_db e_db;
 
 	/* application selection */
 	unsigned int e_num_apps;

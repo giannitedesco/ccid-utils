@@ -23,6 +23,7 @@ ccid_la_LDFLAGS = -avoid-version -export-dynamic -module \
 			@PYTHON_LDADD@
 libemv_la_LIBADD = libccid.la -lcrypto
 libemv_la_SOURCES = 	gang.c \
+			mpool.c \
 			emv.c \
 			emv_apdu.c \
 			emv_appsel.c \

@@ -147,7 +147,7 @@ static void do_emv_fini(emv_t e)
 
 		free(e->e_app);
 
-		gang_free(e->e_data);
+		mpool_free(e->e_data);
 		gang_free(e->e_files);
  
 		if ( e->e_xfr )
@@ -178,7 +178,7 @@ emv_t emv_init(chipcard_t cc)
 		if ( NULL == e->e_xfr )
 			goto err;
 
-		e->e_data = gang_new(0, 0);
+		e->e_data = mpool_new(sizeof(struct _emv_data), 0);
 		if ( NULL == e->e_data )
 			goto err;
 
@@ -192,7 +192,7 @@ emv_t emv_init(chipcard_t cc)
 //err_free_files:
 //	gang_free(e->e_files);
 err_free_data:
-	gang_free(e->e_data);
+	mpool_free(e->e_data);
 err:
 	do_emv_fini(e);
 	return NULL;

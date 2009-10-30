@@ -123,13 +123,17 @@ static int do_emv_stuff(chipcard_t cc)
 	if ( !emv_app_init(e) )
 		goto end;
 
-	/* Step 2. Authenticate card */
+	/* Step 2. Read application data */
+	if ( !emv_read_app_data(e) )
+		goto end;
 
-	/* Step 3. Authenticate cardholder */
+	/* Step 3. Authenticate card */
 
-	/* Step 4. Authorize transaction */
+	/* Step 4. Authenticate cardholder */
 
-end:	/* Step 5. terminate processing */
+	/* Step 5. Authorize transaction */
+
+end:	/* Step 6. terminate processing */
 	emv_fini(e);
 	return 1;
 }
