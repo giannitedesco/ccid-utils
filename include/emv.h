@@ -54,7 +54,11 @@ _public int emv_sda_ok(emv_t e);
 
 /* Cardholder verification, only offline plaintext pin supported for now */
 _public int emv_cvm_pin(emv_t e, const char *pin);
-_public int emv_pin_try_counter(struct _emv *e);
+_public int emv_pin_try_counter(emv_t e);
+
+/* Terminal risk management */
+_public int emv_trm_last_online_atc(emv_t e);
+_public int emv_trm_atc(emv_t e);
 
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a

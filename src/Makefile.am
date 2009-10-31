@@ -30,7 +30,8 @@ libemv_la_SOURCES = 	gang.c \
 			emv_init.c \
 			emv_data.c \
 			emv_sda.c \
-			emv_cvm.c
+			emv_cvm.c \
+			emv_trm.c
 
 emvtool_LDADD = libemv.la libccid.la -lusb
 emvtool_SOURCES = emvtool.c

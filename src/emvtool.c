@@ -136,6 +136,16 @@ static const uint8_t *get_exp(unsigned int idx, size_t *len)
 	return ca_keys[idx].exp;
 }
 
+static int trm(emv_t e)
+{
+	int atc, oatc;
+	atc = emv_trm_atc(e);
+	oatc = emv_trm_last_online_atc(e);
+	printf("emvtool: app transaction counter: %u\n", atc);
+	printf("emvtool: last online transaction: %u\n", oatc);
+	return 1;
+}
+
 static int do_emv_stuff(chipcard_t cc)
 {
 	emv_t e;
@@ -174,7 +184,11 @@ static int do_emv_stuff(chipcard_t cc)
 
 	printf("emvtool: card holder verified\n");
 
-	/* Step 5. Authorize transaction */
+	/* Step 5. Terminal risk management*/
+	if ( !trm(e) )
+		goto end;
+
+	/* Step 6. Terminal/Card action analysis */
 
 end:	/* Step 6. terminate processing */
 	emv_fini(e);
