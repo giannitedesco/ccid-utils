@@ -29,9 +29,8 @@ libemv_la_SOURCES = 	gang.c \
 			emv_appsel.c \
 			emv_init.c \
 			emv_data.c \
-			emv_sda.c
-#			visa.c \
-#			link.c
+			emv_sda.c \
+			emv_cvm.c
 
 emvtool_LDADD = libemv.la libccid.la -lusb
 emvtool_SOURCES = emvtool.c

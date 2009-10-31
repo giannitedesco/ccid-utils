@@ -149,19 +149,30 @@ static int do_emv_stuff(chipcard_t cc)
 	if ( !select_app(e) )
 		goto end;
 
+
 	/* Step 1. Initiate application processing */
 	if ( !emv_app_init(e) )
 		goto end;
 
+	printf("emvtool: application initiated\n");
+
 	/* Step 2. Read application data */
 	if ( !emv_read_app_data(e) )
 		goto end;
-	
+
+	printf("emvtool: application data retrieved\n");
+
 	/* Step 3. Authenticate card */
 	if ( !emv_authenticate_static_data(e, get_mod, get_exp) )
 		goto end;
 
+	printf("emvtool: card data authenticated\n");
+
 	/* Step 4. Authenticate cardholder */
+	if ( !emv_cvm_pin(e, "1337") )
+		goto end;
+
+	printf("emvtool: card holder verified\n");
 
 	/* Step 5. Authorize transaction */
 

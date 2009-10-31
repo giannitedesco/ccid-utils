@@ -52,6 +52,10 @@ _public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,
 						emv_exp_cb_t exp);
 _public int emv_sda_ok(emv_t e);
 
+/* Cardholder verification, only offline plaintext pin supported for now */
+_public int emv_cvm_pin(emv_t e, const char *pin);
+_public int emv_pin_try_counter(struct _emv *e);
+
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a
 #define EMV_TAG_RECORD			0x0070
