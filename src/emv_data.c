@@ -8,7 +8,126 @@
 #include <list.h>
 #include <emv.h>
 #include <ber.h>
+#include <ctype.h>
 #include "emv-internal.h"
+
+static const struct _emv_tag unknown_soldier = {
+	.t_tag = 0x00,
+	.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+	.t_label = "UNKNOWN",
+};
+
+static const struct _emv_tag tags[] = {
+	{.t_tag = EMV_TAG_MAGSTRIP_TRACK2,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "Magnetic Strip Track 2 Equivalent"},
+	{.t_tag = EMV_TAG_PAN,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_min = 0, .t_max = 10,
+		.t_label = "Primary Account Number"},
+	{.t_tag = EMV_TAG_RECORD,
+		.t_type = EMV_DATA_BINARY,
+		.t_label = "Application Record"},
+	{.t_tag = EMV_TAG_CDOL1,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DOL,
+		.t_label = "Card Risk Management DOL1"},
+	{.t_tag = EMV_TAG_CDOL2,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DOL,
+		.t_label = "Card Risk Management DOL2"},
+	{.t_tag = EMV_TAG_CVM_LIST,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "Cardholder verification Method List"},
+	{.t_tag = EMV_TAG_CA_PK_INDEX,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
+		.t_min = 1, .t_max = 1,
+		.t_label = "CA Public Key Index"},
+	{.t_tag = EMV_TAG_ISS_PK_CERT,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "Issuer Public Key Certificate"},
+	{.t_tag = EMV_TAG_ISS_PK_R,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "Issuer Public Key Remainder"},
+	{.t_tag = EMV_TAG_SSA_DATA,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "Signed Static Authentication Data"},
+	{.t_tag = EMV_TAG_CARDHOLDER_NAME,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_TEXT,
+		.t_label = "Cardholder Name"},
+	{.t_tag = EMV_TAG_DATE_EXP,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DATE,
+		.t_min = 3, .t_max = 3,
+		.t_label = "Card Expiry Date"},
+	{.t_tag = EMV_TAG_DATE_EFF,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DATE,
+		.t_min = 3, .t_max = 3,
+		.t_label = "Card Effective Date"},
+	{.t_tag = EMV_TAG_ISSUER_COUNTRY,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_min = 2, .t_max = 2,
+		.t_label = "Issuer Country Code"},
+	{.t_tag = EMV_TAG_SERVICE_CODE,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_min = 2, .t_max = 2,
+		.t_label = "Service Code"},
+	{.t_tag = EMV_TAG_PAN_SEQ,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_min = 1, .t_max = 1,
+		.t_label = "PAN sequence number"},
+	{.t_tag = EMV_TAG_USAGE_CONTROL,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_min = 2, .t_max = 2,
+		.t_label = "Application usage control"},
+	{.t_tag = EMV_TAG_APP_VER,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
+		.t_min = 2, .t_max = 2,
+		.t_label = "Application version number"},
+	{.t_tag = EMV_TAG_IAC_DEFAULT,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_min = 5, .t_max = 5,
+		.t_label = "Issuert Action Code (Default)"},
+	{.t_tag = EMV_TAG_IAC_DENY,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_min = 5, .t_max = 5,
+		.t_label = "Issuert Action Code (Deny)"},
+	{.t_tag = EMV_TAG_IAC_ONLINE,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_min = 5, .t_max = 5,
+		.t_label = "Issuert Action Code (Online)"},
+	{.t_tag = EMV_TAG_MAGSTRIP_TRACK1,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_TEXT,
+		.t_label = "Magnetic Strip Track 1 Discretionary"},
+	{.t_tag = EMV_TAG_ISS_PK_EXP,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_min = 1,
+		.t_label = "Issuer Public Key Exponent"},
+	{.t_tag = EMV_TAG_SDA_TAG_LIST,
+		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_label = "SDA Tag List"},
+};
+static const unsigned int num_tags = sizeof(tags)/sizeof(*tags);
+
+static const struct _emv_tag *find_tag(uint16_t id)
+{
+	const struct _emv_tag *t = tags;
+	unsigned int n = num_tags;
+
+	while ( n ) {
+		unsigned int i;
+		int cmp;
+
+		i = n / 2U;
+		cmp = id - t[i].t_tag;
+		if ( cmp < 0 ) {
+			n = i;
+		}else if ( cmp > 0 ) {
+			t = t + (i + 1U);
+			n = n - (i + 1U);
+		}else
+			return t + i;
+	}
+
+	return &unknown_soldier;
+}
 
 struct db_state {
 	struct _emv *e;
@@ -74,10 +193,12 @@ static int composite(emv_t e, struct _emv_data *d)
 		}
 
 		elem[i] = mpool_alloc(e->e_data);
-		elem[i]->d_flags = EMV_DATA_BINARY;
-		elem[i]->d_tag = t;
+		elem[i]->d_tag = find_tag(t);
+		elem[i]->d_id = t;
 		elem[i]->d_u.du_atomic.data = ptr;
 		elem[i]->d_u.du_atomic.len = clen;
+		if ( emv_data_composite(elem[i]) )
+			composite(e, elem[i]);
 
 		ptr += clen;
 	}
@@ -94,7 +215,7 @@ static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
 	uint8_t *tmp;
 	struct _emv_data *d;
 
-	if ( len < 2 || ptr[0] != 0x70 ) {
+	if ( len < 2 || ptr[0] != EMV_TAG_RECORD ) {
 		printf("emv: bad application data format\n");
 		return 0;
 	}
@@ -118,9 +239,8 @@ static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
 	
 	memcpy(tmp, ptr, len);
 
-	hex_dump(ptr, len, 16);
-	d->d_flags = EMV_DATA_BINARY;
-	d->d_tag = 0x70;
+	d->d_tag = find_tag(EMV_TAG_RECORD);
+	d->d_id = EMV_TAG_RECORD;
 	d->d_u.du_atomic.data = tmp;
 	d->d_u.du_atomic.len = len;
 
@@ -130,6 +250,72 @@ static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
 	return composite(s->e, d);
 }
 
+static void hex_dump_r(const uint8_t *tmp, size_t len,
+			size_t llen, unsigned int depth)
+{
+	size_t i, j;
+	size_t line;
+
+	for(j = 0; j < len; j += line, tmp += line) {
+		if ( j + llen > len ) {
+			line = len - j;
+		}else{
+			line = llen;
+		}
+
+		printf("%*c%05x : ", depth, ' ', j);
+
+		for(i = 0; i < line; i++) {
+			if ( isprint(tmp[i]) ) {
+				printf("%c", tmp[i]);
+			}else{
+				printf(".");
+			}
+		}
+
+		for(; i < llen; i++)
+			printf(" ");
+
+		for(i=0; i < line; i++)
+			printf(" %02x", tmp[i]);
+
+		printf("\n");
+	}
+	printf("\n");
+}
+
+static const char *label(struct _emv_data *d)
+{
+	static char buf[20];
+
+	if ( d->d_tag == &unknown_soldier ) {
+		snprintf(buf, sizeof(buf),
+			"Unknown tag: 0x%.4x", d->d_id);
+		return buf;
+	}else
+		return d->d_tag->t_label;
+}
+
+static void dump_records(struct _emv_data **d, size_t num, unsigned depth)
+{
+	unsigned int i;
+
+	for(i = 0; i < num; i++) {
+		if ( emv_data_composite(d[i]) ) {
+			printf("%*c%s {\n", depth, ' ', label(d[i]));
+				
+			dump_records(d[i]->d_u.du_comp.elem,
+					d[i]->d_u.du_comp.nmemb, depth + 1);
+			printf("%*c}\n\n", depth, ' ');
+			continue;
+		}
+
+		printf("%*c%s\n", depth, ' ', label(d[i]));
+		hex_dump_r(d[i]->d_u.du_atomic.data,
+			d[i]->d_u.du_atomic.len, 16, depth);
+	}
+}
+
 static int read_sfi(struct db_state *s, uint8_t sfi,
 			uint8_t begin, uint8_t end, uint8_t num_sda)
 {
@@ -137,7 +323,7 @@ static int read_sfi(struct db_state *s, uint8_t sfi,
 	unsigned int i;
 	size_t len;
 
-	printf("Reading SFI %u\n", sfi);
+//	printf("Reading SFI %u\n", sfi);
 	for(i = begin; i <= end; i++ ) {
 		if ( !_emv_read_record(s->e, sfi, i) )
 			return 0;
@@ -160,7 +346,6 @@ int emv_read_app_data(struct _emv *e)
 	struct db_state s;
 	struct _emv_data **pps;
 	uint8_t *ptr, *end;
-	unsigned int i, j;
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
@@ -191,15 +376,6 @@ int emv_read_app_data(struct _emv *e)
 		read_sfi(&s, ptr[0] >> 3, ptr[1], ptr[2], ptr[3]);
 	}
 
-#if 0
-	for(i = 0; i < db->db_numrec; i++) {
-		struct _emv_data **d;
-		d = db->db_rec[i]->d_u.du_comp.elem;
-		for(j = 0; j < db->db_rec[i]->d_u.du_comp.nmemb; j++) {
-			printf(" tag %.4x\n", d[j]->d_tag);
-		}
-	}
-#endif
-
+	dump_records(db->db_rec, db->db_numrec, 1);
 	return 1;
 }

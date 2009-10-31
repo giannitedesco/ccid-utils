@@ -41,4 +41,29 @@ _public int emv_app_init(emv_t e);
 /* Application data */
 _public int emv_read_app_data(emv_t e);
 
+#define EMV_TAG_MAGSTRIP_TRACK2		0x0057
+#define EMV_TAG_PAN			0x005a
+#define EMV_TAG_RECORD			0x0070
+#define EMV_TAG_CDOL1			0x008c
+#define EMV_TAG_CDOL2			0x008d
+#define EMV_TAG_CVM_LIST		0x008e
+#define EMV_TAG_CA_PK_INDEX		0x008f
+#define EMV_TAG_ISS_PK_CERT		0x0090
+#define EMV_TAG_ISS_PK_R		0x0092
+#define EMV_TAG_SSA_DATA		0x0093
+#define EMV_TAG_CARDHOLDER_NAME		0x5f20
+#define EMV_TAG_DATE_EXP		0x5f24
+#define EMV_TAG_DATE_EFF		0x5f25
+#define EMV_TAG_ISSUER_COUNTRY		0x5f28
+#define EMV_TAG_SERVICE_CODE		0x5f30
+#define EMV_TAG_PAN_SEQ			0x5f34
+#define EMV_TAG_USAGE_CONTROL		0x9f07
+#define EMV_TAG_APP_VER			0x9f08
+#define EMV_TAG_IAC_DEFAULT		0x9f0d
+#define EMV_TAG_IAC_DENY		0x9f0e
+#define EMV_TAG_IAC_ONLINE		0x9f0f
+#define EMV_TAG_MAGSTRIP_TRACK1		0x9f1f
+#define EMV_TAG_ISS_PK_EXP		0x9f32
+#define EMV_TAG_SDA_TAG_LIST		0x9f4a
+
 #endif /* _EMV_H */

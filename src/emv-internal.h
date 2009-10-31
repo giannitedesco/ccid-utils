@@ -31,18 +31,24 @@
 
 typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
-#define EMV_DATA_SDA		0x8000U
-#define EMV_DATA_ATOMIC		0x4000U
-#define EMV_DATA_TYPE_MASK 	0x3fffU
+#define EMV_DATA_ATOMIC		0x8000U
+#define EMV_DATA_TYPE_MASK 	0x7fffU
 #define EMV_DATA_BINARY		0x0
 #define EMV_DATA_TEXT		0x1
-#define EMV_DATA_NUMERIC	0x2
+#define EMV_DATA_INT		0x2
 #define EMV_DATA_BCD		0x3
 #define EMV_DATA_DATE		0x4
 #define EMV_DATA_DOL		0x5
+struct _emv_tag {
+	uint16_t t_tag;
+	uint16_t t_type;
+	uint8_t t_min, t_max;
+	const char *t_label;
+};
+
 struct _emv_data {
-	uint16_t d_flags;
-	uint16_t d_tag;
+	const struct _emv_tag *d_tag;
+	uint16_t d_id;
 	union {
 		struct {
 			const uint8_t *data;
@@ -55,6 +61,15 @@ struct _emv_data {
 	}d_u;
 };
 
+static inline int emv_data_atomic(struct _emv_data *d)
+{
+	return !!(d->d_tag->t_type & EMV_DATA_ATOMIC);
+}
+static inline int emv_data_composite(struct _emv_data *d)
+{
+	return !(d->d_tag->t_type & EMV_DATA_ATOMIC);
+}
+
 struct _emv_db {
 	unsigned int db_nmemb;
 	struct _emv_data **db_elem;
@@ -63,19 +78,6 @@ struct _emv_db {
 	unsigned int db_numsda;
 	struct _emv_data **db_sda;
 };
-
-static inline unsigned int emv_data_type(struct _emv_data *d)
-{
-	return d->d_flags & EMV_DATA_TYPE_MASK;
-}
-static inline int emv_data_sda(struct _emv_data *d)
-{
-	return !!(d->d_flags & EMV_DATA_SDA);
-}
-static inline int emv_data_atomic(struct _emv_data *d)
-{
-	return !!(d->d_flags & EMV_DATA_ATOMIC);
-}
 
 struct _emv_app {
 	uint8_t a_recno;

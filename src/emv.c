@@ -149,6 +149,8 @@ static void do_emv_fini(emv_t e)
 
 		mpool_free(e->e_data);
 		gang_free(e->e_files);
+
+		free(e->e_afl);
  
 		if ( e->e_xfr )
 			xfr_free(e->e_xfr);
