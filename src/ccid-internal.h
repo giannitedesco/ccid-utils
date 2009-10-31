@@ -12,8 +12,10 @@
 #define trace(cci, fmt, x...) \
 		do { \
 			struct _cci *_CCI = cci; \
-			if ( _CCI->cci_tf ) \
+			if ( _CCI->cci_tf ) { \
 				fprintf(_CCI->cci_tf, fmt , ##x); \
+				fflush(_CCI->cci_tf); \
+			} \
 		}while(0);
 
 struct _chipcard {

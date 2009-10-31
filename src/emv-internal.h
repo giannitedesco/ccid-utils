@@ -103,6 +103,7 @@ struct _emv {
 	size_t e_afl_len;
 
 	/* crypto stuff */
+	int e_sda_ok;
 	RSA *e_ca_pk;
 	RSA *e_iss_pk;
 };

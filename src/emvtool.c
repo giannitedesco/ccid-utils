@@ -9,6 +9,8 @@
 
 #include <stdio.h>
 
+#include "ca_pubkeys.h"
+
 struct t_app {
 	const uint8_t *aid;
 	size_t aid_len;
@@ -58,16 +60,18 @@ static int select_app(emv_t e)
 
 	/* Selection of apps by PSE directory */
 	if ( emv_appsel_pse(e) ) {
-		for(app = emv_appsel_pse_first(e); app;
-			app = emv_appsel_pse_next(e, app)) {
+		for(app = emv_appsel_pse_first(e); app; ) {
 			if ( !app_supported(app) ) {
 				printf("emvtool: unsupported PSE app: %s\n",
 					emv_app_pname(app));
-				emv_app_delete(app);
+				emv_app_t f = app;
+				app = emv_appsel_pse_next(e, app);
+				emv_app_delete(f);
 				continue;
 			}
 			printf("emvtool: PSE app: %s\n",
 				emv_app_pname(app));
+			app = emv_appsel_pse_next(e, app);
 		}
 
 		for(app = emv_appsel_pse_first(e); app;
@@ -106,6 +110,32 @@ static int select_app(emv_t e)
 	return 0;
 }
 
+static const struct {
+	const uint8_t *mod, *exp;
+	size_t mod_len, exp_len;
+}ca_keys[] = {
+	[7] = {.mod = visa1152_mod,
+		.mod_len = sizeof(visa1152_mod),
+		.exp = visa1152_exp,
+		.exp_len = sizeof(visa1152_exp)},
+};
+
+static const uint8_t *get_mod(unsigned int idx, size_t *len)
+{
+	if ( idx >= sizeof(ca_keys)/sizeof(*ca_keys) )
+		return NULL;
+	*len = ca_keys[idx].mod_len;
+	return ca_keys[idx].mod;
+}
+
+static const uint8_t *get_exp(unsigned int idx, size_t *len)
+{
+	if ( idx >= sizeof(ca_keys)/sizeof(*ca_keys) )
+		return NULL;
+	*len = ca_keys[idx].exp_len;
+	return ca_keys[idx].exp;
+}
+
 static int do_emv_stuff(chipcard_t cc)
 {
 	emv_t e;
@@ -128,6 +158,8 @@ static int do_emv_stuff(chipcard_t cc)
 		goto end;
 	
 	/* Step 3. Authenticate card */
+	if ( !emv_authenticate_static_data(e, get_mod, get_exp) )
+		goto end;
 
 	/* Step 4. Authenticate cardholder */
 

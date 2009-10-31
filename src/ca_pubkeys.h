@@ -18,6 +18,6 @@ static const uint8_t visa1152_mod[0x90] = {
 	0x2E, 0x4E, 0x00, 0xD0, 0xCD, 0x40, 0x69, 0xA6,
 	0x78, 0x31, 0x40, 0x43, 0x3D, 0x50, 0x72, 0x5F,
 };
-static const size_t visa1152_mod_len = sizeof(visa1152_mod);//0x90;
+static const size_t visa1152_mod_len = sizeof(visa1152_mod);
 static const uint8_t visa1152_exp[] = { 0x3 };
 static const size_t visa1152_exp_len = 1;

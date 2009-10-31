@@ -28,8 +28,8 @@ libemv_la_SOURCES = 	gang.c \
 			emv_apdu.c \
 			emv_appsel.c \
 			emv_init.c \
-			emv_data.c
-#			emv_sda.c \
+			emv_data.c \
+			emv_sda.c
 #			visa.c \
 #			link.c
 

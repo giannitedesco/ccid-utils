@@ -169,6 +169,22 @@ const uint8_t *emv_data(emv_data_t d, size_t *len)
 	return d->d_data;
 }
 
+int emv_data_int(emv_data_t d)
+{
+	unsigned int i;
+	int ret;
+
+	if ( (d->d_tag->t_type & EMV_DATA_TYPE_MASK) != EMV_DATA_INT )
+		return -1;
+	if ( d->d_len > sizeof(ret) || d->d_data[0] & 0x80 )
+		return -1;
+
+	for(ret = i = 0; i < d->d_len; i++)
+		ret = (ret << 8) | d->d_data[i];
+	
+	return ret;
+}
+
 struct db_state {
 	struct _emv *e;
 	struct _emv_db *db;
@@ -253,7 +269,8 @@ static int composite(emv_t e, struct _emv_data *d)
 	return 1;
 }
 
-static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
+static int decode_record(struct db_state *s, const uint8_t *ptr,
+				size_t len, int sda)
 {
 	const uint8_t *end = ptr + len;
 	uint8_t *tmp;
@@ -290,6 +307,11 @@ static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
 
 	*s->rec = d;
 	s->rec++;
+
+	if ( sda ) {
+		*s->sda = d;
+		s->sda++;
+	}
 
 	return composite(s->e, d);
 }
@@ -409,7 +431,7 @@ static int read_sfi(struct db_state *s, uint8_t sfi,
 			uint8_t begin, uint8_t end, uint8_t num_sda)
 {
 	const uint8_t *res;
-	unsigned int i;
+	unsigned int i, sda;
 	size_t len;
 
 //	printf("Reading SFI %u\n", sfi);
@@ -421,8 +443,8 @@ static int read_sfi(struct db_state *s, uint8_t sfi,
 		if ( NULL == res )
 			return 0;
 
-		printf(" Record %u/%u:\n", i, end);
-		if ( !decode_record(s, res, len) )
+		sda = ( num_sda && i < begin + num_sda ) ? 1 : 0;
+		if ( !decode_record(s, res, len, sda) )
 			return 0;
 	}
 

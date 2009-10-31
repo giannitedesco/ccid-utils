@@ -13,6 +13,8 @@ typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
 typedef const struct _emv_data *emv_data_t;
 typedef uint8_t emv_rid_t[EMV_RID_LEN];
+typedef const uint8_t *(*emv_mod_cb_t)(unsigned int index, size_t *len);
+typedef const uint8_t *(*emv_exp_cb_t)(unsigned int index, size_t *len);
 
 /* Setup/teardown */
 _public emv_t emv_init(chipcard_t cc);
@@ -41,8 +43,14 @@ _public int emv_app_init(emv_t e);
 
 /* Application data */
 _public int emv_read_app_data(emv_t e);
-_public emv_data_t emv_retrieve_data(emv_t, uint16_t id);
+_public emv_data_t emv_retrieve_data(emv_t e, uint16_t id);
 _public const uint8_t *emv_data(emv_data_t d, size_t *len);
+_public int emv_data_int(emv_data_t d);
+
+/* Static data authentication */
+_public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,
+						emv_exp_cb_t exp);
+_public int emv_sda_ok(emv_t e);
 
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a
