@@ -11,6 +11,7 @@
 
 typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
+typedef const struct _emv_data *emv_data_t;
 typedef uint8_t emv_rid_t[EMV_RID_LEN];
 
 /* Setup/teardown */
@@ -40,6 +41,8 @@ _public int emv_app_init(emv_t e);
 
 /* Application data */
 _public int emv_read_app_data(emv_t e);
+_public emv_data_t emv_retrieve_data(emv_t, uint16_t id);
+_public const uint8_t *emv_data(emv_data_t d, size_t *len);
 
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a

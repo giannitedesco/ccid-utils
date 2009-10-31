@@ -49,16 +49,10 @@ struct _emv_tag {
 struct _emv_data {
 	const struct _emv_tag *d_tag;
 	uint16_t d_id;
-	union {
-		struct {
-			const uint8_t *data;
-			size_t len;
-		}du_atomic;
-		struct {
-			struct _emv_data **elem;
-			unsigned int nmemb;
-		}du_comp;
-	}d_u;
+	const uint8_t *d_data;
+	size_t d_len;
+	struct _emv_data **d_elem;
+	unsigned int d_nmemb;
 };
 
 static inline int emv_data_atomic(struct _emv_data *d)
@@ -138,6 +132,7 @@ _private int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len);
 
 /* Application data retrieval */
 _private int _emv_read_app_data(struct _emv *e);
+_private const struct _emv_data *_emv_retrieve_data(emv_t, uint16_t id);
 
 /* APDU construction + transactions */
 _private int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record);

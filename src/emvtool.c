@@ -126,7 +126,7 @@ static int do_emv_stuff(chipcard_t cc)
 	/* Step 2. Read application data */
 	if ( !emv_read_app_data(e) )
 		goto end;
-
+	
 	/* Step 3. Authenticate card */
 
 	/* Step 4. Authenticate cardholder */

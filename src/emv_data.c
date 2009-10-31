@@ -129,6 +129,46 @@ static const struct _emv_tag *find_tag(uint16_t id)
 	return &unknown_soldier;
 }
 
+static const struct _emv_data *find_data(struct _emv_data **db,
+					unsigned int num, uint16_t id)
+{
+	struct _emv_data **d = db;
+	unsigned int n = num_tags;
+
+	while ( n ) {
+		unsigned int i;
+		int cmp;
+
+		i = n / 2U;
+		cmp = id - d[i]->d_id;
+		if ( cmp < 0 ) {
+			n = i;
+		}else if ( cmp > 0 ) {
+			d = d + (i + 1U);
+			n = n - (i + 1U);
+		}else
+			return d[i];
+	}
+
+	return NULL;
+}
+
+const struct _emv_data *_emv_retrieve_data(emv_t e, uint16_t id)
+{
+	return find_data(e->e_db.db_elem, e->e_db.db_nmemb, id);
+}
+
+emv_data_t emv_retrieve_data(emv_t e, uint16_t id)
+{
+	return find_data(e->e_db.db_elem, e->e_db.db_nmemb, id);
+}
+
+const uint8_t *emv_data(emv_data_t d, size_t *len)
+{
+	*len = d->d_len;
+	return d->d_data;
+}
+
 struct db_state {
 	struct _emv *e;
 	struct _emv_db *db;
@@ -143,8 +183,8 @@ static int composite(emv_t e, struct _emv_data *d)
 	size_t num_tags;
 	size_t i;
 
-	ptr = d->d_u.du_atomic.data;
-	end = ptr + d->d_u.du_atomic.len;
+	ptr = d->d_data;
+	end = ptr + d->d_len;
 
 	for(num_tags = 0; ptr < end; num_tags++) {
 		const uint8_t *tag;
@@ -166,7 +206,7 @@ static int composite(emv_t e, struct _emv_data *d)
 	if ( NULL == elem )
 		return 0;
 
-	for(ptr = d->d_u.du_atomic.data, i = 0; ptr < end; i++) {
+	for(ptr = d->d_data, i = 0; ptr < end; i++) {
 		const uint8_t *tag;
 		size_t tag_len;
 		size_t clen;
@@ -195,16 +235,20 @@ static int composite(emv_t e, struct _emv_data *d)
 		elem[i] = mpool_alloc(e->e_data);
 		elem[i]->d_tag = find_tag(t);
 		elem[i]->d_id = t;
-		elem[i]->d_u.du_atomic.data = ptr;
-		elem[i]->d_u.du_atomic.len = clen;
-		if ( emv_data_composite(elem[i]) )
+		elem[i]->d_data = ptr;
+		elem[i]->d_len = clen;
+		if ( emv_data_composite(elem[i]) ) {
 			composite(e, elem[i]);
+		}else {
+			d->d_elem = NULL;
+			d->d_nmemb = 0;
+		}
 
 		ptr += clen;
 	}
 
-	d->d_u.du_comp.nmemb = num_tags;
-	d->d_u.du_comp.elem = elem;
+	d->d_nmemb = num_tags;
+	d->d_elem = elem;
 
 	return 1;
 }
@@ -241,8 +285,8 @@ static int decode_record(struct db_state *s, const uint8_t *ptr, size_t len)
 
 	d->d_tag = find_tag(EMV_TAG_RECORD);
 	d->d_id = EMV_TAG_RECORD;
-	d->d_u.du_atomic.data = tmp;
-	d->d_u.du_atomic.len = len;
+	d->d_data = tmp;
+	d->d_len = len;
 
 	*s->rec = d;
 	s->rec++;
@@ -304,15 +348,60 @@ static void dump_records(struct _emv_data **d, size_t num, unsigned depth)
 		if ( emv_data_composite(d[i]) ) {
 			printf("%*c%s {\n", depth, ' ', label(d[i]));
 				
-			dump_records(d[i]->d_u.du_comp.elem,
-					d[i]->d_u.du_comp.nmemb, depth + 1);
+			dump_records(d[i]->d_elem,
+					d[i]->d_nmemb, depth + 1);
 			printf("%*c}\n\n", depth, ' ');
 			continue;
 		}
 
 		printf("%*c%s\n", depth, ' ', label(d[i]));
-		hex_dump_r(d[i]->d_u.du_atomic.data,
-			d[i]->d_u.du_atomic.len, 16, depth);
+		hex_dump_r(d[i]->d_data,
+			d[i]->d_len, 16, depth);
+	}
+}
+
+static int cmp(const void *A, const void *B)
+{
+	const struct _emv_data * const *a = A, * const *b = B;
+	return (*a)->d_id - (*b)->d_id;
+}
+
+static void count_elements(struct _emv_data **d, size_t num,
+				unsigned int *cnt)
+{
+	unsigned int i;
+
+	for(i = 0; i < num; i++) {
+		if ( emv_data_composite(d[i]) ) {
+			(*cnt)++;
+			qsort(d[i]->d_elem, d[i]->d_nmemb,
+				sizeof(d[i]->d_elem), cmp);
+
+			/* take advantage of oppertunity to sort elements
+			 * for rapid searching of children */
+			count_elements(d[i]->d_elem,
+					d[i]->d_nmemb, cnt);
+			continue;
+		}
+		(*cnt)++;
+	}
+}
+
+static void add_elements(struct _emv_data **d, size_t num,
+				struct _emv_data ***db)
+{
+	unsigned int i;
+
+	for(i = 0; i < num; i++) {
+		if ( emv_data_composite(d[i]) ) {
+			(**db) = d[i];
+			(*db)++;
+			add_elements(d[i]->d_elem,
+					d[i]->d_nmemb, db);
+			continue;
+		}
+		(**db) = d[i];
+		(*db)++;
 	}
 }
 
@@ -346,6 +435,7 @@ int emv_read_app_data(struct _emv *e)
 	struct db_state s;
 	struct _emv_data **pps;
 	uint8_t *ptr, *end;
+	unsigned int i;
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
@@ -376,6 +466,27 @@ int emv_read_app_data(struct _emv *e)
 		read_sfi(&s, ptr[0] >> 3, ptr[1], ptr[2], ptr[3]);
 	}
 
-	dump_records(db->db_rec, db->db_numrec, 1);
+	for(i = 0; i < db->db_numrec; i++) {
+		count_elements(db->db_rec[i]->d_elem,
+			db->db_rec[i]->d_nmemb,
+			&db->db_nmemb);
+	}
+
+	printf("%u Data Elements in total\n", db->db_nmemb);
+	pps = db->db_elem = gang_alloc(e->e_files,
+					db->db_nmemb * sizeof(*db->db_elem));
+	if ( NULL == pps )
+		return 0;
+
+	for(i = 0; i < db->db_numrec; i++) {
+		add_elements(db->db_rec[i]->d_elem,
+			db->db_rec[i]->d_nmemb,
+			&pps);
+	}
+	qsort(db->db_elem, db->db_nmemb, sizeof(*db->db_elem), cmp);
+
+	//&dump_records(db->db_rec, db->db_numrec, 1);
+	//for(i = 0; i < db->db_nmemb; i++)
+	//	printf("%u. %s\n", i, label(db->db_elem[i]));
 	return 1;
 }
