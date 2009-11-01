@@ -46,6 +46,7 @@ _public int emv_read_app_data(emv_t e);
 _public emv_data_t emv_retrieve_data(emv_t e, uint16_t id);
 _public const uint8_t *emv_data(emv_data_t d, size_t *len);
 _public int emv_data_int(emv_data_t d);
+_public int emv_data_sda(emv_data_t d);
 
 /* Static data authentication */
 _public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,

@@ -185,6 +185,11 @@ int emv_data_int(emv_data_t d)
 	return ret;
 }
 
+int emv_data_sda(emv_data_t d)
+{
+	return !!(d->d_flags & EMV_DATA_SDA);
+}
+
 struct db_state {
 	struct _emv *e;
 	struct _emv_db *db;
@@ -250,6 +255,7 @@ static int composite(emv_t e, struct _emv_data *d)
 
 		elem[i] = mpool_alloc(e->e_data);
 		elem[i]->d_tag = find_tag(t);
+		elem[i]->d_flags = d->d_flags;
 		elem[i]->d_id = t;
 		elem[i]->d_data = ptr;
 		elem[i]->d_len = clen;
@@ -302,6 +308,7 @@ static int decode_record(struct db_state *s, const uint8_t *ptr,
 
 	d->d_tag = find_tag(EMV_TAG_RECORD);
 	d->d_id = EMV_TAG_RECORD;
+	d->d_flags = (sda) ? EMV_DATA_SDA : 0;
 	d->d_data = tmp;
 	d->d_len = len;
 
