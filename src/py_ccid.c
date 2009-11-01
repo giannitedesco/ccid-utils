@@ -8,25 +8,7 @@
 #include <ccid-spec.h>
 #include <Python.h>
 #include <structmember.h>
-
-/* chipcard is the only dodgy part, this type can only be created via
- * a call to cci.get_slot()
- */
-struct cp_chipcard {
-	PyObject_HEAD;
-	PyObject *owner;
-	chipcard_t slot;
-};
-
-struct cp_cci {
-	PyObject_HEAD;
-	cci_t dev;
-};
-
-struct cp_xfr {
-	PyObject_HEAD;
-	xfr_t xfr;
-};
+#include "py_ccid.h"
 
 /* ---[ Xfr wrapper */
 static int cp_xfr_init(struct cp_xfr *self, PyObject *args, PyObject *kwds)

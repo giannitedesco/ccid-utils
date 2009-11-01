@@ -35,12 +35,6 @@ typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
 #define EMV_DATA_ATOMIC		0x8000U
 #define EMV_DATA_TYPE_MASK 	0x7fffU
-#define EMV_DATA_BINARY		0x0
-#define EMV_DATA_TEXT		0x1
-#define EMV_DATA_INT		0x2
-#define EMV_DATA_BCD		0x3
-#define EMV_DATA_DATE		0x4
-#define EMV_DATA_DOL		0x5
 struct _emv_tag {
 	uint16_t t_tag;
 	uint16_t t_type;

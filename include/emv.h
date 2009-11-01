@@ -9,6 +9,13 @@
 #define EMV_RID_LEN	5
 #define EMV_AID_LEN	11
 
+#define EMV_DATA_BINARY		0x0
+#define EMV_DATA_TEXT		0x1
+#define EMV_DATA_INT		0x2
+#define EMV_DATA_BCD		0x3
+#define EMV_DATA_DATE		0x4
+#define EMV_DATA_DOL		0x5
+
 typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
 typedef const struct _emv_data *emv_data_t;
@@ -44,9 +51,15 @@ _public int emv_app_init(emv_t e);
 /* Application data */
 _public int emv_read_app_data(emv_t e);
 _public emv_data_t emv_retrieve_data(emv_t e, uint16_t id);
+_public emv_data_t *emv_retrieve_records(emv_t e, unsigned int *nmemb);
+
+_public emv_data_t *emv_data_children(emv_data_t d, unsigned int *nmemb);
 _public const uint8_t *emv_data(emv_data_t d, size_t *len);
 _public int emv_data_int(emv_data_t d);
 _public int emv_data_sda(emv_data_t d);
+_public unsigned int emv_data_type(emv_data_t d);
+_public uint16_t emv_data_tag(emv_data_t d);
+_public const char *emv_data_tag_label(emv_data_t d);
 
 /* Static data authentication */
 _public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,

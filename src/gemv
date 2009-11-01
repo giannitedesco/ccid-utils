@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+import gobject, gtk
+import ccid
+import emv
+
+def destroy(w):
+	gtk.main_quit()
+
+class EMVShell(gtk.Window):
+	def __data_tree_init(self):
+		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING)
+
+		t = gtk.TreeView(ts)
+		t.set_headers_visible(True)
+		t.set_headers_clickable(True)
+		t.set_enable_search(True)
+		t.set_search_column(0)
+
+		cols = [("Tag", 0), ("Data", 1)]
+		for (title,c) in cols:
+			r = gtk.CellRendererText()
+			col = gtk.TreeViewColumn(title, r, text = c)
+			col.set_resizable(True)
+			t.append_column(col)
+
+		return (ts, t)
+
+	def __add_children(self, iter, d):
+		for (k, v) in d.children().items():
+			i = self.__ts.append(iter, (v.tag_label(), None))
+			self.__add_children(i, v)
+
+	def __read_data(self):
+		recs = self.__emv.read_app_data()
+		for x in recs:
+			i = self.__ts.append(None, (x.tag_label(), None))
+			self.__add_children(i, x)
+
+	def __init__(self, card):
+		gtk.Window.__init__(self)
+		self.set_default_size(640, 480)
+		self.connect("destroy", destroy)
+
+		(ts, t) = self.__data_tree_init()
+		self.__ts = ts
+
+		vs = gtk.ScrolledWindow()
+		vs.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		vs.add(t)
+
+		self.__emv = emv.card(card)
+		self.__pse_apps = self.__emv.appsel_pse()
+		self.__emv.select_pse(self.__pse_apps[0])
+		self.__emv.init()
+		self.__read_data()
+
+		self.add(vs)
+
+def acquire_card(tracefile=None):
+	cci = ccid.cci(tracefile)
+	slot = cci.get_slot(0)
+	slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+	return slot
+
+if __name__ == '__main__':
+	card = acquire_card()
+	w = EMVShell(card)
+	w.show_all()
+	gtk.main()

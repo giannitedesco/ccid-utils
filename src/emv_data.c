@@ -163,10 +163,37 @@ emv_data_t emv_retrieve_data(emv_t e, uint16_t id)
 	return find_data(e->e_db.db_elem, e->e_db.db_nmemb, id);
 }
 
+emv_data_t *emv_data_children(emv_data_t d, unsigned int *nmemb)
+{
+	*nmemb = d->d_nmemb;
+	return (emv_data_t *)d->d_elem;
+}
+
+emv_data_t *emv_retrieve_records(emv_t e, unsigned int *nmemb)
+{
+	*nmemb = e->e_db.db_numrec;
+	return (emv_data_t *)e->e_db.db_rec;
+}
+
 const uint8_t *emv_data(emv_data_t d, size_t *len)
 {
 	*len = d->d_len;
 	return d->d_data;
+}
+
+unsigned int emv_data_type(emv_data_t d)
+{
+	return d->d_tag->t_type & EMV_DATA_TYPE_MASK;
+}
+
+uint16_t emv_data_tag(emv_data_t d)
+{
+	return d->d_id;
+}
+
+const char *emv_data_tag_label(emv_data_t d)
+{
+	return (d->d_tag == &unknown_soldier) ? NULL : d->d_tag->t_label;
 }
 
 int emv_data_int(emv_data_t d)
@@ -262,8 +289,8 @@ static int composite(emv_t e, struct _emv_data *d)
 		if ( emv_data_composite(elem[i]) ) {
 			composite(e, elem[i]);
 		}else {
-			d->d_elem = NULL;
-			d->d_nmemb = 0;
+			elem[i]->d_elem = NULL;
+			elem[i]->d_nmemb = 0;
 		}
 
 		ptr += clen;
