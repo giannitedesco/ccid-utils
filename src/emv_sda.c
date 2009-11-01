@@ -94,17 +94,17 @@ static int get_required_data(struct _emv *e, struct sda_req *req)
 }
 
 static RSA *get_ca_key(unsigned int idx, emv_mod_cb_t mod,
-			emv_exp_cb_t exp, size_t *key_len)
+			emv_exp_cb_t exp, size_t *key_len, void *priv)
 {
 	const uint8_t *modulus, *exponent;
 	size_t mod_len, exp_len;
 	RSA *key;
 
-	modulus = (*mod)(idx, &mod_len);
+	modulus = (*mod)(priv, idx, &mod_len);
 	if ( NULL == modulus )
 		return NULL;
 
-	exponent = (*exp)(idx, &exp_len);
+	exponent = (*exp)(priv, idx, &exp_len);
 	if ( NULL == exponent )
 		return NULL;
 	
@@ -323,7 +323,8 @@ static int verify_ssa_data(struct _emv_data **rec, unsigned int num_rec,
 			rec, num_rec, aip);
 }
 
-int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp)
+int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
+					void *priv)
 {
 	struct sda_req req;
 	size_t ca_key_len;
@@ -339,7 +340,7 @@ int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp)
 		return 0;
 	}
 
-	ca_key = get_ca_key(req.ca_pk_idx, mod, exp, &ca_key_len);
+	ca_key = get_ca_key(req.ca_pk_idx, mod, exp, &ca_key_len, priv);
 	if ( NULL == ca_key ) {
 		printf("emv-sda: bad CA key\n");
 		return 0;

@@ -120,7 +120,7 @@ static const struct {
 		.exp_len = sizeof(visa1152_exp)},
 };
 
-static const uint8_t *get_mod(unsigned int idx, size_t *len)
+static const uint8_t *get_mod(void *priv, unsigned int idx, size_t *len)
 {
 	if ( idx >= sizeof(ca_keys)/sizeof(*ca_keys) )
 		return NULL;
@@ -128,7 +128,7 @@ static const uint8_t *get_mod(unsigned int idx, size_t *len)
 	return ca_keys[idx].mod;
 }
 
-static const uint8_t *get_exp(unsigned int idx, size_t *len)
+static const uint8_t *get_exp(void *priv, unsigned int idx, size_t *len)
 {
 	if ( idx >= sizeof(ca_keys)/sizeof(*ca_keys) )
 		return NULL;
@@ -173,7 +173,7 @@ static int do_emv_stuff(chipcard_t cc)
 	printf("emvtool: application data retrieved\n");
 
 	/* Step 3. Authenticate card */
-	if ( !emv_authenticate_static_data(e, get_mod, get_exp) )
+	if ( !emv_authenticate_static_data(e, get_mod, get_exp, NULL) )
 		goto end;
 
 	printf("emvtool: card data authenticated\n");

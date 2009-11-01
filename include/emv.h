@@ -20,8 +20,10 @@ typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
 typedef const struct _emv_data *emv_data_t;
 typedef uint8_t emv_rid_t[EMV_RID_LEN];
-typedef const uint8_t *(*emv_mod_cb_t)(unsigned int index, size_t *len);
-typedef const uint8_t *(*emv_exp_cb_t)(unsigned int index, size_t *len);
+typedef const uint8_t *(*emv_mod_cb_t)(void *priv, unsigned int index,
+					size_t *len);
+typedef const uint8_t *(*emv_exp_cb_t)(void *priv, unsigned int index,
+					size_t *len);
 
 /* Setup/teardown */
 _public emv_t emv_init(chipcard_t cc);
@@ -63,7 +65,7 @@ _public const char *emv_data_tag_label(emv_data_t d);
 
 /* Static data authentication */
 _public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,
-						emv_exp_cb_t exp);
+						emv_exp_cb_t exp, void *priv);
 _public int emv_sda_ok(emv_t e);
 
 /* Cardholder verification, only offline plaintext pin supported for now */

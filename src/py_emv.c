@@ -386,6 +386,60 @@ static PyObject *cp_read_app_data(struct cp_emv *self, PyObject *args)
 	return data_list(self, rec, num_rec);
 }
 
+struct key_cb {
+	PyObject *mod, *exp;
+};
+
+static const uint8_t *get_mod(void *priv, unsigned int idx, size_t *len)
+{
+	struct key_cb *cb = priv;
+	PyObject *key, *args;
+	size_t key_len;
+
+	args = PyTuple_New(1);
+	PyTuple_SetItem(args, 0, PyInt_FromLong(idx));
+
+	key = PyObject_CallObject(cb->mod, args);
+	key_len = PyString_Size(key);
+	if ( key_len <= 0 )
+		return NULL;
+
+	*len = (size_t)key_len;
+	return (uint8_t *)PyString_AsString(key);
+}
+
+static const uint8_t *get_exp(void *priv, unsigned int idx, size_t *len)
+{
+	struct key_cb *cb = priv;
+	PyObject *key, *args;
+	ssize_t key_len;
+
+	args = PyTuple_New(1);
+	PyTuple_SetItem(args, 0, PyInt_FromLong(idx));
+
+	key = PyObject_CallObject(cb->exp, args);
+	key_len = PyString_Size(key);
+	if ( key_len <= 0 )
+		return NULL;
+
+	*len = (size_t)key_len;
+	return (uint8_t *)PyString_AsString(key);
+}
+
+static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
+{
+	struct key_cb cb;
+
+	if ( !PyArg_ParseTuple(args, "OO", &cb.mod, &cb.exp) )
+		return NULL;
+
+	if ( !emv_authenticate_static_data(self->emv, get_mod, get_exp, &cb) )
+		return NULL;
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyMethodDef cp_emv_methods[] = {
 	{"appsel_pse",(PyCFunction)cp_appsel_pse, METH_VARARGS,
 		"emv.appsel_pse() - Read payment system directory"},
@@ -399,6 +453,9 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.init() - Initiate application processing"},
 	{"read_app_data",(PyCFunction)cp_read_app_data, METH_VARARGS,
 		"read_app_data() - Read application data"},
+	{"authenticate_static_data",(PyCFunction)cp_sda, METH_VARARGS,
+		"authenticate_static_data(mod_cb, exp_cb) - "
+		"Does what it says on the tin"},
 	{NULL, }
 };
 

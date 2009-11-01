@@ -20,4 +20,4 @@ static const uint8_t visa1152_mod[0x90] = {
 };
 static const size_t visa1152_mod_len = sizeof(visa1152_mod);
 static const uint8_t visa1152_exp[] = { 0x3 };
-static const size_t visa1152_exp_len = 1;
+static const size_t visa1152_exp_len = sizeof(visa1152_exp);
