@@ -29,6 +29,67 @@ struct cp_data {
 
 static PyObject *data_dict(struct cp_emv *, emv_data_t *, unsigned int);
 
+static PyObject *bcd_convert(const uint8_t *ptr, size_t len)
+{
+	char buf[len * 2 + len / 2 + 1];
+	size_t i;
+	char *p;
+
+	for(i = 0, p = buf; i < len; i++, p += 2) {
+		if ( i && 0 == (i % 2) )
+			sprintf(p, "-"), ++p;
+		sprintf(p, "%.2x", ptr[i]);
+	}
+
+	return PyString_FromString(buf);
+}
+
+static PyObject *binary_convert(const uint8_t *ptr, size_t len)
+{
+	char buf[len * 3 + 1];
+	size_t i;
+	char *p;
+
+	for(i = 0, p = buf; i < len; i++, p += 3)
+		sprintf(p, "%.2x ", ptr[i]);
+	p--;
+	*p = '\0';
+
+	return PyString_FromString(buf);
+}
+
+static PyObject *date_convert(const uint8_t *ptr, size_t len)
+{
+	char buf[11];
+	snprintf(buf, sizeof(buf), "%.2u%.2x-%.2x-%.2x",
+		(ptr[0] < 70) ? 20 : 19, ptr[0], ptr[1], ptr[2]);
+	return PyString_FromString(buf);
+}
+
+static PyObject *cp_data_value(struct cp_data *self, PyObject *args)
+{
+	const uint8_t *ptr;
+	size_t len;
+
+	ptr = emv_data(self->data, &len);
+
+	switch(emv_data_type(self->data)) {
+	case EMV_DATA_BINARY:
+		return binary_convert(ptr, len);
+	case EMV_DATA_TEXT:
+		return PyString_FromStringAndSize((const char *)ptr, len);
+	case EMV_DATA_INT:
+		return PyInt_FromLong(emv_data_int(self->data));
+	case EMV_DATA_BCD:
+		return bcd_convert(ptr, len);
+	case EMV_DATA_DATE:
+		return date_convert(ptr, len);
+	default:
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+}
+
 static PyObject *cp_data_children(struct cp_data *self, PyObject *args)
 {
 	emv_data_t *rec;
@@ -75,6 +136,8 @@ static PyMethodDef cp_data_methods[] = {
 		"data.type() - Data element tag name if known, None if not"},
 	{"children",(PyCFunction)cp_data_children, METH_VARARGS,
 		"data.children() - Returns dictionary of child elements"},
+	{"value",(PyCFunction)cp_data_value, METH_VARARGS,
+		"data.value() - Retrieve value of data element"},
 	{NULL,},
 };
 

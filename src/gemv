@@ -28,7 +28,9 @@ class EMVShell(gtk.Window):
 
 	def __add_children(self, iter, d):
 		for (k, v) in d.children().items():
-			i = self.__ts.append(iter, (v.tag_label(), None))
+			i = self.__ts.append(iter,
+						(v.tag_label(),
+						v.value()))
 			self.__add_children(i, v)
 
 	def __read_data(self):
