@@ -493,6 +493,18 @@ int emv_read_app_data(struct _emv *e)
 	uint8_t *ptr, *end;
 	unsigned int i;
 
+	mpool_free(e->e_data);
+	gang_free(e->e_files);
+	memset(&e->e_db, 0, sizeof(e->e_db));
+
+	e->e_data = mpool_new(sizeof(struct _emv_data), 0);
+	if ( NULL == e->e_data )
+		return 0;
+
+	e->e_files = gang_new(0, 0);
+	if ( NULL == e->e_files )
+		return 0;
+
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
 		//read_sfi(e, ptr[0] >> 3, ptr[1], ptr[2]);
