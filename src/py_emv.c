@@ -13,11 +13,16 @@
 struct cp_emv {
 	PyObject_HEAD;
 	emv_t emv;
+	int pse_done;
+	PyObject *applist;
+	struct cp_app *current;
 };
 
 struct cp_app {
 	PyObject_HEAD;
 	emv_app_t app;
+	int cur;
+	int dirty;
 	struct cp_emv *owner;
 };
 
@@ -179,13 +184,18 @@ static PyObject *data_dict(struct cp_emv *owner, emv_data_t *elem,
 static void cp_app_dealloc(struct cp_app *self)
 {
 	Py_DECREF(self->owner);
-	emv_app_delete(self->app);
+	if ( !self->cur && !self->dirty )
+		emv_app_delete(self->app);
 	self->ob_type->tp_free((PyObject*)self);
 }
 
 static PyObject *cp_app_rid(struct cp_app *self, PyObject *args)
 {
 	emv_rid_t ret;
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	emv_app_rid(self->app, ret);
 	return Py_BuildValue("s#", ret, EMV_RID_LEN);
 }
@@ -194,27 +204,47 @@ static PyObject *cp_app_aid(struct cp_app *self, PyObject *args)
 {
 	uint8_t ret[EMV_AID_LEN];
 	size_t len;
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	emv_app_aid(self->app, ret, &len);
 	return Py_BuildValue("s#", ret, len);
 }
 
 static PyObject *cp_app_label(struct cp_app *self, PyObject *args)
 {
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	return Py_BuildValue("s", emv_app_label(self->app));
 }
 
 static PyObject *cp_app_pname(struct cp_app *self, PyObject *args)
 {
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	return Py_BuildValue("s", emv_app_pname(self->app));
 }
 
 static PyObject *cp_app_prio(struct cp_app *self, PyObject *args)
 {
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	return Py_BuildValue("i", emv_app_prio(self->app));
 }
 
 static PyObject *cp_app_confirm(struct cp_app *self, PyObject *args)
 {
+	if ( self->dirty ) {
+		PyErr_SetString(PyExc_IOError, "emv_app dirty shit");
+		return NULL;
+	}
 	return Py_BuildValue("i", emv_app_confirm(self->app));
 }
 
@@ -258,24 +288,40 @@ static int cp_emv_init(struct cp_emv *self, PyObject *args, PyObject *kwds)
 		return -1;
 	}
 
+	self->pse_done = 0;
+
 	return 0;
 }
 
 static void cp_emv_dealloc(struct cp_emv *self)
 {
+	if ( self->applist ) {
+		Py_ssize_t nmemb, i;
+
+		nmemb = PyList_Size(self->applist);
+		for(i = 0; nmemb > 0 && i < nmemb; i++) {
+			struct cp_app *app;
+			PyObject *o;
+
+			o = PyList_GetItem(self->applist, i);
+			if ( o->ob_type != &app_pytype )
+				continue;
+
+			app = (struct cp_app *)o;
+			app->dirty = 1;
+		}
+
+		Py_DECREF(self->applist);
+	}
+
 	emv_fini(self->emv);
 	self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *cp_appsel_pse(struct cp_emv *self, PyObject *args)
+static PyObject *app_list(struct cp_emv *self)
 {
 	PyObject *applist;
 	emv_app_t app;
-
-	if ( !emv_appsel_pse(self->emv) ) {
-		PyErr_SetString(PyExc_IOError, "emv_appsel_pse() failed");
-		return NULL;
-	}
 
 	applist = PyList_New(0);
 	if ( NULL == applist )
@@ -292,11 +338,56 @@ static PyObject *cp_appsel_pse(struct cp_emv *self, PyObject *args)
 		Py_INCREF(self);
 		a->owner = self;
 		a->app = app;
+		a->cur = 0;
+		a->dirty = 0;
 
 		PyList_Append(applist, (PyObject *)a);
 	}
 
 	return applist;
+}
+
+static int set_current(struct cp_emv *self)
+{
+	struct cp_app *a;
+	emv_app_t app;
+
+	app = emv_current_app(self->emv);
+	if ( NULL == app )
+		return 0;
+
+	a = (struct cp_app *)_PyObject_New(&app_pytype);
+	if ( NULL == a )
+		return 0;
+
+	Py_INCREF(self);
+	a->owner = self;
+	a->app = app;
+	a->cur = 1;
+	a->dirty = 0;
+	if ( self->current )
+		self->current->dirty = 1;
+	self->current = a;
+	return 1;
+}
+
+static PyObject *cp_appsel_pse(struct cp_emv *self, PyObject *args)
+{
+	if ( !self->pse_done ) {
+		if ( !emv_appsel_pse(self->emv) ) {
+			PyErr_SetString(PyExc_IOError,
+					"emv_appsel_pse() failed");
+			return NULL;
+		}
+		self->pse_done = 1;
+	}
+
+	if ( NULL == self->applist ){
+		self->applist = app_list(self);
+		Py_INCREF(self->applist);
+	}
+
+	return self->applist;
 }
 
 static PyObject *cp_select_pse(struct cp_emv *self, PyObject *args)
@@ -307,6 +398,9 @@ static PyObject *cp_select_pse(struct cp_emv *self, PyObject *args)
 		return NULL;
 
 	if ( !emv_app_select_pse(self->emv, app->app) )
+		return NULL;
+
+	if ( !set_current(self) )
 		return NULL;
 
 	Py_INCREF(Py_None);
@@ -325,6 +419,9 @@ static PyObject *cp_select_aid(struct cp_emv *self, PyObject *args)
 	if ( !emv_app_select_aid(self->emv, aid, len) )
 		return NULL;
 
+	if ( !set_current(self) )
+		return NULL;
+
 	Py_INCREF(Py_None);
 	return Py_None;
 }
@@ -341,8 +438,16 @@ static PyObject *cp_select_aid_next(struct cp_emv *self, PyObject *args)
 	if ( !emv_app_select_aid_next(self->emv, aid, len) )
 		return NULL;
 
+	if ( !set_current(self) )
+		return NULL;
+
 	Py_INCREF(Py_None);
 	return Py_None;
+}
+
+static PyObject *cp_current_app(struct cp_emv *self, PyObject *args)
+{
+	return (PyObject *)self->current;
 }
 
 static PyObject *cp_init(struct cp_emv *self, PyObject *args)
@@ -394,7 +499,7 @@ static const uint8_t *get_mod(void *priv, unsigned int idx, size_t *len)
 {
 	struct key_cb *cb = priv;
 	PyObject *key, *args;
-	size_t key_len;
+	Py_ssize_t key_len;
 
 	args = PyTuple_New(1);
 	PyTuple_SetItem(args, 0, PyInt_FromLong(idx));
@@ -412,7 +517,7 @@ static const uint8_t *get_exp(void *priv, unsigned int idx, size_t *len)
 {
 	struct key_cb *cb = priv;
 	PyObject *key, *args;
-	ssize_t key_len;
+	Py_ssize_t key_len;
 
 	args = PyTuple_New(1);
 	PyTuple_SetItem(args, 0, PyInt_FromLong(idx));
@@ -449,6 +554,8 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.select_aid(aid) - Select application from AID"},
 	{"select_aid_next",(PyCFunction)cp_select_aid_next, METH_VARARGS,
 		"emv.select_aid_next(aid) - Select next application from AID"},
+	{"current_app",(PyCFunction)cp_current_app, METH_VARARGS,
+		"emv.current_app(aid) - Returns currently selected app"},
 	{"init",(PyCFunction)cp_init, METH_VARARGS,
 		"emv.init() - Initiate application processing"},
 	{"read_app_data",(PyCFunction)cp_read_app_data, METH_VARARGS,

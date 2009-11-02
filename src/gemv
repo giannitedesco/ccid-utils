@@ -6,9 +6,6 @@ from gnome import ui
 import ccid
 import emv
 
-def destroy(w):
-	gtk.main_quit()
-
 visa1152_mod =  "\xA8\x9F\x25\xA5\x6F\xA6\xDA\x25" \
 		"\x8C\x8C\xA8\xB4\x04\x27\xD9\x27" \
 		"\xB4\xA1\xEB\x4D\x7E\xA3\x26\xBB" \
@@ -44,7 +41,65 @@ def exp(idx):
 		print "key index %d not found"%idx
 		return None
 
-class EMVShell(ui.App): #gtk.Window):
+class EMVAppDialog(gtk.Dialog):
+	def __init__(self, parent, e):
+		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
+			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+			 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+		self.__emv = e
+		c = self.get_content_area()
+		self.__options(c)
+		self.show_all()
+
+	def __options(self, c):
+		self.__rb = []
+		rb = None
+
+		self.__pse_apps = self.__emv.appsel_pse()
+		if len(self.__pse_apps):
+			c.add(gtk.Label("PSE Applications Supported by Card"))
+
+			rb = None
+			for app in self.__pse_apps:
+				rb = gtk.RadioButton(rb, app.label())
+				rb.emv_app = app
+				rb.emv_aid = None
+				self.__rb.append(rb)
+				c.add(rb)
+			c.add(gtk.HSeparator())
+
+		c.add(gtk.Label("Applications Supported by Terminal"))
+		for (label,aid) in [ ("LINK", "\xa0\x00\x00\x00\x29"),
+				("VISA DEBIT", "\xa0\x00\x00\x00\x03") ]:
+			rb = gtk.RadioButton(rb, label)
+			rb.emv_app = None
+			rb.emv_aid = aid
+			self.__rb.append(rb)
+			c.add(rb)
+		
+	def run(self):
+		r = gtk.Dialog.run(self)
+		if r == gtk.RESPONSE_CANCEL:
+			return False
+
+		for rb in self.__rb:
+			if rb.get_active():
+				break
+		if rb == None:
+			return False
+
+		if rb.emv_app == None:
+			print "Select by AID"
+		else:
+			self.__emv.select_pse(rb.emv_app)
+
+		return True
+
+class EMVShell(ui.App):
+	def destroy(self, w):
+		gtk.main_quit()
+
 	def __data_tree_init(self):
 		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING)
 
@@ -71,19 +126,22 @@ class EMVShell(ui.App): #gtk.Window):
 			self.__add_children(i, v)
 
 	def __read_data(self):
+		self.__ts.clear()
 		recs = self.__emv.read_app_data()
 		for x in recs:
 			i = self.__ts.append(None, (x.tag_label(), None))
 			self.__add_children(i, x)
 
 	def __appsel(self, a, b):
-		self.__pse_apps = self.__emv.appsel_pse()
-		app = self.__pse_apps[0]
-		self.__emv.select_pse(app)
+		d = EMVAppDialog(self, self.__emv)
+		d.run()
+		d.hide()
 		self.__emv.init()
+		self.__app = self.__emv.current_app()
+		self.__ab.set_status("%s selected"%self.__app.label())
 		self.__read_data()
-		self.__ab.set_status("%s selected"%app.label())
 		return
+
 	def __sda(self, a, b):
 		self.__emv.authenticate_static_data(mod, exp)
 		self.__ab.set_status("SDA data authenticated")
@@ -108,7 +166,7 @@ class EMVShell(ui.App): #gtk.Window):
 	def __init__(self, card):
 		ui.App.__init__(self, "gemv", "EMV")
 		self.set_default_size(640, 480)
-		self.connect("destroy", destroy)
+		self.connect("destroy", self.destroy)
 
 		self.__tb = self.__toolbar()
 		self.set_toolbar(self.__tb)
