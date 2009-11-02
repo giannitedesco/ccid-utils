@@ -138,8 +138,13 @@ int emv_appsel_pse(emv_t e)
 	unsigned int i;
 	const char *pse = "1PAY.SYS.DDF01";
 
-	if ( !list_empty(&e->e_apps) )
-		return 1;
+	if ( !list_empty(&e->e_apps) ) {
+		struct _emv_app *a, *tmp;
+		list_for_each_entry_safe(a, tmp, &e->e_apps, a_list) {
+			list_del(&a->a_list);
+			free(a);
+		}
+	}
 
 	printf("Enumerating ICC applications:\n");
 	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )

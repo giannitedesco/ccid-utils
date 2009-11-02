@@ -581,6 +581,16 @@ static PyObject *cp_pin_try_counter(struct cp_emv *self, PyObject *args)
 	return PyInt_FromLong(emv_pin_try_counter(self->emv));
 }
 
+static PyObject *cp_atc(struct cp_emv *self, PyObject *args)
+{
+	return PyInt_FromLong(emv_trm_atc(self->emv));
+}
+
+static PyObject *cp_oatc(struct cp_emv *self, PyObject *args)
+{
+	return PyInt_FromLong(emv_trm_last_online_atc(self->emv));
+}
+
 static PyMethodDef cp_emv_methods[] = {
 	{"appsel_pse",(PyCFunction)cp_appsel_pse, METH_VARARGS,
 		"emv.appsel_pse() - Read payment system directory"},
@@ -603,6 +613,10 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.cvm_pin() - Plaintext PIN cardholder verification"},
 	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_VARARGS,
 		"emv.pin_try_counter() - Remaining PIN tries allowed"},
+	{"atc",(PyCFunction)cp_atc, METH_VARARGS,
+		"emv.atc() - Application transaction counter"},
+	{"last_online_atc",(PyCFunction)cp_oatc, METH_VARARGS,
+		"emv.oatc() - ATC at last online transaction"},
 	{NULL, }
 };
 

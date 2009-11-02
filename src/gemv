@@ -57,7 +57,7 @@ class EMVPinDialog(gtk.Dialog):
 
 	def run(self):
 		r = gtk.Dialog.run(self)
-		if r == gtk.RESPONSE_CANCEL:
+		if not r == gtk.RESPONSE_OK:
 			return False
 		return self.__emv.cvm_pin(self.__entry.get_text())
 
@@ -66,7 +66,7 @@ class EMVAppDialog(gtk.Dialog):
 		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-			 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+			 gtk.STOCK_OK, gtk.RESPONSE_OK))
 		self.__emv = e
 		c = self.get_content_area()
 		self.__options(c)
@@ -100,19 +100,21 @@ class EMVAppDialog(gtk.Dialog):
 
 	def run(self):
 		r = gtk.Dialog.run(self)
-		if r == gtk.RESPONSE_CANCEL:
+		if not r == gtk.RESPONSE_OK:
 			return False
 
+		sel = None
 		for rb in self.__rb:
 			if rb.get_active():
+				sel = rb
 				break
-		if rb == None:
+		if sel == None:
 			return False
 
-		if rb.emv_app == None:
+		if sel.emv_app == None:
 			print "Select by AID"
 		else:
-			self.__emv.select_pse(rb.emv_app)
+			self.__emv.select_pse(sel.emv_app)
 
 		return True
 
@@ -170,8 +172,10 @@ class EMVShell(ui.App):
 
 	def __appsel(self, a, b):
 		d = EMVAppDialog(self, self.__emv)
-		d.run()
+		ret = d.run()
 		d.hide()
+		if ret == False:
+			return
 		self.__emv.init()
 		self.__app = self.__emv.current_app()
 		self.__ab.set_status("%s selected"%self.__app.label())
@@ -200,6 +204,12 @@ class EMVShell(ui.App):
 		self.__ab.set_status(msg)
 		return
 
+	def __velocity_check(self, a, b):
+		self.__ab.set_status("ATC %d, last online ATC %u"%(
+					self.__emv.atc(),
+					self.__emv.last_online_atc()))
+		return
+
 	def __toolbar(self):
 		t = gtk.Toolbar()
 		items = [ \
@@ -211,7 +221,10 @@ class EMVShell(ui.App):
 					self.__sda),
 				("Verify Cardholder",
 					gtk.STOCK_YES,
-					self.__cvm)
+					self.__cvm),
+				("Velocity Checking",
+					gtk.STOCK_NETWORK,
+					self.__velocity_check)
 			]
 		for (txt, i , cb) in items:
 			icon = gtk.Image()
@@ -249,7 +262,7 @@ def acquire_card(tracefile=None):
 
 if __name__ == '__main__':
 	gnome.program_init("gemv", "0.1")
-	card = acquire_card()
+	card = acquire_card("gemv.trace")
 	w = EMVShell(card)
 	w.show_all()
 	gtk.main()
