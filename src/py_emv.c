@@ -13,7 +13,6 @@
 struct cp_emv {
 	PyObject_HEAD;
 	emv_t emv;
-	int pse_done;
 	PyObject *applist;
 	struct cp_app *current;
 };
@@ -301,12 +300,13 @@ static int cp_emv_init(struct cp_emv *self, PyObject *args, PyObject *kwds)
 		return -1;
 	}
 
-	self->pse_done = 0;
+	self->applist = NULL;
+	self->current = NULL;
 
 	return 0;
 }
 
-static void cp_emv_dealloc(struct cp_emv *self)
+static void dirty_applist(struct cp_emv *self)
 {
 	if ( self->applist ) {
 		Py_ssize_t nmemb, i;
@@ -326,7 +326,11 @@ static void cp_emv_dealloc(struct cp_emv *self)
 
 		Py_DECREF(self->applist);
 	}
+}
 
+static void cp_emv_dealloc(struct cp_emv *self)
+{
+	dirty_applist(self);
 	emv_fini(self->emv);
 	self->ob_type->tp_free((PyObject*)self);
 }
@@ -386,19 +390,15 @@ static int set_current(struct cp_emv *self)
 
 static PyObject *cp_appsel_pse(struct cp_emv *self, PyObject *args)
 {
-	if ( !self->pse_done ) {
-		if ( !emv_appsel_pse(self->emv) ) {
-			PyErr_SetString(PyExc_IOError,
-					"emv_appsel_pse() failed");
-			return NULL;
-		}
-		self->pse_done = 1;
+	if ( !emv_appsel_pse(self->emv) ) {
+		PyErr_SetString(PyExc_IOError,
+				"emv_appsel_pse() failed");
+		return NULL;
 	}
 
-	if ( NULL == self->applist ){
-		self->applist = app_list(self);
-		Py_INCREF(self->applist);
-	}
+	dirty_applist(self);
+	self->applist = app_list(self);
+	Py_INCREF(self->applist);
 
 	return self->applist;
 }
