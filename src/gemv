@@ -41,6 +41,26 @@ def exp(idx):
 		print "key index %d not found"%idx
 		return None
 
+class EMVPinDialog(gtk.Dialog):
+	def __init__(self, parent, e):
+		gtk.Dialog.__init__(self, "EMV Cardholder Verification", parent,
+			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+			 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+		self.__emv = e
+		c = self.get_content_area()
+		c.add(gtk.Label("Enter PIN Number:"))
+		self.__entry = gtk.Entry()
+		self.__entry.set_visibility(False)
+		c.add(self.__entry)
+		self.show_all()
+
+	def run(self):
+		r = gtk.Dialog.run(self)
+		if r == gtk.RESPONSE_CANCEL:
+			return False
+		return self.__emv.cvm_pin(self.__entry.get_text())
+
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
 		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
@@ -77,7 +97,7 @@ class EMVAppDialog(gtk.Dialog):
 			rb.emv_aid = aid
 			self.__rb.append(rb)
 			c.add(rb)
-		
+
 	def run(self):
 		r = gtk.Dialog.run(self)
 		if r == gtk.RESPONSE_CANCEL:
@@ -168,6 +188,18 @@ class EMVShell(ui.App):
 					gtk.STOCK_DIALOG_AUTHENTICATION)
 		return
 
+	def __cvm(self, a, b):
+		d = EMVPinDialog(self, self.__emv)
+		if d.run():
+			msg = "Cardholder verified"
+		else:
+			msg = "Cardholder verification failed: " \
+				"%u tries remaining"% \
+				self.__emv.pin_try_counter()
+		d.hide()
+		self.__ab.set_status(msg)
+		return
+
 	def __toolbar(self):
 		t = gtk.Toolbar()
 		items = [ \
@@ -176,7 +208,10 @@ class EMVShell(ui.App):
 					self.__appsel),
 				("Authenticate Card",
 					gtk.STOCK_DIALOG_AUTHENTICATION,
-					self.__sda) \
+					self.__sda),
+				("Verify Cardholder",
+					gtk.STOCK_YES,
+					self.__cvm)
 			]
 		for (txt, i , cb) in items:
 			icon = gtk.Image()

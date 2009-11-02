@@ -560,6 +560,27 @@ static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
 	return Py_True;
 }
 
+static PyObject *cp_cvm_pin(struct cp_emv *self, PyObject *args)
+{
+	char *pin;
+
+	if ( !PyArg_ParseTuple(args, "s", &pin) )
+		return NULL;
+
+	if ( !emv_cvm_pin(self->emv, pin) ) {
+		Py_INCREF(Py_False);
+		return Py_False;
+	}
+
+	Py_INCREF(Py_True);
+	return Py_True;
+}
+
+static PyObject *cp_pin_try_counter(struct cp_emv *self, PyObject *args)
+{
+	return PyInt_FromLong(emv_pin_try_counter(self->emv));
+}
+
 static PyMethodDef cp_emv_methods[] = {
 	{"appsel_pse",(PyCFunction)cp_appsel_pse, METH_VARARGS,
 		"emv.appsel_pse() - Read payment system directory"},
@@ -574,10 +595,14 @@ static PyMethodDef cp_emv_methods[] = {
 	{"init",(PyCFunction)cp_init, METH_VARARGS,
 		"emv.init() - Initiate application processing"},
 	{"read_app_data",(PyCFunction)cp_read_app_data, METH_VARARGS,
-		"read_app_data() - Read application data"},
+		"emv.read_app_data() - Read application data"},
 	{"authenticate_static_data",(PyCFunction)cp_sda, METH_VARARGS,
 		"authenticate_static_data(mod_cb, exp_cb) - "
 		"Does what it says on the tin"},
+	{"cvm_pin",(PyCFunction)cp_cvm_pin, METH_VARARGS,
+		"emv.cvm_pin() - Plaintext PIN cardholder verification"},
+	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_VARARGS,
+		"emv.pin_try_counter() - Remaining PIN tries allowed"},
 	{NULL, }
 };
 
