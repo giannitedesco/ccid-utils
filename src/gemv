@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import gobject, gtk
+import gnome
+from gnome import ui
 import ccid
 import emv
 
@@ -30,19 +32,19 @@ visa1152_exp =  "\x03"
 keytbl = {7: (visa1152_mod, visa1152_exp)}
 
 def mod(idx):
-	try:
+	if keytbl.has_key(idx):
 		return keytbl[idx][0]
-	except:
+	else:
 		print "key index %d not found"%idx
 		return None
 def exp(idx):
-	try:
+	if keytbl.has_key(idx):
 		return keytbl[idx][1]
-	except:
+	else:
 		print "key index %d not found"%idx
 		return None
 
-class EMVShell(gtk.Window):
+class EMVShell(ui.App): #gtk.Window):
 	def __data_tree_init(self):
 		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING)
 
@@ -74,10 +76,45 @@ class EMVShell(gtk.Window):
 			i = self.__ts.append(None, (x.tag_label(), None))
 			self.__add_children(i, x)
 
+	def __appsel(self, a, b):
+		self.__pse_apps = self.__emv.appsel_pse()
+		app = self.__pse_apps[0]
+		self.__emv.select_pse(app)
+		self.__emv.init()
+		self.__read_data()
+		self.__ab.set_status("%s selected"%app.label())
+		return
+	def __sda(self, a, b):
+		self.__emv.authenticate_static_data(mod, exp)
+		self.__ab.set_status("SDA data authenticated")
+		return
+
+	def __toolbar(self):
+		t = gtk.Toolbar()
+		items = [ \
+				("Select Application",
+					gtk.STOCK_CONNECT,
+					self.__appsel),
+				("Authenticate Card",
+					gtk.STOCK_DIALOG_AUTHENTICATION,
+					self.__sda) \
+			]
+		for (txt, i , cb) in items:
+			icon = gtk.Image()
+			icon.set_from_stock(i, gtk.ICON_SIZE_LARGE_TOOLBAR)
+			t.append_item(txt, txt, None, icon, cb, self)
+		return t
+
 	def __init__(self, card):
-		gtk.Window.__init__(self)
+		ui.App.__init__(self, "gemv", "EMV")
 		self.set_default_size(640, 480)
 		self.connect("destroy", destroy)
+
+		self.__tb = self.__toolbar()
+		self.set_toolbar(self.__tb)
+
+		self.__ab = ui.AppBar(True, True, ui.PREFERENCES_USER)
+		self.set_statusbar(self.__ab)
 
 		(ts, t) = self.__data_tree_init()
 		self.__ts = ts
@@ -87,13 +124,8 @@ class EMVShell(gtk.Window):
 		vs.add(t)
 
 		self.__emv = emv.card(card)
-		self.__pse_apps = self.__emv.appsel_pse()
-		self.__emv.select_pse(self.__pse_apps[0])
-		self.__emv.init()
-		self.__read_data()
-		self.__emv.authenticate_static_data(mod, exp)
 
-		self.add(vs)
+		self.set_contents(vs)
 
 def acquire_card(tracefile=None):
 	cci = ccid.cci(tracefile)
@@ -102,6 +134,7 @@ def acquire_card(tracefile=None):
 	return slot
 
 if __name__ == '__main__':
+	gnome.program_init("gemv", "0.1")
 	card = acquire_card()
 	w = EMVShell(card)
 	w.show_all()
