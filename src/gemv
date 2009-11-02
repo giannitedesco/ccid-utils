@@ -46,7 +46,7 @@ class EMVPinDialog(gtk.Dialog):
 		gtk.Dialog.__init__(self, "EMV Cardholder Verification", parent,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-			 gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+			 gtk.STOCK_OK, gtk.RESPONSE_OK))
 		self.__emv = e
 		c = self.get_content_area()
 		c.add(gtk.Label("Enter PIN Number:"))
