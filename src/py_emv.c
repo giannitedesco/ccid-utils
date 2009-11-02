@@ -126,6 +126,17 @@ static PyObject *cp_data_tag_label(struct cp_data *self, PyObject *args)
 	}
 }
 
+static PyObject *cp_data_sda(struct cp_data *self, PyObject *args)
+{
+	if ( emv_data_sda(self->data) ) {
+		Py_INCREF(Py_True);
+		return Py_True;
+	}else{
+		Py_INCREF(Py_False);
+		return Py_False;
+	}
+}
+
 static void cp_data_dealloc(struct cp_data *self)
 {
 	Py_DECREF(self->owner);
@@ -143,6 +154,8 @@ static PyMethodDef cp_data_methods[] = {
 		"data.children() - Returns dictionary of child elements"},
 	{"value",(PyCFunction)cp_data_value, METH_VARARGS,
 		"data.value() - Retrieve value of data element"},
+	{"sda",(PyCFunction)cp_data_sda, METH_VARARGS,
+		"data.sda() - Returns True if SDA protected"},
 	{NULL,},
 };
 
@@ -538,11 +551,13 @@ static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "OO", &cb.mod, &cb.exp) )
 		return NULL;
 
-	if ( !emv_authenticate_static_data(self->emv, get_mod, get_exp, &cb) )
-		return NULL;
+	if ( !emv_authenticate_static_data(self->emv, get_mod, get_exp, &cb) ) {
+		Py_INCREF(Py_False);
+		return Py_False;
+	}
 
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_INCREF(Py_True);
+	return Py_True;
 }
 
 static PyMethodDef cp_emv_methods[] = {

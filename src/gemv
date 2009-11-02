@@ -101,7 +101,10 @@ class EMVShell(ui.App):
 		gtk.main_quit()
 
 	def __data_tree_init(self):
-		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING)
+		i = gtk.Image()
+
+		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING,
+					gobject.TYPE_STRING)
 
 		t = gtk.TreeView(ts)
 		t.set_headers_visible(True)
@@ -109,27 +112,40 @@ class EMVShell(ui.App):
 		t.set_enable_search(True)
 		t.set_search_column(0)
 
-		cols = [("Tag", 0), ("Data", 1)]
-		for (title,c) in cols:
-			r = gtk.CellRendererText()
-			col = gtk.TreeViewColumn(title, r, text = c)
-			col.set_resizable(True)
-			t.append_column(col)
+		r = gtk.CellRendererText()
+		i = gtk.CellRendererPixbuf()
+		col = gtk.TreeViewColumn("Tag", None)
+		col.pack_start(i, True)
+		col.add_attribute(i, "stock-id", 0)
+		col.pack_start(r, True)
+		col.add_attribute(r, "text", 1)
+		col.set_resizable(True)
+		t.append_column(col)
+
+		r = gtk.CellRendererText()
+		col = gtk.TreeViewColumn("Value", r, text = 2)
+		col.set_resizable(True)
+		t.append_column(col)
 
 		return (ts, t)
 
 	def __add_children(self, iter, d):
 		for (k, v) in d.children().items():
 			i = self.__ts.append(iter,
-						(v.tag_label(),
+						(None, v.tag_label(),
 						v.value()))
+			if v.sda():
+				self.__sda_recs.append(i)
 			self.__add_children(i, v)
 
 	def __read_data(self):
 		self.__ts.clear()
+		self.__sda_recs = []
 		recs = self.__emv.read_app_data()
 		for x in recs:
-			i = self.__ts.append(None, (x.tag_label(), None))
+			i = self.__ts.append(None, (None, x.tag_label(), None))
+			if x.sda():
+				self.__sda_recs.append(i)
 			self.__add_children(i, x)
 
 	def __appsel(self, a, b):
@@ -143,8 +159,13 @@ class EMVShell(ui.App):
 		return
 
 	def __sda(self, a, b):
-		self.__emv.authenticate_static_data(mod, exp)
+		if not self.__emv.authenticate_static_data(mod, exp):
+			self.__ab.set_status("SDA data authenticated failed")
+			return
 		self.__ab.set_status("SDA data authenticated")
+		for x in self.__sda_recs:
+			self.__ts.set_value(x, 0,
+					gtk.STOCK_DIALOG_AUTHENTICATION)
 		return
 
 	def __toolbar(self):
