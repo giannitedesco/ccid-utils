@@ -12,12 +12,12 @@
 
 #include <ctype.h>
 
-uint8_t emv_sw1(emv_t e)
+uint8_t _emv_sw1(emv_t e)
 {
 	return xfr_rx_sw1(e->e_xfr);
 }
 
-uint8_t emv_sw2(emv_t e)
+uint8_t _emv_sw2(emv_t e)
 {
 	return xfr_rx_sw2(e->e_xfr);
 }

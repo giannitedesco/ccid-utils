@@ -135,20 +135,18 @@ int emv_app_confirm(emv_app_t a)
 
 int emv_appsel_pse(emv_t e)
 {
+	static const char * const pse = "1PAY.SYS.DDF01";
+	struct _emv_app *a, *tmp;
 	unsigned int i;
-	const char *pse = "1PAY.SYS.DDF01";
-
-	if ( !list_empty(&e->e_apps) ) {
-		struct _emv_app *a, *tmp;
-		list_for_each_entry_safe(a, tmp, &e->e_apps, a_list) {
-			list_del(&a->a_list);
-			free(a);
-		}
-	}
 
 	printf("Enumerating ICC applications:\n");
 	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )
 		return 0;
+
+	list_for_each_entry_safe(a, tmp, &e->e_apps, a_list) {
+		list_del(&a->a_list);
+		free(a);
+	}
 
 	for (i = 1; ; i++) {
 		if ( !_emv_read_record(e, 1, i) )

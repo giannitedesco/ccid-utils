@@ -29,6 +29,9 @@
 #include <gang.h>
 #include <mpool.h>
 
+#define EMV_ERR_TYPE_SHIFT	30
+#define EMV_ERR_CODE_MASK	((1 << EMV_ERR_TYPE_SHIFT) - 1)
+
 typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
 #define EMV_DATA_SDA		(1<<0)
@@ -103,6 +106,8 @@ struct _emv {
 	int e_sda_ok;
 	RSA *e_ca_pk;
 	RSA *e_iss_pk;
+
+	emv_err_t e_err;
 };
 
 #define DOL_NUM_TAGS(x) (sizeof(x)/sizeof(struct dol_tag))
@@ -113,8 +118,8 @@ struct dol_tag {
 };
 
 /* Utility functions */
-_private uint8_t emv_sw1(emv_t e);
-_private uint8_t emv_sw2(emv_t e);
+_private uint8_t _emv_sw1(emv_t e);
+_private uint8_t _emv_sw2(emv_t e);
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
 _private uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 					size_t num_tags,
@@ -141,6 +146,12 @@ _private int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2);
 _private int _emv_get_proc_opts(emv_t e, const uint8_t *pdol, uint8_t len);
 _private int _emv_generate_ac(emv_t e, uint8_t ref,
 				const uint8_t *data, uint8_t len);
+
+_private void _emv_sys_error(struct _emv *e);
+_private void _emv_ccid_error(struct _emv *e);
+_private void _emv_icc_error(struct _emv *e);
+_private void _emv_error(struct _emv *e, unsigned int code);
+_private void _emv_success(struct _emv *e);
 
 /* Static data authentication */
 //_private int _sda_get_issuer_key(struct _sda *s, RSA *key, size_t key_len);

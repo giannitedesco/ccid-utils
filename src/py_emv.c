@@ -33,6 +33,45 @@ struct cp_data {
 
 static PyObject *data_dict(struct cp_emv *, emv_data_t *, unsigned int);
 
+static void set_err(emv_t e)
+{
+	PyObject *ex, *tup;
+	unsigned int type, code;
+	const char *str;
+	emv_err_t err;
+
+	err = emv_error(e);
+	str = emv_error_string(err);
+	type = emv_error_type(err);
+	code = emv_error_additional(err);
+
+	switch(type) {
+	case EMV_ERR_SYSTEM:
+		ex = PyExc_SystemError;
+		break;
+	case EMV_ERR_CCID:
+		ex = PyExc_IOError;
+		break;
+	default:
+		ex = PyExc_Exception;
+		break;
+	}
+
+	tup = PyTuple_New(3);
+	if ( NULL == tup )
+		return;
+
+	if ( NULL == str ) {
+		PyTuple_SetItem(tup, 0, PyString_FromString(""));
+	}else{
+		PyTuple_SetItem(tup, 0, PyString_FromString(str));
+	}
+	PyTuple_SetItem(tup, 1, PyInt_FromLong(type));
+	PyTuple_SetItem(tup, 2, PyInt_FromLong(code));
+
+	PyErr_SetObject(ex, tup);
+}
+
 static PyObject *bcd_convert(const uint8_t *ptr, size_t len)
 {
 	char buf[len * 2 + len / 2 + 1];
@@ -337,7 +376,7 @@ static void cp_emv_dealloc(struct cp_emv *self)
 
 static PyObject *app_list(struct cp_emv *self)
 {
-	PyObject *applist;
+	PyObject *applist = NULL;
 	emv_app_t app;
 
 	applist = PyList_New(0);
@@ -370,8 +409,10 @@ static int set_current(struct cp_emv *self)
 	emv_app_t app;
 
 	app = emv_current_app(self->emv);
-	if ( NULL == app )
+	if ( NULL == app ) {
+		set_err(self->emv);
 		return 0;
+	}
 
 	a = (struct cp_app *)_PyObject_New(&app_pytype);
 	if ( NULL == a )
@@ -391,8 +432,7 @@ static int set_current(struct cp_emv *self)
 static PyObject *cp_appsel_pse(struct cp_emv *self, PyObject *args)
 {
 	if ( !emv_appsel_pse(self->emv) ) {
-		PyErr_SetString(PyExc_IOError,
-				"emv_appsel_pse() failed");
+		set_err(self->emv);
 		return NULL;
 	}
 
@@ -410,8 +450,10 @@ static PyObject *cp_select_pse(struct cp_emv *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "O", &app) )
 		return NULL;
 
-	if ( !emv_app_select_pse(self->emv, app->app) )
+	if ( !emv_app_select_pse(self->emv, app->app) ) {
+		set_err(self->emv);
 		return NULL;
+	}
 
 	if ( !set_current(self) )
 		return NULL;
@@ -422,15 +464,16 @@ static PyObject *cp_select_pse(struct cp_emv *self, PyObject *args)
 
 static PyObject *cp_select_aid(struct cp_emv *self, PyObject *args)
 {
-	struct cp_app *app;
 	const uint8_t *aid;
 	size_t len;
 
-	if ( !PyArg_ParseTuple(args, "Os#", &app, &aid, &len) )
+	if ( !PyArg_ParseTuple(args, "s#", &aid, &len) )
 		return NULL;
 
-	if ( !emv_app_select_aid(self->emv, aid, len) )
+	if ( !emv_app_select_aid(self->emv, aid, len) ) {
+		set_err(self->emv);
 		return NULL;
+	}
 
 	if ( !set_current(self) )
 		return NULL;
@@ -448,8 +491,10 @@ static PyObject *cp_select_aid_next(struct cp_emv *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "Os#", &app, &aid, &len) )
 		return NULL;
 
-	if ( !emv_app_select_aid_next(self->emv, aid, len) )
+	if ( !emv_app_select_aid_next(self->emv, aid, len) ) {
+		set_err(self->emv);
 		return NULL;
+	}
 
 	if ( !set_current(self) )
 		return NULL;
@@ -465,8 +510,10 @@ static PyObject *cp_current_app(struct cp_emv *self, PyObject *args)
 
 static PyObject *cp_init(struct cp_emv *self, PyObject *args)
 {
-	if ( !emv_app_init(self->emv) )
+	if ( !emv_app_init(self->emv) ) {
+		set_err(self->emv);
 		return NULL;
+	}
 	Py_INCREF(Py_None);
 	return Py_None;
 }
@@ -497,8 +544,10 @@ static PyObject *cp_read_app_data(struct cp_emv *self, PyObject *args)
 	emv_data_t *rec;
 	unsigned int num_rec;
 
-	if ( !emv_read_app_data(self->emv) )
+	if ( !emv_read_app_data(self->emv) ) {
+		set_err(self->emv);
 		return NULL;
+	}
 
 	rec = emv_retrieve_records(self->emv, &num_rec);
 	return data_list(self, rec, num_rec);
@@ -520,6 +569,7 @@ static const uint8_t *get_mod(void *priv, unsigned int idx, size_t *len)
 	key = PyObject_CallObject(cb->mod, args);
 	key_len = PyString_Size(key);
 	if ( key_len <= 0 )
+		/* FIXME */
 		return NULL;
 
 	*len = (size_t)key_len;
@@ -538,6 +588,7 @@ static const uint8_t *get_exp(void *priv, unsigned int idx, size_t *len)
 	key = PyObject_CallObject(cb->exp, args);
 	key_len = PyString_Size(key);
 	if ( key_len <= 0 )
+		/* FIXME */
 		return NULL;
 
 	*len = (size_t)key_len;
@@ -552,6 +603,7 @@ static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
 		return NULL;
 
 	if ( !emv_authenticate_static_data(self->emv, get_mod, get_exp, &cb) ) {
+		set_err(self->emv);
 		Py_INCREF(Py_False);
 		return Py_False;
 	}
@@ -568,6 +620,7 @@ static PyObject *cp_cvm_pin(struct cp_emv *self, PyObject *args)
 		return NULL;
 
 	if ( !emv_cvm_pin(self->emv, pin) ) {
+		/* FIXME */
 		Py_INCREF(Py_False);
 		return Py_False;
 	}
@@ -658,6 +711,11 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_DATA_BCD);
 	_INT_CONST(m, EMV_DATA_DATE);
 	_INT_CONST(m, EMV_DATA_DOL);
+
+	_INT_CONST(m, EMV_ERR_SYSTEM);
+	_INT_CONST(m, EMV_ERR_CCID);
+	_INT_CONST(m, EMV_ERR_ICC);
+	_INT_CONST(m, EMV_ERR_EMV);
 
 	Py_INCREF(&emv_pytype);
 	PyModule_AddObject(m, "card", (PyObject *)&emv_pytype);

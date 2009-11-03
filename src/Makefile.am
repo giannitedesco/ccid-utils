@@ -32,7 +32,8 @@ libemv_la_SOURCES = 	gang.c \
 			emv_data.c \
 			emv_sda.c \
 			emv_cvm.c \
-			emv_trm.c
+			emv_trm.c \
+			emv_err.c
 
 emv_la_LIBADD = -lusb libccid.la libemv.la
 emv_la_SOURCES = py_emv.c

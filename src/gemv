@@ -76,7 +76,11 @@ class EMVAppDialog(gtk.Dialog):
 		self.__rb = []
 		rb = None
 
-		self.__pse_apps = self.__emv.appsel_pse()
+		try:
+			self.__pse_apps = self.__emv.appsel_pse()
+		except Exception, e:
+			self.__pse_apps = []
+
 		if len(self.__pse_apps):
 			c.add(gtk.Label("PSE Applications Supported by Card"))
 
@@ -88,6 +92,7 @@ class EMVAppDialog(gtk.Dialog):
 				self.__rb.append(rb)
 				c.add(rb)
 			c.add(gtk.HSeparator())
+
 
 		c.add(gtk.Label("Applications Supported by Terminal"))
 		for (label,aid) in [ ("LINK", "\xa0\x00\x00\x00\x29"),
@@ -112,7 +117,7 @@ class EMVAppDialog(gtk.Dialog):
 			return False
 
 		if sel.emv_app == None:
-			print "Select by AID"
+			self.__emv.select_aid(sel.emv_aid);
 		else:
 			self.__emv.select_pse(sel.emv_app)
 
@@ -172,14 +177,21 @@ class EMVShell(ui.App):
 
 	def __appsel(self, a, b):
 		d = EMVAppDialog(self, self.__emv)
-		ret = d.run()
+		try:
+			ret = d.run()
+		except Exception, e:
+			self.__ab.set_status(e.args[0])
+			return
 		d.hide()
 		if ret == False:
 			return
-		self.__emv.init()
-		self.__app = self.__emv.current_app()
-		self.__ab.set_status("%s selected"%self.__app.label())
-		self.__read_data()
+		try:
+			self.__emv.init()
+			self.__app = self.__emv.current_app()
+			self.__ab.set_status("%s selected"%self.__app.label())
+			self.__read_data()
+		except Exception, e:
+			self.__ab.set_status(e.args[0])
 		return
 
 	def __sda(self, a, b):
@@ -251,6 +263,7 @@ class EMVShell(ui.App):
 		vs.add(t)
 
 		self.__emv = emv.card(card)
+		self.__app = None
 
 		self.set_contents(vs)
 

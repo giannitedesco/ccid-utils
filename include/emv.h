@@ -16,6 +16,13 @@
 #define EMV_DATA_DATE		0x4
 #define EMV_DATA_DOL		0x5
 
+#define EMV_ERR_SYSTEM		0x0
+#define EMV_ERR_CCID		0x1
+#define EMV_ERR_ICC		0x2
+#define EMV_ERR_EMV		0x3
+#define  EMV_ERR_SUCCESS	0x00
+typedef uint32_t emv_err_t;
+
 typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
 typedef const struct _emv_data *emv_data_t;
@@ -28,6 +35,12 @@ typedef const uint8_t *(*emv_exp_cb_t)(void *priv, unsigned int index,
 /* Setup/teardown */
 _public emv_t emv_init(chipcard_t cc);
 _public void emv_fini(emv_t e);
+
+/* error handling */
+_public emv_err_t emv_error(emv_t e);
+_public unsigned int emv_error_type(emv_err_t e);
+_public unsigned int emv_error_additional(emv_err_t e);
+_public const char *emv_error_string(emv_err_t err);
 
 /* Application selection */
 _public emv_app_t emv_current_app(emv_t e);
