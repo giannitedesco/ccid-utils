@@ -16,11 +16,20 @@
 #define EMV_DATA_DATE		0x4
 #define EMV_DATA_DOL		0x5
 
-#define EMV_ERR_SYSTEM		0x0
-#define EMV_ERR_CCID		0x1
-#define EMV_ERR_ICC		0x2
-#define EMV_ERR_EMV		0x3
-#define  EMV_ERR_SUCCESS	0x00
+#define EMV_ERR_SYSTEM			0x0
+#define EMV_ERR_CCID			0x1
+#define EMV_ERR_ICC			0x2
+#define EMV_ERR_EMV			0x3
+#define  EMV_ERR_SUCCESS		0x00
+#define  EMV_ERR_DATA_ELEMENT_NOT_FOUND 0x01
+#define  EMV_ERR_BAD_PIN_FORMAT		0x02
+#define  EMV_ERR_FUNC_NOT_SUPPORTED	0x03
+#define  EMV_ERR_KEY_NOT_FOUND		0x04
+#define  EMV_ERR_KEY_SIZE_MISMATCH	0x05
+#define  EMV_ERR_RSA_RECOVERY		0x06
+#define  EMV_ERR_CERTIFICATE		0x07
+#define  EMV_ERR_SSA_SIGNATURE		0x08
+#define  EMV_ERR_BAD_PIN		0x09
 typedef uint32_t emv_err_t;
 
 typedef struct _emv *emv_t;

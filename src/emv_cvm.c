@@ -32,8 +32,10 @@ static int ptc(struct _emv *e)
 	ptr = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == ptr )
 		return -1;
-	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) )
+	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) ) {
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return -1;
+	}
 	return ctr;
 }
 
@@ -48,21 +50,16 @@ int emv_cvm_pin(emv_t e, const char *pin)
 	int try;
 
 	if ( !_emv_pin2pb(pin, pb) ) {
-		printf("error: invalid PIN\n");
+		_emv_error(e, EMV_ERR_BAD_PIN_FORMAT);
 		return 0;
 	}
 
 	try = ptc(e);
-	if ( try >= 0 )
-		printf("%i PIN tries remaining\n", try);
-
 	if ( _emv_verify(e, 0x80, pb, sizeof(pb)) )
 		return 1;
 
-	printf("PIN auth failed");
-	if ( xfr_rx_sw1(e->e_xfr) == 0x63)
-		printf(" with %u tries remaining",
-			xfr_rx_sw2(e->e_xfr));
-	printf("\n");
+	if ( _emv_sw1(e) == 0x63 )
+		_emv_error(e, EMV_ERR_BAD_PIN);
+
 	return 0;
 }

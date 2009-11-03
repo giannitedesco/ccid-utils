@@ -620,9 +620,8 @@ static PyObject *cp_cvm_pin(struct cp_emv *self, PyObject *args)
 		return NULL;
 
 	if ( !emv_cvm_pin(self->emv, pin) ) {
-		/* FIXME */
-		Py_INCREF(Py_False);
-		return Py_False;
+		set_err(self->emv);
+		return NULL;
 	}
 
 	Py_INCREF(Py_True);
@@ -716,6 +715,17 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_ERR_CCID);
 	_INT_CONST(m, EMV_ERR_ICC);
 	_INT_CONST(m, EMV_ERR_EMV);
+
+	_INT_CONST(m, EMV_ERR_SUCCESS);
+	_INT_CONST(m, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
+	_INT_CONST(m, EMV_ERR_BAD_PIN_FORMAT);
+	_INT_CONST(m, EMV_ERR_FUNC_NOT_SUPPORTED);
+	_INT_CONST(m, EMV_ERR_KEY_NOT_FOUND);
+	_INT_CONST(m, EMV_ERR_KEY_SIZE_MISMATCH);
+	_INT_CONST(m, EMV_ERR_RSA_RECOVERY);
+	_INT_CONST(m, EMV_ERR_CERTIFICATE);
+	_INT_CONST(m, EMV_ERR_SSA_SIGNATURE);
+	_INT_CONST(m, EMV_ERR_BAD_PIN);
 
 	Py_INCREF(&emv_pytype);
 	PyModule_AddObject(m, "card", (PyObject *)&emv_pytype);

@@ -63,6 +63,7 @@ static int bop_dtemp(const uint8_t *ptr, size_t len, void *priv)
 		e->e_num_apps++;
 		return 1;
 	}else{
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		free(app);
 		return 0;
 	}
@@ -88,7 +89,11 @@ static int add_app(emv_t e)
 	if ( NULL == res )
 		return 0;
 
-	return ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e);
+	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e) ) {
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
+		return 0;
+	}else
+		return 1;
 }
 
 void _emv_free_applist(emv_t e)
@@ -157,6 +162,7 @@ int emv_appsel_pse(emv_t e)
 
 	/* TODO: Sort by priority */
 
+	_emv_success(e);
 	return 1;
 }
 

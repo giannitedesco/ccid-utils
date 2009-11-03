@@ -66,18 +66,37 @@ static const struct {
 	{0x6a84, "Not enough memory space in file"},
 	{0x6a85, "Lc inconsistent with TLV structure"},
 	{0x6a88, "Referenced data not found"},
+	{0x6b00, "Bad parameters P1-P2"},
+	{0x6c00, "Wrong Le field"},
+	{0x6d00, "Bad INS"},
+	{0x6e00, "Bad CLA"},
 };
 static const char *icc_err_string(uint32_t code)
 {
 	unsigned int i;
-	for(i = 0; i < sizeof(icc_errs)/sizeof(icc_errs); i++)
+	for(i = 0; i < sizeof(icc_errs)/sizeof(*icc_errs); i++)
 		if ( icc_errs[i].code == code )
 			return icc_errs[i].str;
 	return NULL;
 }
 
+static const char * const emv_errs[] = {
+	[ EMV_ERR_SUCCESS ] "Success",
+	[ EMV_ERR_DATA_ELEMENT_NOT_FOUND ] "Data element not found",
+	[ EMV_ERR_BAD_PIN_FORMAT ] "Bad PIN format",
+	[ EMV_ERR_FUNC_NOT_SUPPORTED ] "Function not supported",
+	[ EMV_ERR_KEY_NOT_FOUND ] "Key not found",
+	[ EMV_ERR_KEY_SIZE_MISMATCH ] "Key size mismatch",
+	[ EMV_ERR_RSA_RECOVERY ] "RSA Recovery failed on message",
+	[ EMV_ERR_CERTIFICATE ]	"Invalid issuer public key certificate",
+	[ EMV_ERR_SSA_SIGNATURE	] "Invald SSA data signature",
+	[ EMV_ERR_BAD_PIN ] "Wrong PIN",
+};
+
 static const char *err_string(uint32_t code)
 {
+	if ( code < sizeof(emv_errs)/sizeof(*emv_errs) )
+		return emv_errs[code];
 	return "oops";
 }
 

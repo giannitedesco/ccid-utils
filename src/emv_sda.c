@@ -151,7 +151,7 @@ static int recover(uint8_t *ptr, size_t len, RSA *key)
 	return 1;
 }
 
-static int check_pk_cert(struct sda_req *req)
+static int check_pk_cert(struct _emv *e, struct sda_req *req)
 {
 	uint8_t *msg, *tmp;
 	size_t msg_len;
@@ -175,8 +175,10 @@ static int check_pk_cert(struct sda_req *req)
 	msg_len = req->pk_cert_len - (SHA_DIGEST_LENGTH + 2) +
 			req->pk_r_len + req->pk_exp_len;
 	tmp = msg = malloc(msg_len);
-	if ( NULL == msg )
+	if ( NULL == msg ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	memcpy(tmp, req->pk_cert + 1, req->pk_cert_len -
 		(SHA_DIGEST_LENGTH + 2));
@@ -189,12 +191,14 @@ static int check_pk_cert(struct sda_req *req)
 //	hex_dump(msg, msg_len, 16);
 
 	ret = emsa_pss_decode(msg, msg_len, req->pk_cert, req->pk_cert_len);
+	if ( !ret )
+		_emv_error(e, EMV_ERR_CERTIFICATE);
 	free(msg);
 
 	return ret;
 }
 
-static RSA *make_issuer_pk(struct sda_req *req)
+static RSA *make_issuer_pk(struct _emv *e, struct sda_req *req)
 {
 	uint8_t *tmp;
 	const uint8_t *kb;
@@ -202,8 +206,10 @@ static RSA *make_issuer_pk(struct sda_req *req)
 	RSA *key;
 
 	tmp = malloc(req->pk_cert_len);
-	if ( NULL == tmp )
+	if ( NULL == tmp ) {
+		_emv_sys_error(e);
 		return NULL;
+	}
 
 	kb = req->pk_cert + 15;
 	kb_len = req->pk_cert_len - (15 + 21);
@@ -214,6 +220,7 @@ static RSA *make_issuer_pk(struct sda_req *req)
 	hex_dump(kb, kb_len, 16);
 	key = RSA_new();
 	if ( NULL == key ) {
+		_emv_sys_error(e);
 		free(tmp);
 		return NULL;
 	}
@@ -222,6 +229,7 @@ static RSA *make_issuer_pk(struct sda_req *req)
 	key->e = BN_bin2bn(req->pk_exp, req->pk_exp_len, NULL);
 	free(tmp);
 	if ( NULL == key->n || NULL == key->e ) {
+		_emv_sys_error(e);
 		RSA_free(key);
 		return NULL;
 	}
@@ -229,29 +237,30 @@ static RSA *make_issuer_pk(struct sda_req *req)
 	return key;
 }
 
-static RSA *get_issuer_pk(struct sda_req *req, RSA *ca_key, size_t key_len)
+static RSA *get_issuer_pk(struct _emv *e, struct sda_req *req,
+				RSA *ca_key, size_t key_len)
 {
 
 	if ( req->pk_cert_len != key_len ) {
-		printf("emv-sda: issuer pubkey cert failed len check\n");
+		_emv_error(e, EMV_ERR_KEY_SIZE_MISMATCH);
 		return NULL;
 	}
 
 	if ( !recover((uint8_t *)req->pk_cert, key_len, ca_key) ) {
-		printf("emv-sda: RSA recovery failed on pubkey cert\n");
+		_emv_error(e, EMV_ERR_RSA_RECOVERY);
 		return NULL;
 	}
 
 //	printf("recovered issuer pubkey cert:\n");
 //	hex_dump(req->pk_cert, key_len, 16);
 
-	if ( !check_pk_cert(req) )
+	if ( !check_pk_cert(e, req) )
 		return NULL;
 
-	return make_issuer_pk(req);
+	return make_issuer_pk(e, req);
 }
 
-static int check_ssa(const uint8_t *ptr, size_t len,
+static int check_ssa(struct _emv *e, const uint8_t *ptr, size_t len,
 				struct _emv_data **rec, unsigned int num,
 				const uint8_t *aip)
 {
@@ -269,8 +278,10 @@ static int check_ssa(const uint8_t *ptr, size_t len,
 	msg_len = cf_len + data_len;
 
 	tmp = msg = malloc(msg_len);
-	if ( NULL == msg )
+	if ( NULL == msg ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	memcpy(msg, cf, cf_len), tmp += cf_len;
 
@@ -290,36 +301,38 @@ static int check_ssa(const uint8_t *ptr, size_t len,
 #endif
 
 	ret = emsa_pss_decode(msg, msg_len, ptr, len);
+	if ( !ret )
+		_emv_error(e, EMV_ERR_SSA_SIGNATURE);
 	free(msg);
 
 	return ret;
 }
 
-static int verify_ssa_data(struct _emv_data **rec, unsigned int num_rec,
-				struct sda_req *req, RSA *iss_key,
-				const uint8_t *aip)
+static int verify_ssa_data(struct _emv *e, struct _emv_data **rec,
+				unsigned int num_rec, struct sda_req *req,
+				RSA *iss_key, const uint8_t *aip)
 {
 	if ( !recover((uint8_t *)req->ssa_data, req->ssa_data_len, iss_key) ) {
-		printf("emv-sda: RSA recovery failed on SSA data\n");
+		_emv_error(e, EMV_ERR_RSA_RECOVERY);
 		return 0;
 	}
 
 	if ( req->ssa_data[0] != 0x6a ) {
-		printf("error: SSA data bad signature byte\n");
+		_emv_error(e, EMV_ERR_SSA_SIGNATURE);
 		return 0;
 	}
 	
 	if ( req->ssa_data[1] != 0x03 ) {
-		printf("error: SSA data bad format\n");
+		_emv_error(e, EMV_ERR_SSA_SIGNATURE);
 		return 0;
 	}
 
 	if ( req->ssa_data[2] != 0x01 ) {
-		printf("error: unexpected hash format in SSA data\n");
+		_emv_error(e, EMV_ERR_SSA_SIGNATURE);
 		return 0;
 	}
 
-	return check_ssa(req->ssa_data, req->ssa_data_len,
+	return check_ssa(e, req->ssa_data, req->ssa_data_len,
 			rec, num_rec, aip);
 }
 
@@ -336,23 +349,23 @@ int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
 	}
 
 	if ( !get_required_data(e, &req) ) {
-		printf("emv-sda: required data elements not present\n");
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return 0;
 	}
 
 	ca_key = get_ca_key(req.ca_pk_idx, mod, exp, &ca_key_len, priv);
 	if ( NULL == ca_key ) {
-		printf("emv-sda: bad CA key\n");
+		_emv_error(e, EMV_ERR_KEY_NOT_FOUND);
 		return 0;
 	}
 
 	e->e_ca_pk = ca_key;
 
-	e->e_iss_pk = get_issuer_pk(&req, ca_key, ca_key_len);
+	e->e_iss_pk = get_issuer_pk(e, &req, ca_key, ca_key_len);
 	if ( NULL == e->e_iss_pk )
 		return 0;
 
-	if ( !verify_ssa_data(e->e_db.db_sda, e->e_db.db_numsda,
+	if ( !verify_ssa_data(e, e->e_db.db_sda, e->e_db.db_numsda,
 				&req, e->e_iss_pk, e->e_aip) )
 		return 0;
 

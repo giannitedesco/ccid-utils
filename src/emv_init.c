@@ -66,5 +66,6 @@ int emv_app_init(emv_t e)
 	if ( e->e_aip[0] & EMV_AIP_CDA)
 		printf("AIP: Combined data authentication\n");
 
+	_emv_success(e);
 	return 1;
 }

@@ -384,6 +384,7 @@ static void hex_dump_r(const uint8_t *tmp, size_t len,
 	printf("\n");
 }
 
+#if 0
 static const char *label(struct _emv_data *d)
 {
 	static char buf[20];
@@ -415,6 +416,7 @@ static void dump_records(struct _emv_data **d, size_t num, unsigned depth)
 			d[i]->d_len, 16, depth);
 	}
 }
+#endif
 
 static int cmp(const void *A, const void *B)
 {
@@ -498,12 +500,16 @@ int emv_read_app_data(struct _emv *e)
 	memset(&e->e_db, 0, sizeof(e->e_db));
 
 	e->e_data = mpool_new(sizeof(struct _emv_data), 0);
-	if ( NULL == e->e_data )
+	if ( NULL == e->e_data ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	e->e_files = gang_new(0, 0);
-	if ( NULL == e->e_files )
+	if ( NULL == e->e_files ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
@@ -518,8 +524,10 @@ int emv_read_app_data(struct _emv *e)
 
 	pps = gang_alloc(e->e_files,
 			(db->db_numrec + db->db_numsda) * sizeof(*pps));
-	if ( NULL == pps )
+	if ( NULL == pps ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 	
 	db->db_rec = pps;
 	db->db_sda = pps + db->db_numrec;
@@ -543,8 +551,10 @@ int emv_read_app_data(struct _emv *e)
 	printf("%u Data Elements in total\n", db->db_nmemb);
 	pps = db->db_elem = gang_alloc(e->e_files,
 					db->db_nmemb * sizeof(*db->db_elem));
-	if ( NULL == pps )
+	if ( NULL == pps ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	for(i = 0; i < db->db_numrec; i++) {
 		add_elements(db->db_rec[i]->d_elem,
@@ -556,5 +566,6 @@ int emv_read_app_data(struct _emv *e)
 	//&dump_records(db->db_rec, db->db_numrec, 1);
 	//for(i = 0; i < db->db_nmemb; i++)
 	//	printf("%u. %s\n", i, label(db->db_elem[i]));
+	_emv_success(e);
 	return 1;
 }

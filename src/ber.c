@@ -252,12 +252,13 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 		const uint8_t *ptr, size_t len, void *priv)
 {
 	const uint8_t *end = ptr + len;
+	unsigned int i;
 	uint32_t clen;
 
 //	printf("BER DECODE:\n");
 //	hex_dump(ptr, len, 16, 0);
 
-	for(clen = 1; ptr < end; ptr += clen) {
+	for(i = 0; ptr < end; ptr += clen) {
 		const uint8_t *idb;
 		const struct ber_tag *tag;
 		size_t tag_len;
@@ -274,6 +275,7 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 		if ( tag ) {
 			if ( tag->op && !(*tag->op)(ptr, clen, priv) )
 				return 0;
+			i++;
 		}else{
 			size_t i;
 			printf("unknown tag: ");
@@ -284,5 +286,5 @@ int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
 		}
 	}
 
-	return 1;
+	return i;
 }

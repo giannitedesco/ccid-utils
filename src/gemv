@@ -67,6 +67,7 @@ class EMVAppDialog(gtk.Dialog):
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
 			 gtk.STOCK_OK, gtk.RESPONSE_OK))
+		self.__parent = parent
 		self.__emv = e
 		c = self.get_content_area()
 		self.__options(c)
@@ -80,6 +81,7 @@ class EMVAppDialog(gtk.Dialog):
 			self.__pse_apps = self.__emv.appsel_pse()
 		except Exception, e:
 			self.__pse_apps = []
+			self.__parent.error(e)
 
 		if len(self.__pse_apps):
 			c.add(gtk.Label("PSE Applications Supported by Card"))
@@ -126,6 +128,18 @@ class EMVAppDialog(gtk.Dialog):
 class EMVShell(ui.App):
 	def destroy(self, w):
 		gtk.main_quit()
+
+	def set_status(self, str):
+		self.__ab.set_status(str)
+
+	def error(self, e):
+		msg = e.args[0]
+		if e.args[1] == emv.EMV_ERR_EMV and \
+				e.args[2] == emv.EMV_ERR_BAD_PIN:
+			msg = msg + ", %d tries remaining"%\
+				self.__emv.pin_try_counter()
+		self.set_status(msg)
+		return
 
 	def __data_tree_init(self):
 		i = gtk.Image()
@@ -180,7 +194,8 @@ class EMVShell(ui.App):
 		try:
 			ret = d.run()
 		except Exception, e:
-			self.__ab.set_status(e.args[0])
+			self.error(e)
+			d.hide()
 			return
 		d.hide()
 		if ret == False:
@@ -188,17 +203,17 @@ class EMVShell(ui.App):
 		try:
 			self.__emv.init()
 			self.__app = self.__emv.current_app()
-			self.__ab.set_status("%s selected"%self.__app.label())
+			self.set_status("%s selected"%self.__app.label())
 			self.__read_data()
 		except Exception, e:
-			self.__ab.set_status(e.args[0])
+			self.error(e)
 		return
 
 	def __sda(self, a, b):
 		if not self.__emv.authenticate_static_data(mod, exp):
-			self.__ab.set_status("SDA data authenticated failed")
+			self.set_status("SDA data authenticated failed")
 			return
-		self.__ab.set_status("SDA data authenticated")
+		self.set_status("SDA data authenticated")
 		for x in self.__sda_recs:
 			self.__ts.set_value(x, 0,
 					gtk.STOCK_DIALOG_AUTHENTICATION)
@@ -206,18 +221,16 @@ class EMVShell(ui.App):
 
 	def __cvm(self, a, b):
 		d = EMVPinDialog(self, self.__emv)
-		if d.run():
-			msg = "Cardholder verified"
-		else:
-			msg = "Cardholder verification failed: " \
-				"%u tries remaining"% \
-				self.__emv.pin_try_counter()
+		try:
+			if d.run():
+				self.set_status("Cardholder verified")
+		except Exception, e:
+			self.error(e)
 		d.hide()
-		self.__ab.set_status(msg)
 		return
 
 	def __velocity_check(self, a, b):
-		self.__ab.set_status("ATC %d, last online ATC %u"%(
+		self.set_status("ATC %d, last online ATC %u"%(
 					self.__emv.atc(),
 					self.__emv.last_online_atc()))
 		return
@@ -273,9 +286,27 @@ def acquire_card(tracefile=None):
 	slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
 	return slot
 
+def err_destroy(self):
+	gtk.main_quit()
+def err_destroy2(self, b):
+	gtk.main_quit()
+
+def bail(msg):
+	err = gtk.MessageDialog(type = gtk.MESSAGE_ERROR,
+				buttons = gtk.BUTTONS_CLOSE,
+				message_format = msg)
+	err.show_all()
+	err.connect("destroy", err_destroy)
+	err.connect("response", err_destroy2)
+	gtk.main()
+	raise SystemExit
+
 if __name__ == '__main__':
 	gnome.program_init("gemv", "0.1")
-	card = acquire_card("gemv.trace")
+	try:
+		card = acquire_card("gemv.trace")
+	except Exception, e:
+		bail("No CCI devices could be found")
 	w = EMVShell(card)
 	w.show_all()
 	gtk.main()
