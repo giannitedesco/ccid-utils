@@ -54,10 +54,8 @@ static const struct dol_tag *find_tag(const struct dol_tag *tags,
 	return NULL;
 }
 
-uint8_t *_emv_construct_dol(const struct dol_tag *tags,
-					size_t num_tags,
-					const uint8_t *ptr, size_t len,
-					size_t *ret_len, void *priv)
+uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
+				size_t *ret_len, void *priv)
 {
 	const uint8_t *tmp, *end;
 	uint8_t *dol, *dtmp;
@@ -81,16 +79,26 @@ uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 		return NULL;
 
 	for(tmp = ptr; tmp < end; tmp++) {
-		const struct dol_tag *tag;
+		//const struct dol_tag *tag;
 		size_t tag_len;
+		uint16_t tag;
 
 		tag_len = ber_tag_len(tmp, end);
-		if ( tag_len == 0 )
+		switch(tag_len) {
+		case 1:
+			tag = tmp[0];
+			break;
+		case 2:
+			tag = (tmp[0] << 8) | tmp[1];
+			break;
+		default:
+			free(dol);
 			return NULL;
-
-		tag = find_tag(tags, num_tags, tmp, tag_len);
+		}
 
 		tmp += tag_len;
+#if 0
+		tag = find_tag(tags, num_tags, tmp, tag_len);
 
 		if ( NULL == tag || NULL == tag->op ||
 				!(*tag->op)(dtmp, *tmp, priv) ) {
@@ -103,7 +111,10 @@ uint8_t *_emv_construct_dol(const struct dol_tag *tags,
 			}
 			memset(dtmp, 0, *tmp);
 		}
-
+#else
+		if ( NULL == cbfn || !(*cbfn)(tag, dtmp, *tmp, priv) )
+			memset(dtmp, 0, *tmp);
+#endif
 		dtmp += *tmp;
 	}
 

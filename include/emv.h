@@ -14,7 +14,6 @@
 #define EMV_DATA_INT		0x2
 #define EMV_DATA_BCD		0x3
 #define EMV_DATA_DATE		0x4
-#define EMV_DATA_DOL		0x5
 
 #define EMV_ERR_SYSTEM			0x0
 #define EMV_ERR_CCID			0x1
@@ -40,6 +39,7 @@ typedef const uint8_t *(*emv_mod_cb_t)(void *priv, unsigned int index,
 					size_t *len);
 typedef const uint8_t *(*emv_exp_cb_t)(void *priv, unsigned int index,
 					size_t *len);
+typedef int (*emv_dol_cb_t)(uint16_t tag, uint8_t *ptr, size_t len, void *priv);
 
 /* Setup/teardown */
 _public emv_t emv_init(chipcard_t cc);
@@ -97,6 +97,10 @@ _public int emv_pin_try_counter(emv_t e);
 /* Terminal risk management */
 _public int emv_trm_last_online_atc(emv_t e);
 _public int emv_trm_atc(emv_t e);
+
+/* Utility function for constructing DOL's */
+uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
+				size_t *ret_len, void *priv);
 
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a

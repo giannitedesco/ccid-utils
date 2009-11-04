@@ -109,7 +109,7 @@ static PyObject *date_convert(const uint8_t *ptr, size_t len)
 	return PyString_FromString(buf);
 }
 
-static PyObject *cp_data_value(struct cp_data *self, PyObject *args)
+static PyObject *cp_data_repr(struct cp_data *self)
 {
 	const uint8_t *ptr;
 	size_t len;
@@ -122,15 +122,27 @@ static PyObject *cp_data_value(struct cp_data *self, PyObject *args)
 	case EMV_DATA_TEXT:
 		return PyString_FromStringAndSize((const char *)ptr, len);
 	case EMV_DATA_INT:
-		return PyInt_FromLong(emv_data_int(self->data));
+		do {
+			PyObject *ret;
+			ret = PyInt_FromLong(emv_data_int(self->data));
+			return ret->ob_type->tp_repr(ret);
+		}while(0);
 	case EMV_DATA_BCD:
 		return bcd_convert(ptr, len);
 	case EMV_DATA_DATE:
 		return date_convert(ptr, len);
 	default:
-		Py_INCREF(Py_None);
-		return Py_None;
+		return NULL;
 	}
+}
+
+static PyObject *cp_data_value(struct cp_data *self, PyObject *args)
+{
+	const uint8_t *ptr;
+	size_t len;
+
+	ptr = emv_data(self->data, &len);
+	return PyString_FromStringAndSize((const char *)ptr, len);
 }
 
 static PyObject *cp_data_children(struct cp_data *self, PyObject *args)
@@ -205,6 +217,7 @@ static PyTypeObject data_pytype = {
 	.tp_new = PyType_GenericNew,
 	.tp_dealloc = (destructor)cp_data_dealloc,
 	.tp_methods = cp_data_methods,
+	.tp_repr = (reprfunc)cp_data_repr,
 	.tp_doc = "EMV data element",
 };
 
@@ -604,12 +617,11 @@ static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
 
 	if ( !emv_authenticate_static_data(self->emv, get_mod, get_exp, &cb) ) {
 		set_err(self->emv);
-		Py_INCREF(Py_False);
-		return Py_False;
+		return NULL;
 	}
 
-	Py_INCREF(Py_True);
-	return Py_True;
+	Py_INCREF(Py_None);
+	return Py_None;
 }
 
 static PyObject *cp_cvm_pin(struct cp_emv *self, PyObject *args)
@@ -645,9 +657,9 @@ static PyObject *cp_oatc(struct cp_emv *self, PyObject *args)
 
 static PyMethodDef cp_emv_methods[] = {
 	{"appsel_pse",(PyCFunction)cp_appsel_pse, METH_VARARGS,
-		"emv.appsel_pse() - Read payment system directory"},
+		"emv.appsel_pse(app) - Read payment system directory"},
 	{"select_pse",(PyCFunction)cp_select_pse, METH_VARARGS,
-		"emv.select_pse(app) - Select application from PSE entry"},
+		"emv.select_pse(emv.app) - Select application from PSE entry"},
 	{"select_aid",(PyCFunction)cp_select_aid, METH_VARARGS,
 		"emv.select_aid(aid) - Select application from AID"},
 	{"select_aid_next",(PyCFunction)cp_select_aid_next, METH_VARARGS,
@@ -662,7 +674,7 @@ static PyMethodDef cp_emv_methods[] = {
 		"authenticate_static_data(mod_cb, exp_cb) - "
 		"Does what it says on the tin"},
 	{"cvm_pin",(PyCFunction)cp_cvm_pin, METH_VARARGS,
-		"emv.cvm_pin() - Plaintext PIN cardholder verification"},
+		"emv.cvm_pin(string) - Plaintext PIN cardholder verification"},
 	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_VARARGS,
 		"emv.pin_try_counter() - Remaining PIN tries allowed"},
 	{"atc",(PyCFunction)cp_atc, METH_VARARGS,
@@ -684,11 +696,85 @@ static PyTypeObject emv_pytype = {
 	.tp_doc = "EMV chip",
 };
 
+struct dol_cb {
+	PyObject *list;
+	PyObject *dict;
+};
+
+static int dol_cbfn(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
+{
+	struct dol_cb *p = priv;
+	PyObject *list;
+	PyObject *dict;
+	PyObject *key, *value;
+	Py_ssize_t plen;
+
+	list = p->list;
+	dict = p->dict;
+
+	key = PyInt_FromLong(tag);
+	if ( NULL == key )
+		return 0;
+
+	PyList_Append(list, key);
+
+	value = PyDict_GetItem(dict, key);
+	if ( NULL == value ) {
+		memset(ptr, 0, len);
+		return 1;
+	}
+
+	if ( &PyString_Type != value->ob_type ) {
+		PyErr_SetString(PyExc_TypeError, "expected dictionary");
+		return 0;
+	}
+
+	plen = PyString_Size(value);
+	if ( plen > len ) {
+		PyErr_SetString(PyExc_ValueError, "DOL element too damn big");
+		return 0;
+	}
+
+	memcpy(ptr, PyString_AsString(value), plen);
+	memset(ptr + plen, 0, len - plen);
+	return 1;
+}
+
+static PyObject *cp_dol(struct cp_emv *self, PyObject *args)
+{
+	PyObject *list, *dict;
+	struct dol_cb cb;
+	uint8_t *dol;
+	size_t len, rlen;
+
+	if ( !PyArg_ParseTuple(args, "s#O", &dol, &len, &dict) )
+		return NULL;
+
+	if ( &PyDict_Type != dict->ob_type ) {
+		PyErr_SetString(PyExc_TypeError, "expected dictionary");
+		return NULL;
+	}
+
+	list = PyList_New(0);
+	if ( NULL == list )
+		return NULL;
+
+	cb.list = list;
+	cb.dict = dict;
+
+	dol = emv_construct_dol(dol_cbfn, dol, len, &rlen, &cb);
+	free(dol);
+
+	return list;
+}
+
 static PyMethodDef methods[] = {
+	{"dol",(PyCFunction)cp_dol, METH_VARARGS,
+		"dol(str) - returns list of (tag, len) tuples"},
 	{NULL, }
 };
 
-#define _INT_CONST(m, c) PyModule_AddIntConstant(m, #c, c)
+#define  _INT_CONST(m, c) PyModule_AddIntConstant(m, #c, c)
 PyMODINIT_FUNC initemv(void)
 {
 	PyObject *m;
@@ -709,7 +795,6 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_DATA_INT);
 	_INT_CONST(m, EMV_DATA_BCD);
 	_INT_CONST(m, EMV_DATA_DATE);
-	_INT_CONST(m, EMV_DATA_DOL);
 
 	_INT_CONST(m, EMV_ERR_SYSTEM);
 	_INT_CONST(m, EMV_ERR_CCID);
@@ -727,8 +812,35 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_ERR_SSA_SIGNATURE);
 	_INT_CONST(m, EMV_ERR_BAD_PIN);
 
+	_INT_CONST(m, EMV_TAG_MAGSTRIP_TRACK2);
+	_INT_CONST(m, EMV_TAG_PAN);
+	_INT_CONST(m, EMV_TAG_RECORD);
+	_INT_CONST(m, EMV_TAG_CDOL1);
+	_INT_CONST(m, EMV_TAG_CDOL2);
+	_INT_CONST(m, EMV_TAG_CVM_LIST);
+	_INT_CONST(m, EMV_TAG_CA_PK_INDEX);
+	_INT_CONST(m, EMV_TAG_ISS_PK_CERT);
+	_INT_CONST(m, EMV_TAG_ISS_PK_R);
+	_INT_CONST(m, EMV_TAG_SSA_DATA);
+	_INT_CONST(m, EMV_TAG_CARDHOLDER_NAME);
+	_INT_CONST(m, EMV_TAG_DATE_EXP);
+	_INT_CONST(m, EMV_TAG_DATE_EFF);
+	_INT_CONST(m, EMV_TAG_ISSUER_COUNTRY);
+	_INT_CONST(m, EMV_TAG_SERVICE_CODE);
+	_INT_CONST(m, EMV_TAG_PAN_SEQ);
+	_INT_CONST(m, EMV_TAG_USAGE_CONTROL);
+	_INT_CONST(m, EMV_TAG_APP_VER);
+	_INT_CONST(m, EMV_TAG_IAC_DEFAULT);
+	_INT_CONST(m, EMV_TAG_IAC_DENY);
+	_INT_CONST(m, EMV_TAG_IAC_ONLINE);
+	_INT_CONST(m, EMV_TAG_MAGSTRIP_TRACK1);
+	_INT_CONST(m, EMV_TAG_ISS_PK_EXP);
+	_INT_CONST(m, EMV_TAG_SDA_TAG_LIST);
+
 	Py_INCREF(&emv_pytype);
 	PyModule_AddObject(m, "card", (PyObject *)&emv_pytype);
+	Py_INCREF(&app_pytype);
 	PyModule_AddObject(m, "app", (PyObject *)&app_pytype);
+	Py_INCREF(&data_pytype);
 	PyModule_AddObject(m, "data", (PyObject *)&data_pytype);
 }

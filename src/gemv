@@ -61,6 +61,64 @@ class EMVPinDialog(gtk.Dialog):
 			return False
 		return self.__emv.cvm_pin(self.__entry.get_text())
 
+class EMVActionDialog(gtk.Dialog):
+	def __entry(self, c1, c2, tag):
+		if self.__tags.has_key(tag):
+			c1.pack_start(gtk.Label(self.__tags[tag]), True, True)
+			c2.add(gtk.Entry())
+		else:
+			print "unknown DOL tag 0x%.4x"%tag
+
+	def __init__(self, parent, e, cdol1, cdol2):
+		buttons = (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+				 gtk.STOCK_OK, gtk.RESPONSE_OK)
+		gtk.Dialog.__init__(self, "EMV Cardholder Verification", parent,
+			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			buttons)
+		self.__emv = e
+
+		self.__tags = {
+			0x9f02 : "Amount Authorized",
+			0x9f03 : "Amount (Other)",
+			0x9f1a : "Country Code",
+			0x0095 : "Terminal Verification Results",
+			0x5f2a : "Currency Code",
+			0x008a : "Authorization Response Code",
+			0x009a : "Transaction Date",
+			0x009c : "Transaction Type",
+			0x9f37 : "Unpredictable Number" }
+
+		c = self.get_content_area()
+		hbox = gtk.HBox()
+		vbox1 = gtk.VBox()
+		vbox2 = gtk.VBox()
+		hbox.add(vbox1)
+		hbox.add(vbox2)
+		c.add(gtk.Label("CDOL1"))
+		c.add(hbox)
+		for x in emv.dol(cdol1, {}):
+			self.__entry(vbox1, vbox2, x)
+
+		c.add(gtk.HSeparator())
+
+		hbox = gtk.HBox()
+		vbox1 = gtk.VBox()
+		vbox2 = gtk.VBox()
+		hbox.add(vbox1)
+		hbox.add(vbox2)
+		c.add(gtk.Label("CDOL2"))
+		c.add(hbox)
+		for x in emv.dol(cdol2, {}):
+			self.__entry(vbox1, vbox2, x)
+
+		self.show_all()
+
+	def run(self):
+		r = gtk.Dialog.run(self)
+		if not r == gtk.RESPONSE_OK:
+			return False
+		return True
+
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
 		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
@@ -134,7 +192,8 @@ class EMVShell(ui.App):
 
 	def error(self, e):
 		msg = e.args[0]
-		if e.args[1] == emv.EMV_ERR_EMV and \
+		if len(e.args) >= 3 and \
+				e.args[1] == emv.EMV_ERR_EMV and \
 				e.args[2] == emv.EMV_ERR_BAD_PIN:
 			msg = msg + ", %d tries remaining"%\
 				self.__emv.pin_try_counter()
@@ -173,14 +232,15 @@ class EMVShell(ui.App):
 	def __add_children(self, iter, d):
 		for (k, v) in d.children().items():
 			i = self.__ts.append(iter,
-						(None, v.tag_label(),
-						v.value()))
+						(None, v.tag_label(), "%r"%v))
 			if v.sda():
 				self.__sda_recs.append(i)
+			self.__data[v.tag()] = v
 			self.__add_children(i, v)
 
 	def __read_data(self):
 		self.__ts.clear()
+		self.__data = {}
 		self.__sda_recs = []
 		recs = self.__emv.read_app_data()
 		for x in recs:
@@ -210,8 +270,10 @@ class EMVShell(ui.App):
 		return
 
 	def __sda(self, a, b):
-		if not self.__emv.authenticate_static_data(mod, exp):
-			self.set_status("SDA data authenticated failed")
+		try:
+			self.__emv.authenticate_static_data(mod, exp)
+		except Exception, e:
+			self.error(e)
 			return
 		self.set_status("SDA data authenticated")
 		for x in self.__sda_recs:
@@ -235,6 +297,17 @@ class EMVShell(ui.App):
 					self.__emv.last_online_atc()))
 		return
 
+	def __transact(self, a, b):
+		cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
+		cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
+		d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
+		try:
+			d.run()
+		except Exception, e:
+			self.error(e)
+		d.hide()
+		return
+
 	def __toolbar(self):
 		t = gtk.Toolbar()
 		items = [ \
@@ -249,7 +322,10 @@ class EMVShell(ui.App):
 					self.__cvm),
 				("Velocity Checking",
 					gtk.STOCK_NETWORK,
-					self.__velocity_check)
+					self.__velocity_check),
+				("Terminal Action",
+					gtk.STOCK_APPLY,
+					self.__transact)
 			]
 		for (txt, i , cb) in items:
 			icon = gtk.Image()
@@ -270,6 +346,8 @@ class EMVShell(ui.App):
 
 		(ts, t) = self.__data_tree_init()
 		self.__ts = ts
+		self.__sda_recs = []
+		self.__data = {}
 
 		vs = gtk.ScrolledWindow()
 		vs.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)

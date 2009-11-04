@@ -344,7 +344,7 @@ int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
 	RSA *ca_key;
 
 	if ( !(e->e_aip[0] & EMV_AIP_SDA) ) {
-		printf("emv-sda: card doesn't support SDA\n");
+		_emv_error(e, EMV_ERR_FUNC_NOT_SUPPORTED);
 		return 0;
 	}
 
