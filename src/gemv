@@ -61,7 +61,7 @@ class EMVPinDialog(gtk.Dialog):
 			return False
 		return self.__emv.cvm_pin(self.__entry.get_text())
 
-class EMVActionDialog(gtk.Dialog):
+class EMVDolDruidPage(ui.DruidPage):
 	def __entry(self, c1, c2, tag):
 		if self.__tags.has_key(tag):
 			c1.pack_start(gtk.Label(self.__tags[tag]), True, True)
@@ -69,14 +69,8 @@ class EMVActionDialog(gtk.Dialog):
 		else:
 			print "unknown DOL tag 0x%.4x"%tag
 
-	def __init__(self, parent, e, cdol1, cdol2):
-		buttons = (gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
-				 gtk.STOCK_OK, gtk.RESPONSE_OK)
-		gtk.Dialog.__init__(self, "EMV Cardholder Verification", parent,
-			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-			buttons)
-		self.__emv = e
-
+	def __init__(self, cdol):
+		ui.DruidPage.__init__(self)
 		self.__tags = {
 			0x9f02 : "Amount Authorized",
 			0x9f03 : "Amount (Other)",
@@ -87,37 +81,153 @@ class EMVActionDialog(gtk.Dialog):
 			0x009a : "Transaction Date",
 			0x009c : "Transaction Type",
 			0x9f37 : "Unpredictable Number" }
+		self.__cdol = cdol
 
-		c = self.get_content_area()
+		vbox0 = gtk.VBox()
 		hbox = gtk.HBox()
 		vbox1 = gtk.VBox()
 		vbox2 = gtk.VBox()
 		hbox.add(vbox1)
 		hbox.add(vbox2)
-		c.add(gtk.Label("CDOL1"))
-		c.add(hbox)
-		for x in emv.dol(cdol1, {}):
+		vbox0.add(hbox)
+		self.add(vbox0)
+		for x in emv.dol_read(cdol, {}):
 			self.__entry(vbox1, vbox2, x)
+	
+	def create_dol(self):
+		return emv.dol_create(self.__cdol, {})
 
-		c.add(gtk.HSeparator())
+class EMVCryptoDruidPage(ui.DruidPage):
+	def __init__(self):
+		ui.DruidPage.__init__(self)
+		h = gtk.HBox()
 
-		hbox = gtk.HBox()
-		vbox1 = gtk.VBox()
-		vbox2 = gtk.VBox()
-		hbox.add(vbox1)
-		hbox.add(vbox2)
-		c.add(gtk.Label("CDOL2"))
-		c.add(hbox)
-		for x in emv.dol(cdol2, {}):
-			self.__entry(vbox1, vbox2, x)
+		v1 = gtk.VBox()
+		v1.add(gtk.Label("Cryptogram Information Data"))
+		v1.add(gtk.Label("Application Transaction Counter"))
+		v1.add(gtk.Label("Cryptogram"))
+		v1.add(gtk.Label("Issuer Application Data"))
 
+		v2 = gtk.VBox()
+		self.__cid = gtk.Label()
+		self.__atc = gtk.Label()
+		self.__cgm = gtk.Label()
+		self.__iad = gtk.Label()
+		v2.add(self.__cid)
+		v2.add(self.__atc)
+		v2.add(self.__cgm)
+		v2.add(self.__iad)
+
+		h.add(v1)
+		h.add(v2)
+		self.add(h)
+
+	def cryptogram(self, rx):
+		if len(rx) == 3:
+			(cid, atc, cgm) = rx
+			iad = None
+		elif len (rx) == 4:
+			(cid, atc, cgm, iad) = rx
+		else:
+			raise ValueError, "Bad cryptogram format"
+
+		cl = ["AAC", "TC", "ARQC", "AAR"]
+		self.__cid.set_label(cl[cid >> 6])
+		self.__atc.set_label(str(atc))
+
+		s = ""
+		for x in cgm:
+			s = s + "%.2x:"%ord(x)
+		self.__cgm.set_label(s[:-1])
+
+		if iad:
+			s = ""
+			for x in iad:
+				s = s + "%.2x:"%ord(x)
+			self.__iad.set_label(s[:-1])
+
+		return
+
+class EMVActionDialog(gtk.Dialog):
+	def __prep(self, p, d):
+		d.set_buttons_sensitive(False, True, True, False)
+
+	def __prep_final(self, p, d):
+		d.set_buttons_sensitive(False, False, True, False)
+		d.set_show_finish(True)
+
+	def __p1_next(self, p, d):
+		dol = p.create_dol()
+		try:
+			rx = self.__emv.generate_ac(emv.EMV_AC_ARQC, dol)
+		except Exception, e:
+			self.__parent.error(e)
+			self.response(gtk.RESPONSE_REJECT)
+			return
+		self.__p2.cryptogram(rx)
+
+	def __p1(self, cdol1):
+		p = EMVDolDruidPage(cdol1)
+		p.connect("prepare", self.__prep)
+		p.connect("next", self.__p1_next)
+		return p
+
+	def __p3_next(self, p, d):
+		dol = emv.dol_create(self.__cdol2, {})
+		try:
+			rx = self.__emv.generate_ac(emv.EMV_AC_TC, dol)
+		except Exception, e:
+			self.__parent.error(e)
+			self.response(gtk.RESPONSE_REJECT)
+			return
+		self.__p4.cryptogram(rx)
+
+	def __p3(self, cdol2):
+		p = EMVDolDruidPage(cdol2)
+		p.connect("prepare", self.__prep)
+		p.connect("next", self.__p3_next)
+		self.__cdol2 = cdol2
+		return p
+
+	def __p2(self):
+		p = EMVCryptoDruidPage()
+		p.connect("prepare", self.__prep)
+		return p
+
+	def __finish(self, p, d):
+		self.response(gtk.RESPONSE_OK)
+
+	def __p4(self):
+		p = EMVCryptoDruidPage()
+		p.connect("prepare", self.__prep_final)
+		p.connect("finish", self.__finish)
+		return p
+
+	def __init__(self, parent, e, cdol1, cdol2):
+		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
+			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
+			 gtk.STOCK_OK, gtk.RESPONSE_OK))
+			
+		self.__parent = parent
+		self.__emv = e
+		self.__d = ui.Druid()
+		self.__p1 = self.__p1(cdol1)
+		self.__p2 = self.__p2()
+		self.__p3 = self.__p3(cdol2)
+		self.__p4 = self.__p4()
+		self.__d.append_page(self.__p1)
+		self.__d.append_page(self.__p2)
+		self.__d.append_page(self.__p3)
+		self.__d.append_page(self.__p4)
+
+		self.get_content_area().add(self.__d)
 		self.show_all()
+		self.get_action_area().hide()
+		self.set_has_separator(False)
 
 	def run(self):
-		r = gtk.Dialog.run(self)
-		if not r == gtk.RESPONSE_OK:
-			return False
-		return True
+		return gtk.Dialog.run(self)
 
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
@@ -197,6 +307,8 @@ class EMVShell(ui.App):
 				e.args[2] == emv.EMV_ERR_BAD_PIN:
 			msg = msg + ", %d tries remaining"%\
 				self.__emv.pin_try_counter()
+		if msg == "":
+			msg = "Unknown error"
 		self.set_status(msg)
 		return
 
@@ -301,12 +413,8 @@ class EMVShell(ui.App):
 		cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
 		cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
 		d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
-		try:
-			d.run()
-		except Exception, e:
-			self.error(e)
+		d.run()
 		d.hide()
-		return
 
 	def __toolbar(self):
 		t = gtk.Toolbar()

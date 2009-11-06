@@ -26,7 +26,7 @@ void _emv_icc_error(struct _emv *e)
 {
 	e->e_err = (EMV_ERR_ICC << EMV_ERR_TYPE_SHIFT) | 
 			(_emv_sw1(e) << 8) |
-			(_emv_sw2(e) << 8);
+			_emv_sw2(e);
 }
 
 void _emv_error(struct _emv *e, unsigned int code)
@@ -60,6 +60,7 @@ static const struct {
 	const char * const str;
 }icc_errs[] = {
 	{0x6283, "Selected file not found"},
+	{0x6700, "Wrong length >:)"},
 	{0x6985, "Conditions of use not satisfied"},
 	{0x6a81, "Selected function not supported"},
 	{0x6a83, "Record not found"},

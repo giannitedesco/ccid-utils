@@ -148,6 +148,15 @@ int _emv_pin2pb(const char *pin, emv_pb_t pb)
 	return 1;
 }
 
+const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
+				const uint8_t *tx, uint8_t len,
+				size_t *rlen)
+{
+	if ( !_emv_generate_ac(e, ref, tx, len) )
+		return NULL;
+	return xfr_rx_data(e->e_xfr, rlen);
+}
+
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {

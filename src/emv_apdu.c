@@ -261,4 +261,3 @@ int _emv_generate_ac(emv_t e, uint8_t ref,
 
 	return 1;
 }
-

@@ -17,11 +17,6 @@
 #define EMV_AIP_DDA	0x20 /* DDA support */
 #define EMV_AIP_SDA	0x40 /* SDA support */
 
-#define EMV_AC_AAC	0x00 /* app authnticate  cryptogram . decliend */
-#define EMV_AC_TC	0x40 /* transaction certificate / approved */
-#define EMV_AC_ARQC	0x80 /* authorisation request / online requested */
-#define EMV_AC_CDA	0x10 /* cda signature requested */
-
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>
@@ -145,6 +140,7 @@ _private int _emv_select_next(emv_t e, const uint8_t *name, size_t nlen);
 _private int _emv_verify(emv_t e, uint8_t fmt, const uint8_t *p, uint8_t plen);
 _private int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2);
 _private int _emv_get_proc_opts(emv_t e, const uint8_t *pdol, uint8_t len);
+
 _private int _emv_generate_ac(emv_t e, uint8_t ref,
 				const uint8_t *data, uint8_t len);
 

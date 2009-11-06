@@ -99,8 +99,19 @@ _public int emv_trm_last_online_atc(emv_t e);
 _public int emv_trm_atc(emv_t e);
 
 /* Utility function for constructing DOL's */
-uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
-				size_t *ret_len, void *priv);
+_public uint8_t *emv_construct_dol(emv_dol_cb_t cbfn,
+					const uint8_t *ptr, size_t len,
+					size_t *ret_len, void *priv);
+
+_public const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
+					const uint8_t *tx, uint8_t len,
+					size_t *rlen);
+
+/* Definitions from EMV spec */
+#define EMV_AC_AAC	0x00 /* app authnticate  cryptogram . decliend */
+#define EMV_AC_TC	0x40 /* transaction certificate / approved */
+#define EMV_AC_ARQC	0x80 /* authorisation request / online requested */
+#define EMV_AC_CDA	0x10 /* cda signature requested */
 
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a

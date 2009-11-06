@@ -655,6 +655,53 @@ static PyObject *cp_oatc(struct cp_emv *self, PyObject *args)
 	return PyInt_FromLong(emv_trm_last_online_atc(self->emv));
 }
 
+static PyObject *ac2tuple(const uint8_t *ptr, size_t len)
+{
+	PyObject *tup;
+	int iad = (ptr[1] + 2 < len);
+
+	if ( len < 4 || ptr[0] != 0x80 || ptr[1] + 2 > len ) {
+		PyErr_SetString(PyExc_ValueError, "Cryptogram format error");
+		return NULL;
+	}
+	
+	tup = PyTuple_New(iad ? 4 : 3);
+	if ( NULL == tup )
+		return NULL;
+
+	PyTuple_SetItem(tup, 0, PyInt_FromLong(ptr[2]));
+	PyTuple_SetItem(tup, 1, PyInt_FromLong(ptr[3]));
+	PyTuple_SetItem(tup, 2, PyString_FromStringAndSize((char *)ptr + 4,
+								ptr[1] - 2));
+	if ( iad )
+		PyTuple_SetItem(tup, 3,
+			PyString_FromStringAndSize((char *)ptr + ptr[1] + 2,
+							len - ptr[1] + 2));
+
+	return tup;
+}
+
+static PyObject *cp_gen_ac(struct cp_emv *self, PyObject *args)
+{
+	const uint8_t *tx, *rx;
+	size_t txlen, rxlen;
+	PyObject *tup;
+	int ref;
+
+	/* FIXME: does this return size_t or ssize_t ?? */
+	if ( !PyArg_ParseTuple(args, "is#", &ref, &tx, &txlen) )
+		return NULL;
+
+	rx = emv_generate_ac(self->emv, ref, tx, txlen, &rxlen);
+	if ( NULL == rx ) {
+		set_err(self->emv);
+		return NULL;
+	}
+
+	tup = ac2tuple(rx, rxlen);
+	return tup;
+}
+
 static PyMethodDef cp_emv_methods[] = {
 	{"appsel_pse",(PyCFunction)cp_appsel_pse, METH_VARARGS,
 		"emv.appsel_pse(app) - Read payment system directory"},
@@ -681,6 +728,8 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.atc() - Application transaction counter"},
 	{"last_online_atc",(PyCFunction)cp_oatc, METH_VARARGS,
 		"emv.oatc() - ATC at last online transaction"},
+	{"generate_ac",(PyCFunction)cp_gen_ac, METH_VARARGS,
+		"emv.gen_ac() - Generate application cryptogram"},
 	{NULL, }
 };
 
@@ -740,7 +789,7 @@ static int dol_cbfn(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 	return 1;
 }
 
-static PyObject *cp_dol(struct cp_emv *self, PyObject *args)
+static PyObject *do_dol(struct cp_emv *self, PyObject *args, int create)
 {
 	PyObject *list, *dict;
 	struct dol_cb cb;
@@ -763,14 +812,29 @@ static PyObject *cp_dol(struct cp_emv *self, PyObject *args)
 	cb.dict = dict;
 
 	dol = emv_construct_dol(dol_cbfn, dol, len, &rlen, &cb);
-	free(dol);
+	if ( create ) {
+		return PyString_FromStringAndSize((char *)dol, rlen);
+	}else{
+		free(dol);
+		return list;
+	}
+}
 
-	return list;
+static PyObject *cp_dol_read(struct cp_emv *self, PyObject *args)
+{
+	return do_dol(self, args, 0);
+}
+
+static PyObject *cp_dol_create(struct cp_emv *self, PyObject *args)
+{
+	return do_dol(self, args, 1);
 }
 
 static PyMethodDef methods[] = {
-	{"dol",(PyCFunction)cp_dol, METH_VARARGS,
-		"dol(str) - returns list of (tag, len) tuples"},
+	{"dol_read",(PyCFunction)cp_dol_read, METH_VARARGS,
+		"dol_read(str) - returns list of (tag, len) tuples"},
+	{"dol_create",(PyCFunction)cp_dol_create, METH_VARARGS,
+		"dol_create(str) - returns the constructed binary data item"},
 	{NULL, }
 };
 
@@ -836,6 +900,11 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_TAG_MAGSTRIP_TRACK1);
 	_INT_CONST(m, EMV_TAG_ISS_PK_EXP);
 	_INT_CONST(m, EMV_TAG_SDA_TAG_LIST);
+
+	_INT_CONST(m, EMV_AC_AAC);
+	_INT_CONST(m, EMV_AC_TC);
+	_INT_CONST(m, EMV_AC_ARQC);
+	_INT_CONST(m, EMV_AC_CDA);
 
 	Py_INCREF(&emv_pytype);
 	PyModule_AddObject(m, "card", (PyObject *)&emv_pytype);
