@@ -36,7 +36,7 @@ static const struct _emv_tag tags[] = {
 		.t_label = "Card Risk Management DOL2"},
 	{.t_tag = EMV_TAG_CVM_LIST,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
-		.t_label = "Cardholder verification Method List"},
+		.t_label = "Cardholder Verification Method List"},
 	{.t_tag = EMV_TAG_CA_PK_INDEX,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
 		.t_min = 1, .t_max = 1,
@@ -72,19 +72,19 @@ static const struct _emv_tag tags[] = {
 	{.t_tag = EMV_TAG_PAN_SEQ,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
 		.t_min = 1, .t_max = 1,
-		.t_label = "PAN sequence number"},
+		.t_label = "PAN Sequence Number"},
 	{.t_tag = EMV_TAG_USAGE_CONTROL,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
 		.t_min = 2, .t_max = 2,
-		.t_label = "Application usage control"},
+		.t_label = "Application Usage Control"},
 	{.t_tag = EMV_TAG_APP_VER,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
 		.t_min = 2, .t_max = 2,
-		.t_label = "Application version number"},
+		.t_label = "Application Version Number"},
 	{.t_tag = EMV_TAG_IAC_DEFAULT,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
-		.t_label = "Issuert Action Code (Default)"},
+		.t_label = "Issuer Action Code (Default)"},
 	{.t_tag = EMV_TAG_IAC_DENY,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
@@ -514,13 +514,9 @@ int emv_read_app_data(struct _emv *e)
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
 		//read_sfi(e, ptr[0] >> 3, ptr[1], ptr[2]);
-		printf("AFL entry: SFI %u REC %u-%u SDA %u\n",
-			ptr[0] >> 3, ptr[1], ptr[2], ptr[3]);
 		db->db_numsda += ptr[3];
 		db->db_numrec += (ptr[2] + 1) - ptr[1];
 	}
-	printf("AFL: %u toplevel records, %u SDA protected records\n",
-		db->db_numrec, db->db_numsda);
 
 	pps = gang_alloc(e->e_files,
 			(db->db_numrec + db->db_numsda) * sizeof(*pps));
@@ -548,7 +544,6 @@ int emv_read_app_data(struct _emv *e)
 			&db->db_nmemb);
 	}
 
-	printf("%u Data Elements in total\n", db->db_nmemb);
 	pps = db->db_elem = gang_alloc(e->e_files,
 					db->db_nmemb * sizeof(*db->db_elem));
 	if ( NULL == pps ) {

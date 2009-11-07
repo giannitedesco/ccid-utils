@@ -89,12 +89,15 @@ static PyObject *bcd_convert(const uint8_t *ptr, size_t len)
 
 static PyObject *binary_convert(const uint8_t *ptr, size_t len)
 {
-	char buf[len * 3 + 1];
+	char buf[len * 3 + len / 16 + 1];
 	size_t i;
 	char *p;
 
-	for(i = 0, p = buf; i < len; i++, p += 3)
+	for(i = 0, p = buf; i < len; i++, p += 3) {
+		if ( i && 0 == (i & 0xf) )
+			sprintf(p, "\n"), ++p;
 		sprintf(p, "%.2x ", ptr[i]);
+	}
 	p--;
 	*p = '\0';
 
@@ -767,6 +770,9 @@ static int dol_cbfn(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 
 	PyList_Append(list, key);
 
+	if ( NULL == dict )
+		return 1;
+
 	value = PyDict_GetItem(dict, key);
 	if ( NULL == value ) {
 		memset(ptr, 0, len);
@@ -796,12 +802,17 @@ static PyObject *do_dol(struct cp_emv *self, PyObject *args, int create)
 	uint8_t *dol;
 	size_t len, rlen;
 
-	if ( !PyArg_ParseTuple(args, "s#O", &dol, &len, &dict) )
-		return NULL;
-
-	if ( &PyDict_Type != dict->ob_type ) {
-		PyErr_SetString(PyExc_TypeError, "expected dictionary");
-		return NULL;
+	if ( create ) {
+		if ( !PyArg_ParseTuple(args, "s#O", &dol, &len, &dict) )
+			return NULL;
+		if ( &PyDict_Type != dict->ob_type ) {
+			PyErr_SetString(PyExc_TypeError, "expected dictionary");
+			return NULL;
+		}
+	}else{
+		if ( !PyArg_ParseTuple(args, "s#", &dol, &len) )
+			return NULL;
+		dict = NULL;
 	}
 
 	list = PyList_New(0);

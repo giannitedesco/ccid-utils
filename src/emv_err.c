@@ -66,6 +66,7 @@ static const struct {
 	{0x6a83, "Record not found"},
 	{0x6a84, "Not enough memory space in file"},
 	{0x6a85, "Lc inconsistent with TLV structure"},
+	{0x6a86, "Incorrect parameters P1-P2"},
 	{0x6a88, "Referenced data not found"},
 	{0x6b00, "Bad parameters P1-P2"},
 	{0x6c00, "Wrong Le field"},

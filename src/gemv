@@ -64,23 +64,37 @@ class EMVPinDialog(gtk.Dialog):
 class EMVDolDruidPage(ui.DruidPage):
 	def __entry(self, c1, c2, tag):
 		if self.__tags.has_key(tag):
-			c1.pack_start(gtk.Label(self.__tags[tag]), True, True)
-			c2.add(gtk.Entry())
+			(label, cb, sz) = self.__tags[tag]
+			c1.pack_start(gtk.Label(label), True, True)
+			e = gtk.Entry()
+			self.__tags[tag] = (label, cb, sz, e)
+			c2.add(e)
 		else:
 			print "unknown DOL tag 0x%.4x"%tag
+
+	def __bcd(self, sz, txt):
+		return ''
+
+	def __alnum(self, sz, txt):
+		return ''
+
+	def __binary(self, sz, txt):
+		return ''
 
 	def __init__(self, cdol):
 		ui.DruidPage.__init__(self)
 		self.__tags = {
-			0x9f02 : "Amount Authorized",
-			0x9f03 : "Amount (Other)",
-			0x9f1a : "Country Code",
-			0x0095 : "Terminal Verification Results",
-			0x5f2a : "Currency Code",
-			0x008a : "Authorization Response Code",
-			0x009a : "Transaction Date",
-			0x009c : "Transaction Type",
-			0x9f37 : "Unpredictable Number" }
+			0x9f02 : ("Amount Authorized", self.__bcd, 12, ),
+			0x9f03 : ("Amount (Other)", self.__bcd, 12, ),
+			0x9f1a : ("Country Code", self.__bcd, 3, ),
+			0x0095 : ("Terminal Verification Results",
+					self.__binary, 5, ),
+			0x5f2a : ("Currency Code", self.__bcd, 3, ),
+			0x008a : ("Authorization Response Code",
+					self.__alnum, 2, ),
+			0x009a : ("Transaction Date", self.__bcd, 6, ),
+			0x009c : ("Transaction Type", self.__bcd, 2, ),
+			0x9f37 : ("Unpredictable Number", self.__binary, 4, ) }
 		self.__cdol = cdol
 
 		vbox0 = gtk.VBox()
@@ -91,10 +105,17 @@ class EMVDolDruidPage(ui.DruidPage):
 		hbox.add(vbox2)
 		vbox0.add(hbox)
 		self.add(vbox0)
-		for x in emv.dol_read(cdol, {}):
+		for x in emv.dol_read(cdol):
 			self.__entry(vbox1, vbox2, x)
 	
 	def create_dol(self):
+		tags = {}
+		for (k, v) in self.__tags.items():
+			if len(v) < 4:
+				continue
+			(label, cb, sz, e) = v
+			tags[k] = cb(sz, e.get_text())
+		print tags
 		return emv.dol_create(self.__cdol, {})
 
 class EMVCryptoDruidPage(ui.DruidPage):
@@ -149,6 +170,9 @@ class EMVCryptoDruidPage(ui.DruidPage):
 		return
 
 class EMVActionDialog(gtk.Dialog):
+	def __cancel(self, p, d):
+		self.response(gtk.RESPONSE_REJECT)
+
 	def __prep(self, p, d):
 		d.set_buttons_sensitive(False, True, True, False)
 
@@ -170,6 +194,7 @@ class EMVActionDialog(gtk.Dialog):
 		p = EMVDolDruidPage(cdol1)
 		p.connect("prepare", self.__prep)
 		p.connect("next", self.__p1_next)
+		p.connect("cancel", self.__cancel)
 		return p
 
 	def __p3_next(self, p, d):
@@ -186,12 +211,14 @@ class EMVActionDialog(gtk.Dialog):
 		p = EMVDolDruidPage(cdol2)
 		p.connect("prepare", self.__prep)
 		p.connect("next", self.__p3_next)
+		p.connect("cancel", self.__cancel)
 		self.__cdol2 = cdol2
 		return p
 
 	def __p2(self):
 		p = EMVCryptoDruidPage()
 		p.connect("prepare", self.__prep)
+		p.connect("cancel", self.__cancel)
 		return p
 
 	def __finish(self, p, d):
@@ -201,6 +228,7 @@ class EMVActionDialog(gtk.Dialog):
 		p = EMVCryptoDruidPage()
 		p.connect("prepare", self.__prep_final)
 		p.connect("finish", self.__finish)
+		p.connect("cancel", self.__cancel)
 		return p
 
 	def __init__(self, parent, e, cdol1, cdol2):
@@ -227,7 +255,9 @@ class EMVActionDialog(gtk.Dialog):
 		self.set_has_separator(False)
 
 	def run(self):
-		return gtk.Dialog.run(self)
+		if gtk.Dialog.run(self) == gtk.RESPONSE_REJECT:
+			return False
+		return True
 
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
@@ -316,7 +346,7 @@ class EMVShell(ui.App):
 		i = gtk.Image()
 
 		ts = gtk.TreeStore(gobject.TYPE_STRING, gobject.TYPE_STRING,
-					gobject.TYPE_STRING)
+				gobject.TYPE_STRING, gobject.TYPE_STRING)
 
 		t = gtk.TreeView(ts)
 		t.set_headers_visible(True)
@@ -336,6 +366,7 @@ class EMVShell(ui.App):
 
 		r = gtk.CellRendererText()
 		col = gtk.TreeViewColumn("Value", r, text = 2)
+		col.add_attribute(r, "family", 3)
 		col.set_resizable(True)
 		t.append_column(col)
 
@@ -343,8 +374,12 @@ class EMVShell(ui.App):
 
 	def __add_children(self, iter, d):
 		for (k, v) in d.children().items():
+			if v.type() == emv.EMV_DATA_BINARY:
+				t = "Monospace"
+			else:
+				t = None
 			i = self.__ts.append(iter,
-						(None, v.tag_label(), "%r"%v))
+					(None, v.tag_label(), "%r"%v, t))
 			if v.sda():
 				self.__sda_recs.append(i)
 			self.__data[v.tag()] = v
@@ -356,12 +391,13 @@ class EMVShell(ui.App):
 		self.__sda_recs = []
 		recs = self.__emv.read_app_data()
 		for x in recs:
-			i = self.__ts.append(None, (None, x.tag_label(), None))
+			i = self.__ts.append(None, (None, x.tag_label(),
+							None, None))
 			if x.sda():
 				self.__sda_recs.append(i)
 			self.__add_children(i, x)
 
-	def __appsel(self, a, b):
+	def __appsel(self, a):
 		d = EMVAppDialog(self, self.__emv)
 		try:
 			ret = d.run()
@@ -381,7 +417,7 @@ class EMVShell(ui.App):
 			self.error(e)
 		return
 
-	def __sda(self, a, b):
+	def __sda(self, a):
 		try:
 			self.__emv.authenticate_static_data(mod, exp)
 		except Exception, e:
@@ -393,7 +429,7 @@ class EMVShell(ui.App):
 					gtk.STOCK_DIALOG_AUTHENTICATION)
 		return
 
-	def __cvm(self, a, b):
+	def __cvm(self, a):
 		d = EMVPinDialog(self, self.__emv)
 		try:
 			if d.run():
@@ -403,17 +439,18 @@ class EMVShell(ui.App):
 		d.hide()
 		return
 
-	def __velocity_check(self, a, b):
+	def __velocity_check(self, a):
 		self.set_status("ATC %d, last online ATC %u"%(
 					self.__emv.atc(),
 					self.__emv.last_online_atc()))
 		return
 
-	def __transact(self, a, b):
+	def __transact(self, a):
 		cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
 		cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
 		d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
-		d.run()
+		if d.run():
+			self.__ab.set_status("Transaction completed")
 		d.hide()
 
 	def __toolbar(self):
@@ -435,10 +472,17 @@ class EMVShell(ui.App):
 					gtk.STOCK_APPLY,
 					self.__transact)
 			]
-		for (txt, i , cb) in items:
+		for (txt, iname, cb) in items:
 			icon = gtk.Image()
-			icon.set_from_stock(i, gtk.ICON_SIZE_LARGE_TOOLBAR)
-			t.append_item(txt, txt, None, icon, cb, self)
+			icon.set_from_stock(iname, gtk.ICON_SIZE_LARGE_TOOLBAR)
+			item = gtk.ToolButton(icon, txt)
+			item.set_tooltip_text(txt)
+			item.set_is_important(True)
+			item.set_visible_horizontal(True)
+			item.set_visible_vertical(True)
+			item.connect("clicked", cb)
+			t.insert(item, -1)
+		t.show_all()
 		return t
 
 	def __init__(self, card):

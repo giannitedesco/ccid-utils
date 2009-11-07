@@ -57,8 +57,6 @@ static int bop_dtemp(const uint8_t *ptr, size_t len, void *priv)
 		return 0;
 
 	if ( ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, app) ) {
-		printf(" o '%s' / '%s' application (prio %u)\n",
-			app->a_name, app->a_pname, app->a_prio);
 		list_add_tail(&app->a_list, &e->e_apps);
 		e->e_num_apps++;
 		return 1;
@@ -144,7 +142,6 @@ int emv_appsel_pse(emv_t e)
 	struct _emv_app *a, *tmp;
 	unsigned int i;
 
-	printf("Enumerating ICC applications:\n");
 	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )
 		return 0;
 
@@ -158,7 +155,6 @@ int emv_appsel_pse(emv_t e)
 			break;
 		add_app(e);
 	}
-	printf("\n");
 
 	/* TODO: Sort by priority */
 
