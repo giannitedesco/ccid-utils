@@ -695,6 +695,8 @@ static PyObject *cp_gen_ac(struct cp_emv *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "is#", &ref, &tx, &txlen) )
 		return NULL;
 
+	hex_dump(tx, txlen, 16);
+
 	rx = emv_generate_ac(self->emv, ref, tx, txlen, &rxlen);
 	if ( NULL == rx ) {
 		set_err(self->emv);

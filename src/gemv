@@ -61,14 +61,192 @@ class EMVPinDialog(gtk.Dialog):
 			return False
 		return self.__emv.cvm_pin(self.__entry.get_text())
 
+class EMVDolNumeric:
+	def __init__(self, sz):
+		self.__sz = sz
+		return
+	def get_widget(self):
+		self.__spin = gtk.SpinButton()
+		self.__spin.set_increments(10, 100)
+		self.__spin.set_numeric(True)
+		return self.__spin
+	def get_data(self):
+		return ""
+
+class EMVDolTVR:
+	def __init__(self):
+		return
+	def __button(self, exp, byte, bit, label):
+		b = gtk.CheckButton(label)
+		self.__bits[byte][1 << (bit - 1)] = b
+		exp.add(b)
+	def get_widget(self):
+		self.__bits = [{}, {}, {}, {}, {}]
+		v = gtk.VBox()
+		e = gtk.Expander("Data Authentication")
+		v2 = gtk.VBox()
+		e.add(v2)
+		self.__button(v2, 0, 8, "Offline auth not performed")
+		self.__button(v2, 0, 7, "SDA failed")
+		self.__button(v2, 0, 6, "ICC data missing")
+		self.__button(v2, 0, 5, "Card in terminal exception file")
+		self.__button(v2, 0, 4, "DDA failed")
+		self.__button(v2, 0, 3, "CDA failed")
+		v.add(e)
+		e = gtk.Expander("Application Specific")
+		v2 = gtk.VBox()
+		e.add(v2)
+		self.__button(v2, 1, 8, "Version mismatch")
+		self.__button(v2, 1, 7, "Expired application")
+		self.__button(v2, 1, 6, "Application not yet effective")
+		self.__button(v2, 1, 5, "Service not allowed for card product")
+		self.__button(v2, 1, 4, "New card")
+		v.add(e)
+		e = gtk.Expander("Cardholder Verification")
+		v2 = gtk.VBox()
+		e.add(v2)
+		self.__button(v2, 2, 8, "CVM unsuccessful")
+		self.__button(v2, 2, 7, "Unrecognized CVM")
+		self.__button(v2, 2, 6, "PIN try limit exceeded")
+		self.__button(v2, 2, 5, "PIN malfuction")
+		self.__button(v2, 2, 4, "PIN not entered")
+		self.__button(v2, 2, 3, "Online PIN entered")
+		v.add(e)
+		e = gtk.Expander("Terminal Risk Management")
+		v2 = gtk.VBox()
+		e.add(v2)
+		self.__button(v2, 3, 8, "Transaction exceeds floor limit")
+		self.__button(v2, 3, 7,
+			"Lower consecutive offline limit exceeded")
+		self.__button(v2, 3, 6,
+			"Upper consecutive offline limit exceeded")
+		self.__button(v2, 3, 5,
+			"Transaction selected randomly for online processing")
+		self.__button(v2, 3, 4, "Merchant forced transaction online")
+		v.add(e)
+		e = gtk.Expander("Terminal Action Analysis")
+		v2 = gtk.VBox()
+		e.add(v2)
+		self.__button(v2, 4, 8, "Default TDOL used")
+		self.__button(v2, 4, 7, "Issuer authentication failed")
+		self.__button(v2, 4, 6, "Script failed before final AC")
+		self.__button(v2, 4, 5, "Script failed after final AC")
+		v.add(e)
+		return v
+	def get_data(self):
+		ret = ""
+		for i in self.__bits:
+			byte = 0
+			for (bit, button) in i.items():
+				if button.get_active():
+					byte = byte | bit
+			ret = ret + chr(byte)
+		print "%r"%ret
+		return ret
+
+class EMVDolARC:
+	def __init__(self):
+		return
+	def get_widget(self):
+		self.__ls = gtk.ListStore(gobject.TYPE_STRING,
+						gobject.TYPE_STRING)
+		self.__cb = gtk.ComboBox(self.__ls)
+		self.__ls.append(("Offline Approved","Y1"))
+		self.__ls.append(("Offline Declined","Z1"))
+		self.__ls.append(("Approval (card initiated referral)","Y1"))
+		self.__ls.append(("Decline (card initated referral)","Z2"))
+		self.__ls.append(("Unable to go online, offline approved","Y3"))
+		self.__ls.append(("Unable to go online, offline declined","Z3"))
+		cell = gtk.CellRendererText()
+		self.__cb.pack_start(cell, True)
+		self.__cb.add_attribute(cell, 'text', 0)
+		self.__cb.set_active(0)
+		return self.__cb
+	def get_data(self):
+		iter = self.__cb.get_active_iter()
+		return self.__ls.get_value(iter, 1)
+
+class EMVDolCountry:
+	def __init__(self):
+		return
+	def get_widget(self):
+		self.__ls = gtk.ListStore(gobject.TYPE_STRING,
+						gobject.TYPE_STRING)
+		self.__cb = gtk.ComboBox(self.__ls)
+		self.__ls.append(("United Kingdom","\x08\x26"))
+		cell = gtk.CellRendererText()
+		self.__cb.pack_start(cell, True)
+		self.__cb.add_attribute(cell, 'text', 0)
+		self.__cb.set_active(0)
+		return self.__cb
+	def get_data(self):
+		iter = self.__cb.get_active_iter()
+		return self.__ls.get_value(iter, 1)
+
+class EMVDolCurrency:
+	def __init__(self):
+		return
+	def get_widget(self):
+		self.__ls = gtk.ListStore(gobject.TYPE_STRING)
+		self.__cb = gtk.ComboBox(self.__ls)
+		self.__ls.append(("Pounds Sterling",))
+		cell = gtk.CellRendererText()
+		self.__cb.pack_start(cell, True)
+		self.__cb.add_attribute(cell, 'text', 0)
+		self.__cb.set_active(0)
+		return self.__cb
+	def get_data(self):
+		return ""
+
+class EMVDolDate:
+	def __init__(self):
+		return
+	def __label(self):
+		return "%d-%d-%d"%self.__cal.get_date()
+	def __day_selected(self, x):
+		self.__exp.set_label(self.__label())
+	def get_widget(self):
+		self.__cal = gtk.Calendar()
+		self.__cal.connect("day-selected", self.__day_selected)
+		self.__exp = gtk.Expander(self.__label())
+		self.__exp.add(self.__cal)
+		return self.__exp
+	def get_data(self):
+		(yy, m, d) = self.__cal.get_date()
+		y = yy % 100
+		str = chr((y / 10) << 4 | y % 10) + \
+			chr((m / 10) << 4 | m % 10) + \
+			chr((d / 10) << 4 | d % 10)
+		return str
+
+class EMVDolType:
+	def __init__(self):
+		return
+	def get_widget(self):
+		return gtk.Label("TODO")
+	def get_data(self):
+		return ""
+
+class EMVDolRandom:
+	def __init__(self):
+		return
+	def get_widget(self):
+		return gtk.Label("TODO")
+	def get_data(self):
+		return ""
+
 class EMVDolDruidPage(ui.DruidPage):
-	def __entry(self, c1, c2, tag):
+	def __entry(self, tbl, row, tag):
 		if self.__tags.has_key(tag):
-			(label, cb, sz) = self.__tags[tag]
-			c1.pack_start(gtk.Label(label), True, True)
-			e = gtk.Entry()
-			self.__tags[tag] = (label, cb, sz, e)
-			c2.add(e)
+			(label, cls, args, vo) = self.__tags[tag]
+			obj = cls(*args)
+			self.__tags[tag] = (label, cls, args, vo, obj)
+
+			l = gtk.Label(label)
+			l.set_alignment(0.9, 0.1)
+			tbl.attach(l, 0, 1, row - 1, row, 0, 0)
+			tbl.attach(obj.get_widget(), 1, 2, row - 1, row,
+					gtk.FILL | gtk.EXPAND, vo)
 		else:
 			print "unknown DOL tag 0x%.4x"%tag
 
@@ -84,39 +262,42 @@ class EMVDolDruidPage(ui.DruidPage):
 	def __init__(self, cdol):
 		ui.DruidPage.__init__(self)
 		self.__tags = {
-			0x9f02 : ("Amount Authorized", self.__bcd, 12, ),
-			0x9f03 : ("Amount (Other)", self.__bcd, 12, ),
-			0x9f1a : ("Country Code", self.__bcd, 3, ),
+			0x9f02 : ("Amount Authorized",
+					EMVDolNumeric, (12,), 0),
+			0x9f03 : ("Amount (Other)",
+					EMVDolNumeric, (12,), 0),
+			0x9f1a : ("Country Code",
+					EMVDolCountry, (), 0),
 			0x0095 : ("Terminal Verification Results",
-					self.__binary, 5, ),
-			0x5f2a : ("Currency Code", self.__bcd, 3, ),
+					EMVDolTVR, (), gtk.FILL | gtk.EXPAND),
+			0x5f2a : ("Currency Code",
+					EMVDolCurrency, (), 0),
 			0x008a : ("Authorization Response Code",
-					self.__alnum, 2, ),
-			0x009a : ("Transaction Date", self.__bcd, 6, ),
-			0x009c : ("Transaction Type", self.__bcd, 2, ),
-			0x9f37 : ("Unpredictable Number", self.__binary, 4, ) }
+					EMVDolARC, (), 0),
+			0x009a : ("Transaction Date",
+					EMVDolDate, (), gtk.FILL | gtk.EXPAND),
+			0x009c : ("Transaction Type",
+					EMVDolType, (), 0),
+			0x9f37 : ("Unpredictable Number",
+					EMVDolRandom, (), 0) }
 		self.__cdol = cdol
 
-		vbox0 = gtk.VBox()
-		hbox = gtk.HBox()
-		vbox1 = gtk.VBox()
-		vbox2 = gtk.VBox()
-		hbox.add(vbox1)
-		hbox.add(vbox2)
-		vbox0.add(hbox)
-		self.add(vbox0)
+		tbl = gtk.Table(1, 2)
+		self.add(tbl)
+		row = 1
 		for x in emv.dol_read(cdol):
-			self.__entry(vbox1, vbox2, x)
+			self.__entry(tbl, row, x)
+			row = row + 1
+			tbl.resize(row, 2)
 	
 	def create_dol(self):
 		tags = {}
 		for (k, v) in self.__tags.items():
-			if len(v) < 4:
+			if len(v) < 5:
 				continue
-			(label, cb, sz, e) = v
-			tags[k] = cb(sz, e.get_text())
-		print tags
-		return emv.dol_create(self.__cdol, {})
+			(label, cb, sz, vo, obj) = v
+			tags[k] = obj.get_data()
+		return emv.dol_create(self.__cdol, tags)
 
 class EMVCryptoDruidPage(ui.DruidPage):
 	def __init__(self):
@@ -198,7 +379,7 @@ class EMVActionDialog(gtk.Dialog):
 		return p
 
 	def __p3_next(self, p, d):
-		dol = emv.dol_create(self.__cdol2, {})
+		dol = p.create_dol()
 		try:
 			rx = self.__emv.generate_ac(emv.EMV_AC_TC, dol)
 		except Exception, e:
@@ -446,12 +627,27 @@ class EMVShell(ui.App):
 		return
 
 	def __transact(self, a):
-		cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
-		cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
-		d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
-		if d.run():
-			self.__ab.set_status("Transaction completed")
+		try:
+			cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
+			cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
+		except:
+			self.__ab.set_status("CDOL's not found")
+			return
+
+		try:
+			d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
+		except Exception, e:
+			self.error(e)
+			return
+		try:
+			ret = d.run()
+		except Exception, e:
+			self.error(e)
+			d.hide()
+			return
+
 		d.hide()
+		self.__ab.set_status("Transaction completed")
 
 	def __toolbar(self):
 		t = gtk.Toolbar()
