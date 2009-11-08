@@ -110,7 +110,7 @@ static int found_cci(ccidev_t dev)
 
 	printf("simtool: Found a chipcard slot\n");
 
-	cci = cci_probe(dev, NULL);
+	cci = cci_probe(dev, "simtool.trace");
 	if ( NULL == cci )
 		goto out;
 	

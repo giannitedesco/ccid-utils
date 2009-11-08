@@ -423,7 +423,7 @@ class EMVActionDialog(gtk.Dialog):
 		return p
 
 	def __init__(self, parent, e, cdol1, cdol2):
-		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
+		gtk.Dialog.__init__(self, "EMV Card Action Analysis", parent,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
 			 gtk.STOCK_OK, gtk.RESPONSE_OK))
@@ -674,7 +674,7 @@ class EMVShell(ui.App):
 				("Velocity Checking",
 					gtk.STOCK_NETWORK,
 					self.__velocity_check),
-				("Terminal Action",
+				("Terminal/Card Action Analysis",
 					gtk.STOCK_APPLY,
 					self.__transact)
 			]
