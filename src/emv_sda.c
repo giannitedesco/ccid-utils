@@ -343,6 +343,9 @@ int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
 	size_t ca_key_len;
 	RSA *ca_key;
 
+	if ( e->e_sda_ok )
+		return 1;
+
 	if ( !(e->e_aip[0] & EMV_AIP_SDA) ) {
 		_emv_error(e, EMV_ERR_FUNC_NOT_SUPPORTED);
 		return 0;
