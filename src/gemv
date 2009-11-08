@@ -69,9 +69,20 @@ class EMVDolNumeric:
 		self.__spin = gtk.SpinButton()
 		self.__spin.set_increments(10, 100)
 		self.__spin.set_numeric(True)
+		self.__spin.set_range(0, 10 ** self.__sz)
 		return self.__spin
 	def get_data(self):
-		return ""
+		val = self.__spin.get_value_as_int()
+		data = ""
+		while val:
+			p1 = val / 10
+			r1 = val % 10
+			val = val / 10
+			p2 = val / 10
+			r2 = val % 10
+			val = val / 10
+			data = "%c"%chr((r2 << 4)|r1) + data
+		return data
 
 class EMVDolTVR:
 	def __init__(self):
@@ -141,7 +152,6 @@ class EMVDolTVR:
 				if button.get_active():
 					byte = byte | bit
 			ret = ret + chr(byte)
-		print "%r"%ret
 		return ret
 
 class EMVDolARC:
