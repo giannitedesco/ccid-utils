@@ -446,9 +446,9 @@ class EMVActionDialog(gtk.Dialog):
 		self.set_has_separator(False)
 
 	def run(self):
-		if gtk.Dialog.run(self) == gtk.RESPONSE_REJECT:
+		if gtk.Dialog.run(self) != gtk.RESPONSE_OK:
 			return False
-		return True
+		return Tru
 
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):

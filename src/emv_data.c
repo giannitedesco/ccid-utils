@@ -282,6 +282,7 @@ static int composite(emv_t e, struct _emv_data *d)
 
 		elem[i] = mpool_alloc(e->e_data);
 		elem[i]->d_tag = find_tag(t);
+		/* FIXME: check min/max sizes */
 		elem[i]->d_flags = d->d_flags;
 		elem[i]->d_id = t;
 		elem[i]->d_data = ptr;
