@@ -31,7 +31,11 @@ sim_t sim_new(chipcard_t cc)
 	printf(" o Found SIM with %u byte ATR:\n", atr_len);
 	hex_dump(atr, atr_len, 16);
 
-	_sim_select(sim, SIM_MF);
+	if ( !_sim_select(sim, SIM_MF) )
+		goto err_free_xfr;
+
+	_sim_select(sim, SIM_EF_ICCID);
+
 	return sim;
 
 err_free_xfr:

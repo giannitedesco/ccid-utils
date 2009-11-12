@@ -6,10 +6,10 @@
 
 #include <ccid.h>
 #include "sim-internal.h"
+#include "bytesex.h"
 
 static int do_select(struct _sim * s, uint16_t id)
 {
-	printf("sim_apdu: SELECT_FILE 0x%.4x\n", id);
 	xfr_reset(s->s_xfr);
 	xfr_tx_byte(s->s_xfr, SIM_CLA);
 	xfr_tx_byte(s->s_xfr, SIM_INS_SELECT);
@@ -23,7 +23,6 @@ static int do_select(struct _sim * s, uint16_t id)
 
 static int do_get_response(struct _sim * s, uint8_t le)
 {
-	printf("sim_apdu: GET_RESPONSE %u bytes\n", le);
 	xfr_reset(s->s_xfr);
 	xfr_tx_byte(s->s_xfr, SIM_CLA);
 	xfr_tx_byte(s->s_xfr, SIM_INS_GET_RESPONSE);
@@ -32,50 +31,6 @@ static int do_get_response(struct _sim * s, uint8_t le)
 	xfr_tx_byte(s->s_xfr, le);
 	return chipcard_transact(s->s_cc, s->s_xfr);
 }
-
-#if 0
-static int do_fci_ef(struct _sim *s, const uint8_t *fci, size_t len)
-{
-	assert(len == 15);
-	s->s_reclen = fci[14];
-	printf("sim_apdu: Record len %u\n", s->s_reclen);
-	return 1;
-}
-
-static int do_fci_df(struct _sim *s, const uint8_t *fci, size_t len)
-{
-	assert(len >= 13);
-	printf("sim_apdu: %u bytes under 0x%.4x\n",
-		(fci[2] << 8) | fci[3], s->s_pwd);
-	printf("sim_apdu: type of file (subclause 9.3): 0x%.2x\n", fci[6]);
-	printf("sim_apdu: %u bytes app specific\n", fci[12]);
-	if ( fci[12] < 9 || fci[12] + 13 > len)
-		return 0;
-	printf("sim_apdu: Contains %u DFs and %u EFs, %u CHV's\n",
-		fci[14], fci[15], fci[16]);
-	printf("sim_apdu: CHV1: status=0x%.2x unblock=0x%.2x\n", fci[18], fci[19]);
-	printf("sim_apdu: CHV2: status=0x%.2x unblock=0x%.2x\n", fci[20], fci[21]);
-	return 1;
-}
-
-static int parse_fci(struct _sim *s, const uint8_t *fci, size_t len)
-{
-	switch ( s->s_pwd & SIM_TYPE_MASK ) {
-	case SIM_TYPE_MF:
-	case SIM_TYPE_DF:
-		return do_fci_df(s, fci, len);
-	case SIM_TYPE_EF:
-	case SIM_TYPE_ROOT_EF:
-		return do_fci_ef(s, fci, len);
-	default:
-		return 0;
-	}
-
-	printf("sim_apdu: Got %u byte FCI for 0x%.4x:\n", len, s->s_pwd);
-	hex_dump(fci, len, 16);
-	return 1;
-}
-#endif
 
 static void chv_byte(uint8_t b, const char *label)
 {
@@ -89,6 +44,9 @@ static int set_df_fci(struct _sim *s, int gsm)
 	const uint8_t *fci;
 	size_t fci_len;
 
+	memset(&s->s_df_fci, 0, sizeof(s->s_df_fci));
+	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
+
 	fci = xfr_rx_data(s->s_xfr, &fci_len);
 	if ( NULL == fci )
 		return 0;
@@ -101,12 +59,18 @@ static int set_df_fci(struct _sim *s, int gsm)
 	fci += sizeof(s->s_df_fci);
 	fci_len -= sizeof(s->s_df_fci);
 
+	s->s_df_fci.f_free = sys_be16(s->s_df_fci.f_free);
+	s->s_df_fci.f_id = sys_be16(s->s_df_fci.f_id);
+	s->s_df = s->s_df_fci.f_id;
+	s->s_ef = SIM_FILE_INVALID;
+	printf("sim_apdu: DF 0x%.4x selected\n", s->s_df);
+
+	printf(" df: %u bytes free\n", s->s_df_fci.f_free);
+
 	if ( fci_len < s->s_df_fci.f_opt_len ) {
 		printf("sim_apdu: DF/MF FCI optional data incomplete\n");
 		return 0;
 	}
-
-	printf(" df: %u bytes free\n", s->s_df_fci.f_free);
 
 	if ( !gsm )
 		return 1;
@@ -125,7 +89,8 @@ static int set_df_fci(struct _sim *s, int gsm)
 		hex_dump(fci, fci_len, 16);
 	}
 
-	s->s_df_gsm.g_fch;
+//	s->s_df_gsm.g_fch;
+
 	printf(" gsm: %u child DF's\n", s->s_df_gsm.g_num_df);
 	printf(" gsm: %u child EF's\n", s->s_df_gsm.g_num_ef);
 	printf(" gsm: %u locks n chains n shit\n", s->s_df_gsm.g_chv);
@@ -137,8 +102,90 @@ static int set_df_fci(struct _sim *s, int gsm)
 	return 1;
 }
 
+static void access_nibble(uint8_t n, const char *label)
+{
+	switch(n) {
+	case 0:
+		printf(" ef: access %s: ALW\n", label);
+		return;
+	case 1:
+		printf(" ef: access %s: CHV1\n", label);
+		return;
+	case 2:
+		printf(" ef: access %s: CHV2\n", label);
+		return;
+	case 4:
+	case 0xe:
+		printf(" ef: access %s: ADM\n", label);
+		return;
+	case 0xf:
+		printf(" ef: access %s: NEV\n", label);
+		return;
+	default:
+		printf(" ef: access %s: RFU %.1x\n", label, n);
+		return;
+	}
+}
+
 static int set_ef_fci(struct _sim *s)
 {
+	const uint8_t *fci;
+	size_t fci_len;
+
+	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
+
+	fci = xfr_rx_data(s->s_xfr, &fci_len);
+	if ( NULL == fci )
+		return 0;
+
+	if ( fci_len < sizeof(s->s_ef_fci) ) {
+		printf("sim_apdu: EF FCI incomplete\n");
+		return 0;
+	}
+	memcpy(&s->s_ef_fci, fci, sizeof(s->s_ef_fci));
+	fci += sizeof(s->s_ef_fci);
+	fci_len -= sizeof(s->s_ef_fci);
+
+	s->s_ef_fci.e_size = sys_be16(s->s_ef_fci.e_size);
+	s->s_ef_fci.e_id = sys_be16(s->s_ef_fci.e_id);
+	s->s_ef = s->s_ef_fci.e_id;
+	printf("sim_apdu: EF 0x%.4x selected (parent DF = 0x%.4x)\n",
+		s->s_ef, s->s_df);
+
+	switch(s->s_ef_fci.e_struct) {
+	case EF_TRANSPARENT:
+		printf(" ef: transparent\n");
+		break;
+	case EF_LINEAR:
+		printf(" ef: linear, rec_len = %u bytes\n",
+			s->s_ef_fci.e_reclen);
+		break;
+	case EF_CYCLIC:
+		printf(" ef: cyclic, rec_len = %u bytes\n",
+			s->s_ef_fci.e_reclen);
+		if ( 0x40 & s->s_ef_fci.e_increase )
+			printf(" ef: INCREASE permitted\n");
+		break;
+	}
+	printf(" ef: %u bytes\n", s->s_ef_fci.e_size);
+	access_nibble(s->s_ef_fci.e_access[0] >> 4, "READ, SEEK");
+	access_nibble(s->s_ef_fci.e_access[0] & 0xf, "UPDATE");
+	access_nibble(s->s_ef_fci.e_access[1] >> 4, "INCREASE");
+	access_nibble(s->s_ef_fci.e_access[2] >> 4, "INVALIDATE");
+	access_nibble(s->s_ef_fci.e_access[2] & 0xf, "REHABILITATE");
+	if ( s->s_ef_fci.e_status & 0x1 )
+		printf(" ef: INVALIDATED\n");
+
+	if ( fci_len < s->s_ef_fci.e_opt_len - EF_FCI_MIN_OPT_LEN) {
+		printf("sim_apdu: EF FCI optional data incomplete\n");
+		return 0;
+	}
+
+	if ( fci_len ) {
+		printf("sim_apdu: %u bytes remaining data in FCI:\n", fci_len);
+		hex_dump(fci, fci_len, 16);
+	}
+
 	return 1;
 }
 
@@ -163,21 +210,17 @@ int _sim_select(struct _sim *s, uint16_t id)
 
 	switch(id & SIM_TYPE_MASK) {
 	case SIM_MF:
-		s->s_df = id;
-		s->s_ef = SIM_FILE_INVALID;
-		printf("sim_apdu: MF selected\n");
 		set_df_fci(s, 1);
 		break;
 	case SIM_TYPE_DF:
-		s->s_df = id;
-		s->s_ef = SIM_FILE_INVALID;
-		printf("sim_apdu: DF selected\n");
 		set_df_fci(s, 1);
 		break;
 	case SIM_TYPE_EF:
-		s->s_ef = id;
-		printf("sim_apdu: EF selected (parent DF = 0x%.4x\n", s->s_df);
+	case SIM_TYPE_ROOT_EF:
 		set_ef_fci(s);
+		break;
+	default:
+		printf("sim_apdu: unknown file type selected\n");
 		break;
 	}
 

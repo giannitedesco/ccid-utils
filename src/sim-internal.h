@@ -13,9 +13,11 @@
 #define SIM_INS_GET_RESPONSE	0xc0
 
 #define SIM_MF			0x3f00
-#define SIM_DF_TELECOM		0x7f10
-#define SIM_DF_GSM		0x7f20
 #define SIM_EF_ICCID		0x2fe2
+
+#define SIM_DF_TELECOM		0x7f10
+
+#define SIM_DF_GSM		0x7f20
 #define SIM_EF_SMS		0x6f3c
 
 #define SIM_SW1_SUCCESS		0x90
@@ -34,6 +36,10 @@
 #define SIM_IS_DF(x)		((x & SIM_TYPE_MASK) == SIM_TYPE_DF)
 #define SIM_IS_EF(x)		((x & SIM_TYPE_MASK) == SIM_TYPE_EF)
 #define SIM_IS_RoOT_EF(x)	((x & SIM_TYPE_MASK) == SIM_TYPE_ROOT_EF)
+
+#define EF_TRANSPARENT		0x0
+#define EF_LINEAR		0x1
+#define EF_CYCLIC		0x3
 
 struct df_fci {
 	uint16_t f_rfu0;
@@ -56,6 +62,7 @@ struct df_gsm {
 	uint8_t g_chv2u;
 } _packed;
 
+#define EF_FCI_MIN_OPT_LEN 2
 struct ef_fci {
 	uint16_t e_rfu;
 	uint16_t e_size;
@@ -65,8 +72,8 @@ struct ef_fci {
 	uint8_t  e_access[3];
 	uint8_t  e_status;
 	uint8_t  e_opt_len;
-	uint8_t  e_struct;
-	uint8_t  e_reclen;
+	uint8_t	 e_struct;
+	uint8_t	 e_reclen;
 } _packed;
 
 struct _sim {
