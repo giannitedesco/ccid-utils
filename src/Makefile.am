@@ -3,7 +3,7 @@
 INCLUDES = \
 	-I../include
 
-lib_LTLIBRARIES = libccid.la ccid.la libemv.la emv.la
+lib_LTLIBRARIES = libccid.la ccid.la libemv.la emv.la libsim.la
 dist_bin_SCRIPTS = ccid-sh
 bin_PROGRAMS = emvtool simtool
 
@@ -40,8 +40,11 @@ emv_la_SOURCES = py_emv.c
 emv_la_LDFLAGS = -avoid-version -export-dynamic -module \
 			@PYTHON_LDADD@
 
-emvtool_LDADD = libemv.la libccid.la -lusb
+emvtool_LDADD = libemv.la -lusb
 emvtool_SOURCES = emvtool.c
 
-simtool_LDADD = libccid.la -lusb
-simtool_SOURCES = simtool.c sim.c sim.h
+libsim_la_LIBADD = libccid.la
+libsim_la_SOURCES = sim.c sim_apdu.c sim_sms.c
+
+simtool_LDADD = libsim.la -lusb
+simtool_SOURCES = simtool.c
