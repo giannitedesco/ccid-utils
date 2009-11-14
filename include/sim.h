@@ -10,6 +10,8 @@ typedef struct _sim *sim_t;
 
 /* SIM session */
 _public sim_t sim_new(chipcard_t cc);
+_public int sim_sms_save(sim_t sim, const char *fn);
+_public int sim_sms_restore(sim_t sim, const char *fn);
 _public void sim_free(sim_t sim);
 
 #endif /* _GSM_H */

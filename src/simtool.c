@@ -35,6 +35,9 @@ static int found_cci(ccidev_t dev)
 	if ( NULL == sim )
 		goto out_close;
 
+	//sim_sms_save(sim, "smsdump.bin");
+	sim_sms_restore(sim, "smsdump.bin");
+
 	printf("\nsimtool: done\n");
 	sim_free(sim);
 

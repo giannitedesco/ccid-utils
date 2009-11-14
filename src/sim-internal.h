@@ -9,6 +9,7 @@
 #define SIM_CLA			0xa0
 
 #define SIM_INS_SELECT		0xa4
+#define SIM_INS_READ_BINARY	0xb0
 #define SIM_INS_READ_RECORD	0xb2
 #define SIM_INS_GET_RESPONSE	0xc0
 
@@ -40,6 +41,41 @@
 #define EF_TRANSPARENT		0x0
 #define EF_LINEAR		0x1
 #define EF_CYCLIC		0x3
+
+/* SMS record status codes */
+#define SIM_SMS_STATUS_FREE	0
+#define SIM_SMS_STATUS_READ	1
+#define SIM_SMS_STATUS_UNREAD	3
+#define SIM_SMS_STATUS_SENT	5
+#define SIM_SMS_STATUS_UNSENT	7
+
+/* SMS-DELIVER octet codes */
+#define SMS_TP_MTI		((1<<0)|(1<<1))
+#define SMS_TP_MMS		(1<<2)
+#define SMS_TP_SRI		(1<<5)
+#define SMS_TP_UDHI		(1<<6)
+#define SMS_TP_RP		(1<<7)
+
+/* Type of phone number */
+#define GSM_NUMBER_TYPE_MASK	(7 << 4)
+#define GSM_NUMBER_UNKNOWN	(0 << 4)
+#define GSM_NUMBER_INTL		(1 << 4)
+#define GSM_NUMBER_NATIONAL	(2 << 4)
+#define GSM_NUMBER_NET_SPEC	(3 << 4)
+#define GSM_NUMBER_SUBSCR	(4 << 4)
+#define GSM_NUMBER_ABBREV	(5 << 4)
+#define GSM_NUMBER_ALNUM	(6 << 4)
+#define GSM_NUMBER_RESERVED	(7 << 4)
+
+/* Phone numbering plan */
+#define GSM_PLAN_MASK		0xf
+#define GSM_PLAN_UNKNOWN	0
+#define GSM_PLAN_ISDN		1
+#define GSM_PLAN_X121		3
+#define GSM_PLAN_TELEX		4
+#define GSM_PLAN_NATIONAL	8
+#define GSM_PLAN_PRIVATE	9
+#define GSM_PLAN_ERMES		10
 
 struct df_fci {
 	uint16_t f_rfu0;
@@ -76,6 +112,22 @@ struct ef_fci {
 	uint8_t	 e_reclen;
 } _packed;
 
+struct _sms {
+	const uint8_t *smsc;
+	const uint8_t *sender;
+	const uint8_t *data;
+	uint8_t smsc_len;
+	uint8_t smsc_type;
+	uint8_t sender_len;
+	uint8_t sender_type;
+	uint8_t tp_pid;
+	uint8_t tp_dcs;
+	uint8_t uda;
+	uint8_t status;
+	uint8_t sms_deliver;
+	uint8_t timestamp[7];
+};
+
 struct _sim {
 	chipcard_t	s_cc;
 	xfr_t		s_xfr;
@@ -87,6 +139,9 @@ struct _sim {
 	struct ef_fci	s_ef_fci;
 };
 
-_private int _sim_select(struct _sim *s, uint16_t id);
+_private int _apdu_select(struct _sim *s, uint16_t id);
+_private int _apdu_read_binary(struct _sim *s, uint16_t ofs, uint8_t len);
+_private int _apdu_read_record(struct _sim *s, uint8_t rec, uint8_t len);
+_private void _sms_decode(struct _sms *, const uint8_t *ptr); /* 175 bytes */
 
 #endif /* _SIM_INTERNAL_H */
