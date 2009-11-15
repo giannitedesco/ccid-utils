@@ -50,11 +50,11 @@
 #define SIM_SMS_STATUS_UNSENT	7
 
 /* SMS-DELIVER octet codes */
-#define SMS_TP_MTI		((1<<0)|(1<<1))
-#define SMS_TP_MMS		(1<<2)
-#define SMS_TP_SRI		(1<<5)
-#define SMS_TP_UDHI		(1<<6)
-#define SMS_TP_RP		(1<<7)
+#define SMS_TP_MTI		((1<<0)|(1<<1)) /* message type indicator */
+#define SMS_TP_MMS		(1<<2) /* more messages */
+#define SMS_TP_SRI		(1<<5) /* status report indicator */
+#define SMS_TP_UDHI		(1<<6) /* user data header included */
+#define SMS_TP_RP		(1<<7) /* return path included */
 
 /* Type of phone number */
 #define GSM_NUMBER_TYPE_MASK	(7 << 4)
@@ -77,13 +77,20 @@
 #define GSM_PLAN_PRIVATE	9
 #define GSM_PLAN_ERMES		10
 
-struct df_fci {
-	uint16_t f_rfu0;
-	uint16_t f_free;
+struct fci {
+	uint16_t f_rfu;
+	uint16_t f_size;
 	uint16_t f_id;
 	uint8_t  f_type;
-	uint8_t  f_rfu1[5];
-	uint8_t  f_opt_len;
+} _packed;
+
+struct df_fci {
+	uint16_t d_rfu0;
+	uint16_t d_free;
+	uint16_t d_id;
+	uint8_t  d_type;
+	uint8_t  d_rfu1[5];
+	uint8_t  d_opt_len;
 } _packed;
 
 struct df_gsm {

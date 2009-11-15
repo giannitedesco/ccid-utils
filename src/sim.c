@@ -15,17 +15,10 @@ static void chv_byte(uint8_t b, const char *label)
 		(b & 0x80) ? "" : "not ");
 }
 
-static int set_df_fci(struct _sim *s, int gsm)
+static int set_df_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 {
-	const uint8_t *fci;
-	size_t fci_len;
-
 	memset(&s->s_df_fci, 0, sizeof(s->s_df_fci));
 	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
-
-	fci = xfr_rx_data(s->s_xfr, &fci_len);
-	if ( NULL == fci )
-		return 0;
 
 	if ( fci_len < sizeof(s->s_df_fci) ) {
 		printf("sim_apdu: DF/MF FCI incomplete\n");
@@ -35,21 +28,16 @@ static int set_df_fci(struct _sim *s, int gsm)
 	fci += sizeof(s->s_df_fci);
 	fci_len -= sizeof(s->s_df_fci);
 
-	s->s_df_fci.f_free = sys_be16(s->s_df_fci.f_free);
-	s->s_df_fci.f_id = sys_be16(s->s_df_fci.f_id);
-	s->s_df = s->s_df_fci.f_id;
-	s->s_ef = SIM_FILE_INVALID;
+	s->s_df_fci.d_free = sys_be16(s->s_df_fci.d_free);
+	s->s_df_fci.d_id = sys_be16(s->s_df_fci.d_id);
 	printf("sim_apdu: DF 0x%.4x selected\n", s->s_df);
 
-	printf(" df: %u bytes free\n", s->s_df_fci.f_free);
+	printf(" df: %u bytes free\n", s->s_df_fci.d_free);
 
-	if ( fci_len < s->s_df_fci.f_opt_len ) {
+	if ( fci_len < s->s_df_fci.d_opt_len ) {
 		printf("sim_apdu: DF/MF FCI optional data incomplete\n");
 		return 0;
 	}
-
-	if ( !gsm )
-		return 1;
 
 	if ( fci_len < sizeof(struct df_gsm) ) {
 		printf("sim_apdu: DF/MF FCI GSM data incomplete\n");
@@ -103,17 +91,8 @@ static void access_nibble(uint8_t n, const char *label)
 	}
 }
 
-static int set_ef_fci(struct _sim *s)
+static int set_ef_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 {
-	const uint8_t *fci;
-	size_t fci_len;
-
-	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
-
-	fci = xfr_rx_data(s->s_xfr, &fci_len);
-	if ( NULL == fci )
-		return 0;
-
 	if ( fci_len < sizeof(s->s_ef_fci) ) {
 		printf("sim_apdu: EF FCI incomplete\n");
 		return 0;
@@ -124,7 +103,6 @@ static int set_ef_fci(struct _sim *s)
 
 	s->s_ef_fci.e_size = sys_be16(s->s_ef_fci.e_size);
 	s->s_ef_fci.e_id = sys_be16(s->s_ef_fci.e_id);
-	s->s_ef = s->s_ef_fci.e_id;
 	printf("sim_apdu: EF 0x%.4x selected (parent DF = 0x%.4x)\n",
 		s->s_ef, s->s_df);
 
@@ -165,22 +143,50 @@ static int set_ef_fci(struct _sim *s)
 	return 1;
 }
 
+static int set_fci(struct _sim *s, uint16_t id)
+{
+	const uint8_t *fci;
+	size_t fci_len;
+	struct fci f;
+
+	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
+
+	fci = xfr_rx_data(s->s_xfr, &fci_len);
+	if ( NULL == fci )
+		return 0;
+
+	if ( fci_len < sizeof(f) )
+		return 0;
+
+	memcpy(&f, fci, sizeof(f));
+	f.f_id = sys_be16(f.f_id);
+
+	switch(f.f_id & SIM_TYPE_MASK) {
+	case SIM_TYPE_DF:
+	case SIM_MF:
+		s->s_df = f.f_id;
+		s->s_ef = SIM_FILE_INVALID;
+		if ( !set_df_fci(s, fci, fci_len) )
+			return 0;
+	case SIM_TYPE_EF:
+	case SIM_TYPE_ROOT_EF:
+		s->s_ef = f.f_id;
+		if ( !set_ef_fci(s, fci, fci_len) )
+			return 0;
+	default:
+		printf("sim_apdu: unknown file type selected\n");
+		return (id == f.f_id);
+	}
+
+	return (id == f.f_id);
+}
+
 static int _sim_select(struct _sim *s, uint16_t id)
 {
 	if ( !_apdu_select(s, id) )
 		return 0;
 
-	switch(id & SIM_TYPE_MASK) {
-	case SIM_TYPE_DF:
-	case SIM_MF:
-		return set_df_fci(s, 1);
-	case SIM_TYPE_EF:
-	case SIM_TYPE_ROOT_EF:
-		return set_ef_fci(s);
-	default:
-		printf("sim_apdu: unknown file type selected\n");
-		return 0;
-	}
+	return set_fci(s, id);
 }
 
 static const uint8_t *_sim_read_binary(struct _sim *s, size_t *len)
