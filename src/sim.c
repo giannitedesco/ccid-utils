@@ -8,10 +8,16 @@
 #include <sim.h>
 #include "sim-internal.h"
 
+#if DEBUG
+#define dprintf print
+#else
+#define dprintf(...) do {} while(0)
+#endif
+
 static void chv_byte(uint8_t b, const char *label)
 {
-	printf(" gsm: %s: %u tries remaining\n", label, b & 0xf);
-	printf(" gsm: %s: secret code %sinitialized\n", label,
+	dprintf(" gsm: %s: %u tries remaining\n", label, b & 0xf);
+	dprintf(" gsm: %s: secret code %sinitialized\n", label,
 		(b & 0x80) ? "" : "not ");
 }
 
@@ -21,7 +27,7 @@ static int set_df_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 	memset(&s->s_ef_fci, 0, sizeof(s->s_ef_fci));
 
 	if ( fci_len < sizeof(s->s_df_fci) ) {
-		printf("sim_apdu: DF/MF FCI incomplete\n");
+		dprintf("sim_apdu: DF/MF FCI incomplete\n");
 		return 0;
 	}
 	memcpy(&s->s_df_fci, fci, sizeof(s->s_df_fci));
@@ -30,17 +36,17 @@ static int set_df_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 
 	s->s_df_fci.d_free = sys_be16(s->s_df_fci.d_free);
 	s->s_df_fci.d_id = sys_be16(s->s_df_fci.d_id);
-	printf("sim_apdu: DF 0x%.4x selected\n", s->s_df);
+	dprintf("sim_apdu: DF 0x%.4x selected\n", s->s_df);
 
-	printf(" df: %u bytes free\n", s->s_df_fci.d_free);
+	dprintf(" df: %u bytes free\n", s->s_df_fci.d_free);
 
 	if ( fci_len < s->s_df_fci.d_opt_len ) {
-		printf("sim_apdu: DF/MF FCI optional data incomplete\n");
+		dprintf("sim_apdu: DF/MF FCI optional data incomplete\n");
 		return 0;
 	}
 
 	if ( fci_len < sizeof(struct df_gsm) ) {
-		printf("sim_apdu: DF/MF FCI GSM data incomplete\n");
+		dprintf("sim_apdu: DF/MF FCI GSM data incomplete\n");
 		return 0;
 	}
 
@@ -49,15 +55,15 @@ static int set_df_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 	fci_len -= sizeof(s->s_df_gsm);
 
 	if ( fci_len ) {
-		printf("sim_apdu: %u bytes remaining data in FCI:\n", fci_len);
+		dprintf("sim_apdu: %u bytes remaining data in FCI:\n", fci_len);
 		hex_dump(fci, fci_len, 16);
 	}
 
 //	s->s_df_gsm.g_fch;
 
-	printf(" gsm: %u child DF's\n", s->s_df_gsm.g_num_df);
-	printf(" gsm: %u child EF's\n", s->s_df_gsm.g_num_ef);
-	printf(" gsm: %u locks n chains n shit\n", s->s_df_gsm.g_chv);
+	dprintf(" gsm: %u child DF's\n", s->s_df_gsm.g_num_df);
+	dprintf(" gsm: %u child EF's\n", s->s_df_gsm.g_num_ef);
+	dprintf(" gsm: %u locks n chains n shit\n", s->s_df_gsm.g_chv);
 	chv_byte(s->s_df_gsm.g_chv1, "CHV1");
 	chv_byte(s->s_df_gsm.g_chv1u, "CHV1 Unblock");
 	chv_byte(s->s_df_gsm.g_chv2, "CHV2");
@@ -70,23 +76,23 @@ static void access_nibble(uint8_t n, const char *label)
 {
 	switch(n) {
 	case 0:
-		printf(" ef: access %s: ALW\n", label);
+		dprintf(" ef: access %s: ALW\n", label);
 		return;
 	case 1:
-		printf(" ef: access %s: CHV1\n", label);
+		dprintf(" ef: access %s: CHV1\n", label);
 		return;
 	case 2:
-		printf(" ef: access %s: CHV2\n", label);
+		dprintf(" ef: access %s: CHV2\n", label);
 		return;
 	case 4:
 	case 0xe:
-		printf(" ef: access %s: ADM\n", label);
+		dprintf(" ef: access %s: ADM\n", label);
 		return;
 	case 0xf:
-		printf(" ef: access %s: NEV\n", label);
+		dprintf(" ef: access %s: NEV\n", label);
 		return;
 	default:
-		printf(" ef: access %s: RFU %.1x\n", label, n);
+		dprintf(" ef: access %s: RFU %.1x\n", label, n);
 		return;
 	}
 }
@@ -94,7 +100,7 @@ static void access_nibble(uint8_t n, const char *label)
 static int set_ef_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 {
 	if ( fci_len < sizeof(s->s_ef_fci) ) {
-		printf("sim_apdu: EF FCI incomplete\n");
+		dprintf("sim_apdu: EF FCI incomplete\n");
 		return 0;
 	}
 	memcpy(&s->s_ef_fci, fci, sizeof(s->s_ef_fci));
@@ -103,40 +109,40 @@ static int set_ef_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 
 	s->s_ef_fci.e_size = sys_be16(s->s_ef_fci.e_size);
 	s->s_ef_fci.e_id = sys_be16(s->s_ef_fci.e_id);
-	printf("sim_apdu: EF 0x%.4x selected (parent DF = 0x%.4x)\n",
+	dprintf("sim_apdu: EF 0x%.4x selected (parent DF = 0x%.4x)\n",
 		s->s_ef, s->s_df);
 
 	switch(s->s_ef_fci.e_struct) {
 	case EF_TRANSPARENT:
-		printf(" ef: transparent\n");
+		dprintf(" ef: transparent\n");
 		break;
 	case EF_LINEAR:
-		printf(" ef: linear, rec_len = %u bytes\n",
+		dprintf(" ef: linear, rec_len = %u bytes\n",
 			s->s_ef_fci.e_reclen);
 		break;
 	case EF_CYCLIC:
-		printf(" ef: cyclic, rec_len = %u bytes\n",
+		dprintf(" ef: cyclic, rec_len = %u bytes\n",
 			s->s_ef_fci.e_reclen);
 		if ( 0x40 & s->s_ef_fci.e_increase )
-			printf(" ef: INCREASE permitted\n");
+			dprintf(" ef: INCREASE permitted\n");
 		break;
 	}
-	printf(" ef: %u bytes\n", s->s_ef_fci.e_size);
+	dprintf(" ef: %u bytes\n", s->s_ef_fci.e_size);
 	access_nibble(s->s_ef_fci.e_access[0] >> 4, "READ, SEEK");
 	access_nibble(s->s_ef_fci.e_access[0] & 0xf, "UPDATE");
 	access_nibble(s->s_ef_fci.e_access[1] >> 4, "INCREASE");
 	access_nibble(s->s_ef_fci.e_access[2] >> 4, "INVALIDATE");
 	access_nibble(s->s_ef_fci.e_access[2] & 0xf, "REHABILITATE");
 	if ( s->s_ef_fci.e_status & 0x1 )
-		printf(" ef: INVALIDATED\n");
+		dprintf(" ef: INVALIDATED\n");
 
 	if ( fci_len < s->s_ef_fci.e_opt_len - EF_FCI_MIN_OPT_LEN) {
-		printf("sim_apdu: EF FCI optional data incomplete\n");
+		dprintf("sim_apdu: EF FCI optional data incomplete\n");
 		return 0;
 	}
 
 	if ( fci_len ) {
-		printf("sim_apdu: %u bytes remaining data in FCI:\n", fci_len);
+		dprintf("sim_apdu: %u bytes remaining data in FCI:\n", fci_len);
 		hex_dump(fci, fci_len, 16);
 	}
 
@@ -168,13 +174,15 @@ static int set_fci(struct _sim *s, uint16_t id)
 		s->s_ef = SIM_FILE_INVALID;
 		if ( !set_df_fci(s, fci, fci_len) )
 			return 0;
+		break;
 	case SIM_TYPE_EF:
 	case SIM_TYPE_ROOT_EF:
 		s->s_ef = f.f_id;
 		if ( !set_ef_fci(s, fci, fci_len) )
 			return 0;
+		break;
 	default:
-		printf("sim_apdu: unknown file type selected\n");
+		dprintf("sim_apdu: unknown file type selected\n");
 		return (id == f.f_id);
 	}
 
@@ -214,6 +222,26 @@ static void read_iccid(struct _sim *s)
 	ptr = _sim_read_binary(s, &len);
 
 	printf("ICCID: ");
+	for(i = 0; i < len && ptr[i] != 0xff; i++) {
+		if ( i && !(i % 2) )
+			printf("-");
+		printf("%.1x", ptr[i] & 0xf);
+		if ( (ptr[i] >> 4) != 0xf )
+			printf("%.1x", ptr[i] >> 4);
+	}
+	printf("\n");
+}
+
+static void read_imsi(struct _sim *s)
+{
+	const uint8_t *ptr;
+	size_t len, i;
+
+	_sim_select(s, SIM_DF_GSM);
+	_sim_select(s, SIM_EF_IMSI);
+	ptr = _sim_read_binary(s, &len);
+
+	printf("IMSI: ");
 	for(i = 0; i < len && ptr[i] != 0xff; i++) {
 		if ( i && !(i % 2) )
 			printf("-");
@@ -304,6 +332,7 @@ sim_t sim_new(chipcard_t cc)
 		goto err_free_xfr;
 
 	read_iccid(s);
+	read_imsi(s);
 
 	return s;
 

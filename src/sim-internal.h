@@ -20,6 +20,7 @@
 
 #define SIM_DF_GSM		0x7f20
 #define SIM_EF_SMS		0x6f3c
+#define SIM_EF_IMSI		0x6f07
 
 #define SIM_SW1_SUCCESS		0x90
 #define SIM_SW1_SHORT		0x9f

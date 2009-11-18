@@ -94,7 +94,19 @@ const char *fmt_number(uint8_t type, uint8_t len, const uint8_t *ptr)
 	for(i = 0; i < len; i++, ptr++) {
 		if ( *ptr == 0xff )
 			continue;
-		o += sprintf(o, "%1x", lo_nibble(*ptr));
+		switch(lo_nibble(*ptr)) {
+		case 0 ... 9:
+			o += sprintf(o, "%1x", lo_nibble(*ptr));
+			break;
+		case 0xa:
+			*o = '*', o++;
+			break;
+		case 0xb:
+			*o = '#', o++;
+			break;
+		default:
+			break;
+		}
 		if ( hi_nibble(*ptr) != 0xf )
 			o += sprintf(o, "%1x", hi_nibble(*ptr));
 		if ( 0 == i || 1 == ((i - 1) % 2) )
