@@ -10,6 +10,126 @@
 #include <structmember.h>
 #include "py_ccid.h"
 
+static ccidev_t get_dev(struct cp_dev *dev)
+{
+	if ( dev->dev )
+		return dev->dev;
+	else
+		return dev->owner->list[dev->idx];
+}
+
+static PyObject *cp_dev_bus(struct cp_dev *self, PyObject *args)
+{
+	ccidev_t dev = get_dev(self);
+	return PyInt_FromLong(ccid_device_bus(dev));
+}
+
+static PyObject *cp_dev_addr(struct cp_dev *self, PyObject *args)
+{
+	ccidev_t dev = get_dev(self);
+	return PyInt_FromLong(ccid_device_addr(dev));
+}
+
+static int cp_dev_init(struct cp_dev *self, PyObject *args, PyObject *kwds)
+{
+	int bus, addr;
+	ccidev_t dev;
+
+	if ( !PyArg_ParseTuple(args, "ii", &bus, &addr) )
+		return -1;
+	
+	dev = ccid_device(bus, addr);
+	if ( NULL == dev ) {
+		PyErr_SetString(PyExc_IOError, "Not a valid CCID device");
+		return -1;
+	}
+
+	self->dev = dev;
+	self->owner = NULL;
+	return 0;
+}
+
+static void cp_dev_dealloc(struct cp_dev *self)
+{
+	if ( self->owner )
+		Py_DECREF(self->owner);
+	self->ob_type->tp_free((PyObject*)self);
+}
+
+static PyMethodDef cp_dev_methods[] = {
+	{"bus", (PyCFunction)cp_dev_bus, METH_NOARGS,	
+		"xfr.bus()\n"
+		"Retrieves bus number of device."},
+	{"addr", (PyCFunction)cp_dev_addr, METH_NOARGS,	
+		"xfr.addr()\n"
+		"Retrieves USB device address."},
+	{NULL, }
+};
+
+static PyTypeObject dev_pytype = {
+	PyObject_HEAD_INIT(NULL)
+	.tp_name = "ccid.dev",
+	.tp_basicsize = sizeof(struct cp_dev),
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_new = PyType_GenericNew,
+	.tp_init = (initproc)cp_dev_init,
+	.tp_dealloc = (destructor)cp_dev_dealloc,
+	.tp_methods = cp_dev_methods,
+	.tp_doc = "CCI device list entry",
+};
+
+static int cp_devlist_init(struct cp_devlist *self, PyObject *args,
+				PyObject *kwds)
+{
+	self->list = ccid_get_device_list(&self->nmemb);
+	return 0;
+}
+
+static void cp_devlist_dealloc(struct cp_devlist *self)
+{
+	ccid_free_device_list(self->list);
+	self->ob_type->tp_free((PyObject*)self);
+}
+
+static Py_ssize_t devlist_len(struct cp_devlist *self)
+{
+	return self->nmemb;
+}
+
+static PyObject *devlist_get(struct cp_devlist *self, Py_ssize_t i)
+{
+	struct cp_dev *dev;
+
+	if ( i >= self->nmemb )
+		return NULL;
+
+	dev = (struct cp_dev*)_PyObject_New(&dev_pytype);
+	if ( dev ) {
+		Py_INCREF(self);
+		dev->owner = self;
+		dev->idx = i;
+		dev->dev = NULL;
+	}
+	return (PyObject *)dev;
+}
+
+static PySequenceMethods devlist_seq = {
+	.sq_length = (lenfunc)devlist_len,
+	.sq_item = (ssizeargfunc)devlist_get,
+};
+
+static PyTypeObject devlist_pytype = {
+	PyObject_HEAD_INIT(NULL)
+	.tp_name = "ccid.devlist",
+	.tp_basicsize = sizeof(struct cp_devlist),
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_new = PyType_GenericNew,
+	.tp_init = (initproc)cp_devlist_init,
+	.tp_dealloc = (destructor)cp_devlist_dealloc,
+	.tp_as_sequence = &devlist_seq,
+	.tp_doc = "CCI device list",
+};
+
 /* ---[ Xfr wrapper */
 static int cp_xfr_init(struct cp_xfr *self, PyObject *args, PyObject *kwds)
 {
@@ -284,13 +404,9 @@ static PyTypeObject chipcard_pytype = {
 };
 
 /* ---[ CCI wrapper */
-static PyObject *cp_get_slot(struct cp_cci *self, PyObject *args)
+static PyObject *cci_get(struct cp_cci *self, Py_ssize_t i)
 {
 	struct cp_chipcard *cc;
-	int slot;
-
-	if (!PyArg_ParseTuple(args, "i", &slot) )
-		return NULL;
 
 	cc = (struct cp_chipcard*)_PyObject_New(&chipcard_pytype);
 	if ( NULL == cc ) {
@@ -299,7 +415,7 @@ static PyObject *cp_get_slot(struct cp_cci *self, PyObject *args)
 	}
 
 	cc->owner = (PyObject *)self;
-	cc->slot = cci_get_slot(self->dev, slot);
+	cc->slot = cci_get_slot(self->dev, i);
 	if ( NULL == cc->slot) {
 		_PyObject_Del(cc);
 		PyErr_SetString(PyExc_ValueError, "Bad slot number\n");
@@ -313,16 +429,18 @@ static PyObject *cp_get_slot(struct cp_cci *self, PyObject *args)
 static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 {
 	const char *trace = NULL;
+	struct cp_dev *cpd;
 	ccidev_t dev;
 
-	dev = ccid_find_first_device();
-	if ( NULL == dev ) {
-		PyErr_SetString(PyExc_IOError, "failed to find device");
+	if ( !PyArg_ParseTuple(args, "O|z", &cpd, &trace) )
+		return -1;
+
+	if ( cpd->ob_type != &dev_pytype ) {
+		PyErr_SetString(PyExc_TypeError, "Expected valid cci.dev");
 		return -1;
 	}
 
-	if ( !PyArg_ParseTuple(args, "|z", &trace) )
-		return -1;
+	dev = get_dev(cpd);
 
 	self->dev = cci_probe(dev, trace);
 	if ( NULL == self->dev ) {
@@ -339,9 +457,9 @@ static void cp_cci_dealloc(struct cp_cci *self)
 	self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *cp_cci_slots(struct cp_cci *self, PyObject *args)
+static Py_ssize_t cci_len(struct cp_cci *self)
 {
-	return PyInt_FromLong(cci_slots(self->dev));
+	return cci_slots(self->dev);
 }
 
 static PyObject *cp_log(struct cp_cci *self, PyObject *args)
@@ -358,13 +476,14 @@ static PyObject *cp_log(struct cp_cci *self, PyObject *args)
 }
 
 static PyMethodDef cp_cci_methods[] = {
-	{"num_slots", (PyCFunction)cp_cci_slots, METH_VARARGS,	
-		"cci.num_slots() - Number of CCI slots on device."},
-	{"get_slot", (PyCFunction)cp_get_slot, METH_VARARGS,	
-		"cci.get_slots(slot) - Number of CCI slots on device."},
 	{"log",(PyCFunction)cp_log, METH_VARARGS,
 		"cci.log(string) - Log some text to the tracefile"},
 	{NULL, }
+};
+
+static PySequenceMethods cci_seq = {
+	.sq_length = (lenfunc)cci_len,
+	.sq_item = (ssizeargfunc)cci_get,
 };
 
 static PyTypeObject cci_pytype = {
@@ -375,6 +494,7 @@ static PyTypeObject cci_pytype = {
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)cp_cci_init,
 	.tp_dealloc = (destructor)cp_cci_dealloc,
+	.tp_as_sequence = &cci_seq,
 	.tp_methods = cp_cci_methods,
 	.tp_doc = "CCI device",
 };
@@ -414,6 +534,10 @@ PyMODINIT_FUNC initccid(void)
 {
 	PyObject *m;
 
+	if ( PyType_Ready(&dev_pytype) < 0 )
+		return;
+	if ( PyType_Ready(&devlist_pytype) < 0 )
+		return;
 	if ( PyType_Ready(&xfr_pytype) < 0 )
 		return;
 	if ( PyType_Ready(&chipcard_pytype) < 0 )
@@ -447,4 +571,10 @@ PyMODINIT_FUNC initccid(void)
 
 	Py_INCREF(&cci_pytype);
 	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
+
+	Py_INCREF(&dev_pytype);
+	PyModule_AddObject(m, "dev", (PyObject *)&dev_pytype);
+
+	Py_INCREF(&devlist_pytype);
+	PyModule_AddObject(m, "devlist", (PyObject *)&devlist_pytype);
 }

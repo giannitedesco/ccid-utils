@@ -27,12 +27,11 @@ int _cci_wait_for_interrupt(struct _cci *cci)
 	int ret;
 	size_t len;
 
-	ret = usb_interrupt_read(cci->cci_dev, cci->cci_intrp,
+	if ( libusb_interrupt_transfer(cci->cci_dev, cci->cci_intrp,
 				(void *)cci->cci_xfr->x_rxhdr,
-				x_rbuflen(cci->cci_xfr), 250);
-	if ( ret < 0 )
+				x_rbuflen(cci->cci_xfr), &ret, 250) )
 		return 0;
-	
+
 	if ( ret == 0 )
 		return 1;
 
@@ -177,11 +176,10 @@ static int do_recv(struct _cci *cci, struct _xfr *xfr)
 	int ret;
 	size_t len;
 
-	ret = usb_bulk_read(cci->cci_dev, cci->cci_inp,
+	if ( libusb_bulk_transfer(cci->cci_dev, cci->cci_inp,
 				(void *)xfr->x_rxhdr,
-				x_rbuflen(xfr), 0);
-	if ( ret < 0 ) {
-		fprintf(stderr, "*** error: usb_bulk_read()\n");
+				x_rbuflen(xfr), &ret, 0) ) {
+		fprintf(stderr, "*** error: libusb_bulk_read()\n");
 		return 0;
 	}
 
@@ -268,10 +266,10 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	xfr->x_txhdr->bSlot = slot;
 	xfr->x_txhdr->bSeq = cci->cci_seq++;
 
-	ret = usb_bulk_write(cci->cci_dev, cci->cci_outp,
-				(void *)xfr->x_txhdr, x_tbuflen(xfr), 0);
-	if ( ret < 0 ) {
-		fprintf(stderr, "*** error: usb_bulk_read()\n");
+	if ( libusb_bulk_transfer(cci->cci_dev, cci->cci_outp,
+				(void *)xfr->x_txhdr,
+				x_tbuflen(xfr), &ret, 0) ) {
+		fprintf(stderr, "*** error: libusb_bulk_write()\n");
 		return 0;
 	}
 
@@ -393,38 +391,35 @@ static unsigned int bcd_lo(uint16_t word)
 
 static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 {
-	const struct usb_endpoint_descriptor *ep;
+	const struct libusb_endpoint_descriptor *ep;
 
-	if ( len < USB_DT_ENDPOINT_SIZE )
+	if ( len < LIBUSB_DT_ENDPOINT_SIZE )
 		return 0;
 
-	ep = (const struct usb_endpoint_descriptor *)ptr;
+	ep = (const struct libusb_endpoint_descriptor *)ptr;
 
 	switch( ep->bmAttributes ) {
-	case USB_ENDPOINT_TYPE_BULK:
+	case LIBUSB_TRANSFER_TYPE_BULK:
 		trace(cci, " o Bulk %s endpoint at 0x%.2x max=%u bytes\n",
-			(ep->bEndpointAddress &  USB_ENDPOINT_DIR_MASK) ?
+			(ep->bEndpointAddress &  LIBUSB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
-			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK,
+			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
 			sys_le16(ep->wMaxPacketSize));
-		if ( ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK) {
-			cci->cci_inp = ep->bEndpointAddress &
-					USB_ENDPOINT_ADDRESS_MASK;
+		if ( ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) {
+			cci->cci_inp = ep->bEndpointAddress;
 			cci->cci_max_in = sys_le16(ep->wMaxPacketSize);
 		}else{
-			cci->cci_outp = ep->bEndpointAddress &
-					USB_ENDPOINT_ADDRESS_MASK;
+			cci->cci_outp = ep->bEndpointAddress;
 			cci->cci_max_out = sys_le16(ep->wMaxPacketSize);
 		}
 		break;
-	case USB_ENDPOINT_TYPE_INTERRUPT:
+	case LIBUSB_TRANSFER_TYPE_INTERRUPT:
 		trace(cci, " o Interrupt %s endpint 0x%.2x nax=%u bytes\n",
-			(ep->bEndpointAddress &  USB_ENDPOINT_DIR_MASK) ?
+			(ep->bEndpointAddress &  LIBUSB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
-			ep->bEndpointAddress & USB_ENDPOINT_ADDRESS_MASK,
+			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
 			sys_le16(ep->wMaxPacketSize));
-		cci->cci_intrp = ep->bEndpointAddress &
-					USB_ENDPOINT_ADDRESS_MASK;
+		cci->cci_intrp = ep->bEndpointAddress;
 		cci->cci_max_intr = sys_le16(ep->wMaxPacketSize);
 		break;
 	default:
@@ -568,7 +563,7 @@ static int probe_descriptors(struct _cci *cci)
 	uint8_t *ptr, *end;
 	int sz, valid_ccid = 0;
 
-	sz = usb_get_descriptor(cci->cci_dev, USB_DT_CONFIG, 0,
+	sz = libusb_get_descriptor(cci->cci_dev, LIBUSB_DT_CONFIG, 0,
 				dbuf, sizeof(dbuf));
 	if ( sz < 0 )
 		return 0;
@@ -580,15 +575,15 @@ static int probe_descriptors(struct _cci *cci)
 			return 0;
 
 		switch( ptr[1] ) {
-		case USB_DT_DEVICE:
+		case LIBUSB_DT_DEVICE:
 			break;
-		case USB_DT_CONFIG:
+		case LIBUSB_DT_CONFIG:
 			break;
-		case USB_DT_STRING:
+		case LIBUSB_DT_STRING:
 			break;
-		case USB_DT_INTERFACE:
+		case LIBUSB_DT_INTERFACE:
 			break;
-		case USB_DT_ENDPOINT:
+		case LIBUSB_DT_ENDPOINT:
 			get_endpoint(cci, ptr, ptr[0]);
 			break;
 		case CCID_DT:
@@ -630,9 +625,9 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	unsigned int x;
 	int c, i, a;
 
-	if ( !_probe_device(dev, &c, &i, &a) ) {
-		fprintf(stderr, "*** error: failed to probe device %s/%s\n",
-			dev->bus->dirname, dev->filename);
+	if ( !_probe_descriptors(dev, &c, &i, &a) ) {
+		//fprintf(stderr, "*** error: failed to probe device %s/%s\n",
+		//	dev->bus->dirname, dev->filename);
 		goto out;
 	}
 
@@ -650,8 +645,8 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 			goto out_free;
 	}
 
-	trace(cci, "Probe CCI on dev %s/%s %d:%d:%d\n",
-		dev->bus->dirname, dev->filename, c, i, a);
+	//trace(cci, "Probe CCI on dev %s/%s %d:%d:%d\n",
+	//	dev->bus->dirname, dev->filename, c, i, a);
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
@@ -659,24 +654,23 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	}
 
 	/* Second, open USB device and get it ready */
-	cci->cci_dev = usb_open(dev);
-	if ( NULL == cci->cci_dev ) {
+	if ( libusb_open(dev, &cci->cci_dev) ) {
 		goto out_free;
 	}
 
 #if 1
-	usb_reset(cci->cci_dev);
+	libusb_reset_device(cci->cci_dev);
 #endif
 
-	if ( usb_set_configuration(cci->cci_dev, c) ) {
+	if ( libusb_set_configuration(cci->cci_dev, c) ) {
 		goto out_close;
 	}
 
-	if ( usb_claim_interface(cci->cci_dev, i) ) {
+	if ( libusb_claim_interface(cci->cci_dev, i) ) {
 		goto out_close;
 	}
 
-	if ( usb_set_altinterface(cci->cci_dev, a) ) {
+	if ( libusb_set_interface_alt_setting(cci->cci_dev, i, a) ) {
 		goto out_close;
 	}
 
@@ -704,7 +698,7 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 out_freebuf:
 	_xfr_do_free(cci->cci_xfr);
 out_close:
-	usb_close(cci->cci_dev);
+	libusb_close(cci->cci_dev);
 out_free:
 	free(cci);
 	cci = NULL;
@@ -724,7 +718,7 @@ void cci_close(cci_t cci)
 {
 	if ( cci ) {
 		if ( cci->cci_dev )
-			usb_close(cci->cci_dev);
+			libusb_close(cci->cci_dev);
 		_xfr_do_free(cci->cci_xfr);
 	}
 	free(cci);

@@ -6,6 +6,19 @@
 #ifndef _PY_CCID_H
 #define _PY_CCID_H
 
+struct cp_devlist {
+	PyObject_HEAD;
+	ccidev_t *list;
+	size_t nmemb;
+};
+
+struct cp_dev {
+	PyObject_HEAD;
+	ccidev_t dev;
+	struct cp_devlist *owner;
+	size_t idx;
+};
+
 /* chipcard is the only dodgy part, this type can only be created via
  * a call to cci.get_slot()
  */

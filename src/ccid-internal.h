@@ -6,7 +6,7 @@
 #ifndef _CCID_INTERNAL_H
 #define _CCID_INTERNAL_H
 
-#include <usb.h>
+#include <libusb-1.0/libusb.h>
 #include <ccid-spec.h>
 
 #define trace(cci, fmt, x...) \
@@ -25,7 +25,7 @@ struct _chipcard {
 };
 
 struct _cci {
-	usb_dev_handle *cci_dev;
+	libusb_device_handle *cci_dev;
 
 	struct _xfr	*cci_xfr;
 
@@ -58,7 +58,8 @@ struct _xfr {
 	uint8_t 	*x_rxbuf;
 };
 
-_private int _probe_device(struct usb_device *dev, int *cp, int *ip, int *ap);
+_private int _probe_descriptors(struct libusb_device *dev,
+				int *cp, int *ip, int *ap);
 
 _private int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
 _private unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);

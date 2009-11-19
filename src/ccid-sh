@@ -23,6 +23,23 @@ class scsh:
 		for x in keys:
 			self.out("  %-10s: %s"%(x, self.__cmd[x].__doc__))
 
+	def cmd_devlist(self, str, *arg):
+		"Print out a list of candidate CCI devices."
+		for x in ccid.devlist():
+			self.out("  bus=%u addr=%u"%(x.bus(), x.addr()))
+
+	def cmd_dev(self, str, *arg):
+		"Select a device by bus number and USB address."
+		dev = ccid.dev(int(arg[0]), int(arg[1]))
+		cci = ccid.cci(dev)
+		self.__cci = cci
+		self.__slot = cci[0]
+
+	def cmd_slot(self, str, *arg):
+		"Select a slot on a multi-slot CCI device."
+		slot = self.__cci[int(arg[0])]
+		self.__slot = slot
+
 	def cmd_on(self, str, *arg):
 		"Power on the slot and retrieve ATR."
 
@@ -502,9 +519,19 @@ class scsh:
 			else:
 				raise ValueError, "ber == %r"%ber
 
+	def __grab_first_dev_and_slot(self):
+		devs = ccid.devlist()
+		for dev in devs:
+			try:
+				self.__cci = ccid.cci(dev)
+				self.__slot = self.__cci[0]
+			except:
+				pass
+
 	def __init__(self, tracefile=None):
-		self.__cci = ccid.cci(tracefile)
-		self.__slot = self.__cci.get_slot(0)
+		self.__cci = None
+		self.__slot = None
+		self.__grab_first_dev_and_slot()
 		self.__txlen = 1024
 		self.__rxlen = 1024
 		self.__xfr = ccid.xfr(self.__txlen, self.__rxlen)
@@ -514,6 +541,9 @@ class scsh:
 		self.__ins_db = {}
 		self.__sw_db = {}
 		self.__cmd = {
+			"devlist":	self.cmd_devlist,
+			"dev":		self.cmd_dev,
+			"slot":		self.cmd_slot,
 			"status":	self.cmd_status,
 			"slot_on":	self.cmd_on,
 			"slot_off":	self.cmd_off,
@@ -562,13 +592,16 @@ class scsh:
 
 		try:
 			self.__cmd[arg[0]](str, *arg[1:])
-		except IOError:
+		except ValueError, e:
+			self.out("Command failed: %s: %s"%(arg[0], e.args[0]))
+		except IOError, e:
 			if self.__slot.status() == ccid.CHIPCARD_NOT_PRESENT:
 				self.out("Card not present!!")
 			else:
-				pass
-		except ValueError, e:
-			self.out("Command failed: %s: %s"%(arg[0], e.message))
+				self.out("Command failed: %s: %s"%(arg[0],
+								e.args[0]))
+		except Exception, e:
+			self.out("Command failed: %s: %s"%(arg[0], e.args[0]))
 
 ######### PROGRAM MAIN LOOP #########
 if __name__ == '__main__':

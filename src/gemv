@@ -718,7 +718,7 @@ class EMVShell(ui.App):
 
 def acquire_card(tracefile=None):
 	cci = ccid.cci(tracefile)
-	slot = cci.get_slot(0)
+	slot = cci[0]
 	slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
 	return slot
 
@@ -739,10 +739,17 @@ def bail(msg):
 
 if __name__ == '__main__':
 	gnome.program_init("gemv", "0.1")
-	try:
-		card = acquire_card("gemv.trace")
-	except Exception, e:
+	wins = []
+	for dev in ccid.devlist():
+		try:
+			cci = ccid.cci(dev)
+			slot = cci[0]
+			slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+			w = EMVShell(slot)
+			w.show_all()
+			wins.append(w)
+		except:
+			pass
+	if len(wins) == 0:
 		bail("No CCI devices could be found")
-	w = EMVShell(card)
-	w.show_all()
 	gtk.main()

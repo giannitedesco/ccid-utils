@@ -31,6 +31,7 @@ static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 	return memcmp(idb, tag->tag, len);
 }
 
+#if 0
 static const struct dol_tag *find_tag(const struct dol_tag *tags,
 					unsigned int num_tags,
 					const uint8_t *idb,
@@ -53,6 +54,7 @@ static const struct dol_tag *find_tag(const struct dol_tag *tags,
 
 	return NULL;
 }
+#endif
 
 uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
 				size_t *ret_len, void *priv)
