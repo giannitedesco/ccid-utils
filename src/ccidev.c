@@ -121,14 +121,12 @@ ccidev_t *ccid_get_device_list(size_t *nmemb)
 
 void ccid_free_device_list(ccidev_t *list)
 {
-	ccidev_t *ptr;
-
-	if ( ptr ) {
+	if ( list ) {
+		ccidev_t *ptr;
 		for(ptr = list; *ptr; ptr++)
 			libusb_unref_device(*ptr);
+		free(list);
 	}
-
-	free(list);
 }
 
 ccidev_t ccid_device(uint8_t bus, uint8_t addr)
