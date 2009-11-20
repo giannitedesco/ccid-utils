@@ -197,17 +197,17 @@ static void cp_data_dealloc(struct cp_data *self)
 }
 
 static PyMethodDef cp_data_methods[] = {
-	{"type",(PyCFunction)cp_data_type, METH_VARARGS,
+	{"type",(PyCFunction)cp_data_type, METH_NOARGS,
 		"data.type() - Data element type"},
-	{"tag",(PyCFunction)cp_data_tag, METH_VARARGS,
+	{"tag",(PyCFunction)cp_data_tag, METH_NOARGS,
 		"data.type() - Data element BER tag"},
-	{"tag_label",(PyCFunction)cp_data_tag_label, METH_VARARGS,
+	{"tag_label",(PyCFunction)cp_data_tag_label, METH_NOARGS,
 		"data.type() - Data element tag name if known, None if not"},
-	{"children",(PyCFunction)cp_data_children, METH_VARARGS,
+	{"children",(PyCFunction)cp_data_children, METH_NOARGS,
 		"data.children() - Returns dictionary of child elements"},
-	{"value",(PyCFunction)cp_data_value, METH_VARARGS,
+	{"value",(PyCFunction)cp_data_value, METH_NOARGS,
 		"data.value() - Retrieve value of data element"},
-	{"sda",(PyCFunction)cp_data_sda, METH_VARARGS,
+	{"sda",(PyCFunction)cp_data_sda, METH_NOARGS,
 		"data.sda() - Returns True if SDA protected"},
 	{NULL,},
 };
@@ -316,17 +316,17 @@ static PyObject *cp_app_confirm(struct cp_app *self, PyObject *args)
 }
 
 static PyMethodDef cp_app_methods[] = {
-	{"rid",(PyCFunction)cp_app_rid, METH_VARARGS,
+	{"rid",(PyCFunction)cp_app_rid, METH_NOARGS,
 		"app.rid() - Registered application ID"},
-	{"aid",(PyCFunction)cp_app_aid, METH_VARARGS,
+	{"aid",(PyCFunction)cp_app_aid, METH_NOARGS,
 		"app.aid() - Application ID"},
-	{"label",(PyCFunction)cp_app_label, METH_VARARGS,
+	{"label",(PyCFunction)cp_app_label, METH_NOARGS,
 		"app.name() - Label"},
-	{"pname",(PyCFunction)cp_app_pname, METH_VARARGS,
+	{"pname",(PyCFunction)cp_app_pname, METH_NOARGS,
 		"app.pname() - Preferred name"},
-	{"prio",(PyCFunction)cp_app_prio, METH_VARARGS,
+	{"prio",(PyCFunction)cp_app_prio, METH_NOARGS,
 		"app.prio() - Application priority"},
-	{"confirm",(PyCFunction)cp_app_confirm, METH_VARARGS,
+	{"confirm",(PyCFunction)cp_app_confirm, METH_NOARGS,
 		"app.confirm() - Application confirmation indicator"},
 	{NULL, }
 };
@@ -718,22 +718,22 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.select_aid_next(aid) - Select next application from AID"},
 	{"current_app",(PyCFunction)cp_current_app, METH_VARARGS,
 		"emv.current_app(aid) - Returns currently selected app"},
-	{"init",(PyCFunction)cp_init, METH_VARARGS,
+	{"init",(PyCFunction)cp_init, METH_NOARGS,
 		"emv.init() - Initiate application processing"},
-	{"read_app_data",(PyCFunction)cp_read_app_data, METH_VARARGS,
+	{"read_app_data",(PyCFunction)cp_read_app_data, METH_NOARGS,
 		"emv.read_app_data() - Read application data"},
-	{"authenticate_static_data",(PyCFunction)cp_sda, METH_VARARGS,
+	{"authenticate_static_data",(PyCFunction)cp_sda, METH_NOARGS,
 		"authenticate_static_data(mod_cb, exp_cb) - "
 		"Does what it says on the tin"},
 	{"cvm_pin",(PyCFunction)cp_cvm_pin, METH_VARARGS,
 		"emv.cvm_pin(string) - Plaintext PIN cardholder verification"},
-	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_VARARGS,
+	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_NOARGS,
 		"emv.pin_try_counter() - Remaining PIN tries allowed"},
-	{"atc",(PyCFunction)cp_atc, METH_VARARGS,
+	{"atc",(PyCFunction)cp_atc, METH_NOARGS,
 		"emv.atc() - Application transaction counter"},
-	{"last_online_atc",(PyCFunction)cp_oatc, METH_VARARGS,
+	{"last_online_atc",(PyCFunction)cp_oatc, METH_NOARGS,
 		"emv.oatc() - ATC at last online transaction"},
-	{"generate_ac",(PyCFunction)cp_gen_ac, METH_VARARGS,
+	{"generate_ac",(PyCFunction)cp_gen_ac, METH_NOARGS,
 		"emv.gen_ac() - Generate application cryptogram"},
 	{NULL, }
 };

@@ -22,6 +22,7 @@ uint8_t _emv_sw2(emv_t e)
 	return xfr_rx_sw2(e->e_xfr);
 }
 
+#if 0
 static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 {
 	if ( tag->tag_len < len )
@@ -31,7 +32,6 @@ static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 	return memcmp(idb, tag->tag, len);
 }
 
-#if 0
 static const struct dol_tag *find_tag(const struct dol_tag *tags,
 					unsigned int num_tags,
 					const uint8_t *idb,
