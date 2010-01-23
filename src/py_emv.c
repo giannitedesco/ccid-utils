@@ -722,7 +722,7 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.init() - Initiate application processing"},
 	{"read_app_data",(PyCFunction)cp_read_app_data, METH_NOARGS,
 		"emv.read_app_data() - Read application data"},
-	{"authenticate_static_data",(PyCFunction)cp_sda, METH_NOARGS,
+	{"authenticate_static_data",(PyCFunction)cp_sda, METH_VARARGS,
 		"authenticate_static_data(mod_cb, exp_cb) - "
 		"Does what it says on the tin"},
 	{"cvm_pin",(PyCFunction)cp_cvm_pin, METH_VARARGS,
@@ -733,7 +733,7 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.atc() - Application transaction counter"},
 	{"last_online_atc",(PyCFunction)cp_oatc, METH_NOARGS,
 		"emv.oatc() - ATC at last online transaction"},
-	{"generate_ac",(PyCFunction)cp_gen_ac, METH_NOARGS,
+	{"generate_ac",(PyCFunction)cp_gen_ac, METH_VARARGS,
 		"emv.gen_ac() - Generate application cryptogram"},
 	{NULL, }
 };
