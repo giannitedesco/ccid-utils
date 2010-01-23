@@ -183,13 +183,14 @@ static const uint8_t *decode_tag(const uint8_t **ptr,
 		return NULL;
 	}
 
-	if ( ber_id_octet_tag(*tmp) < 0x1f ) {
+	if ( ber_id_octet_tag(*tmp) != 0x1f ) {
 		tmp++;
 	}else{
-		for( tmp++; tmp < end; ) {
-			tmp++;
-			if ( 0 == (*tmp & 0x80) )
+		for( tmp++; tmp < end; tmp++) {
+			if ( 0 == (*tmp & 0x80) ) {
+				tmp++;
 				break;
+			}
 		}
 	}
 
