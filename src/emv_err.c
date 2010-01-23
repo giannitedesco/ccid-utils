@@ -93,6 +93,7 @@ static const char * const emv_errs[] = {
 	[ EMV_ERR_CERTIFICATE ]	"Invalid issuer public key certificate",
 	[ EMV_ERR_SSA_SIGNATURE	] "Invald SSA data signature",
 	[ EMV_ERR_BAD_PIN ] "Wrong PIN",
+	[ EMV_ERR_BER_DECODE ] "Malformed BER TLV data",
 };
 
 static const char *err_string(uint32_t code)

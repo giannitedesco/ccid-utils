@@ -29,6 +29,7 @@
 #define  EMV_ERR_CERTIFICATE		0x07
 #define  EMV_ERR_SSA_SIGNATURE		0x08
 #define  EMV_ERR_BAD_PIN		0x09
+#define  EMV_ERR_BER_DECODE		0x0a
 typedef uint32_t emv_err_t;
 
 typedef struct _emv *emv_t;

@@ -88,11 +88,11 @@ static const struct _emv_tag tags[] = {
 	{.t_tag = EMV_TAG_IAC_DENY,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
-		.t_label = "Issuert Action Code (Deny)"},
+		.t_label = "Issuer Action Code (Deny)"},
 	{.t_tag = EMV_TAG_IAC_ONLINE,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
-		.t_label = "Issuert Action Code (Online)"},
+		.t_label = "Issuer Action Code (Online)"},
 	{.t_tag = EMV_TAG_MAGSTRIP_TRACK1,
 		.t_type = EMV_DATA_ATOMIC | EMV_DATA_TEXT,
 		.t_label = "Magnetic Strip Track 1 Discretionary"},
@@ -240,19 +240,25 @@ static int composite(emv_t e, struct _emv_data *d)
 		size_t clen;
 
 		tag = ber_decode_tag(&ptr, end, &tag_len);
-		if ( ptr >= end )
+		if ( ptr >= end ) {
+			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
+		}
 
 		clen = ber_decode_len(&ptr, end);
-		if ( ptr + clen > end )
+		if ( ptr + clen > end ) {
+			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
+		}
 
 		ptr += clen;
 	}
 
 	elem = gang_alloc(e->e_files, num_tags * sizeof(*elem));
-	if ( NULL == elem )
+	if ( NULL == elem ) {
+		_emv_sys_error(e);
 		return 0;
+	}
 
 	for(ptr = d->d_data, i = 0; ptr < end; i++) {
 		const uint8_t *tag;
@@ -261,12 +267,16 @@ static int composite(emv_t e, struct _emv_data *d)
 		uint16_t t;
 
 		tag = ber_decode_tag(&ptr, end, &tag_len);
-		if ( ptr >= end )
+		if ( ptr >= end ) {
+			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
+		}
 
 		clen = ber_decode_len(&ptr, end);
-		if ( ptr + clen > end )
+		if ( ptr + clen > end ) {
+			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
+		}
 
 		switch(tag_len) {
 		case 1:
@@ -276,7 +286,7 @@ static int composite(emv_t e, struct _emv_data *d)
 			t = (tag[0] << 8) | tag[1];
 			break;
 		default:
-			printf("emv: ridiculous tag len\n");
+			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
 		}
 
@@ -288,7 +298,8 @@ static int composite(emv_t e, struct _emv_data *d)
 		elem[i]->d_data = ptr;
 		elem[i]->d_len = clen;
 		if ( emv_data_composite(elem[i]) ) {
-			composite(e, elem[i]);
+			if ( !composite(e, elem[i]) )
+				return 0;
 		}else {
 			elem[i]->d_elem = NULL;
 			elem[i]->d_nmemb = 0;
@@ -312,6 +323,7 @@ static int decode_record(struct db_state *s, const uint8_t *ptr,
 
 	if ( len < 2 || ptr[0] != EMV_TAG_RECORD ) {
 		printf("emv: bad application data format\n");
+		_emv_error(s->e, EMV_ERR_BER_DECODE);
 		return 0;
 	}
 
@@ -320,18 +332,22 @@ static int decode_record(struct db_state *s, const uint8_t *ptr,
 
 	len = ber_decode_len(&ptr, end);
 	if ( ptr + len > end ) {
-		printf("emv: buffer overflow shiznitz\n");
+		_emv_error(s->e, EMV_ERR_BER_DECODE);
 		return 0;
 	}
 
 	d = mpool_alloc(s->e->e_data);
-	if ( NULL == d )
+	if ( NULL == d ) {
+		_emv_sys_error(s->e);
 		return 0;
+	}
 
 	tmp = gang_alloc(s->e->e_files, len);
-	if ( NULL == ptr )
+	if ( NULL == ptr ) {
+		_emv_sys_error(s->e);
 		return 0;
-	
+	}
+
 	memcpy(tmp, ptr, len);
 
 	d->d_tag = find_tag(EMV_TAG_RECORD);
@@ -471,7 +487,6 @@ static int read_sfi(struct db_state *s, uint8_t sfi,
 	unsigned int i, sda;
 	size_t len;
 
-//	printf("Reading SFI %u\n", sfi);
 	for(i = begin; i <= end; i++ ) {
 		if ( !_emv_read_record(s->e, sfi, i) )
 			return 0;
@@ -514,7 +529,8 @@ int emv_read_app_data(struct _emv *e)
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
-		//read_sfi(e, ptr[0] >> 3, ptr[1], ptr[2]);
+		printf("SFI %u: %u rec %u sda\n",
+			 ptr[0] >> 3, (ptr[2] + 1) - ptr[1], ptr[3]);
 		db->db_numsda += ptr[3];
 		db->db_numrec += (ptr[2] + 1) - ptr[1];
 	}
@@ -536,7 +552,8 @@ int emv_read_app_data(struct _emv *e)
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
-		read_sfi(&s, ptr[0] >> 3, ptr[1], ptr[2], ptr[3]);
+		if ( !read_sfi(&s, ptr[0] >> 3, ptr[1], ptr[2], ptr[3]) )
+			return 0;
 	}
 
 	for(i = 0; i < db->db_numrec; i++) {
