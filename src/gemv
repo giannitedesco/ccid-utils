@@ -448,7 +448,7 @@ class EMVActionDialog(gtk.Dialog):
 	def run(self):
 		if gtk.Dialog.run(self) != gtk.RESPONSE_OK:
 			return False
-		return Tru
+		return True
 
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
@@ -569,8 +569,10 @@ class EMVShell(ui.App):
 				t = "Monospace"
 			else:
 				t = None
-			i = self.__ts.append(iter,
-					(None, v.tag_label(), "%r"%v, t))
+			l = v.tag_label()
+			if l == None:
+				l = "UNKNOWN (0x%x)"%v.tag()
+			i = self.__ts.append(iter, (None, l, "%r"%v, t))
 			if v.sda():
 				self.__sda_recs.append(i)
 			self.__data[v.tag()] = v
@@ -582,8 +584,10 @@ class EMVShell(ui.App):
 		self.__sda_recs = []
 		recs = self.__emv.read_app_data()
 		for x in recs:
-			i = self.__ts.append(None, (None, x.tag_label(),
-							None, None))
+			l = x.tag_label()
+			if l == None:
+				l = "UNKNOWN (0x%x)"%x.tag()
+			i = self.__ts.append(None, (None, l, None, None))
 			if x.sda():
 				self.__sda_recs.append(i)
 			self.__add_children(i, x)
@@ -657,7 +661,8 @@ class EMVShell(ui.App):
 			return
 
 		d.hide()
-		self.__ab.set_status("Transaction completed")
+		if ret:
+			self.__ab.set_status("Transaction completed")
 
 	def __toolbar(self):
 		t = gtk.Toolbar()
