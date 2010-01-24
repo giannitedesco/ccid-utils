@@ -30,6 +30,7 @@
 typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
 #define EMV_DATA_SDA		(1<<0)
+#define EMV_DATA_DDA		(1<<1)
 
 #define EMV_DATA_ATOMIC		(1<<15)
 #define EMV_DATA_DOL		(1<<14)
@@ -99,9 +100,14 @@ struct _emv {
 	size_t e_afl_len;
 
 	/* crypto stuff */
-	int e_sda_ok;
+	uint8_t e_sda_ok;
+	uint8_t e_dda_ok;
+	uint8_t e_cda_ok; /* for the future */
+	uint8_t _pad0;
+
 	RSA *e_ca_pk;
 	RSA *e_iss_pk;
+	RSA *e_icc_pk;
 
 	emv_err_t e_err;
 };

@@ -91,6 +91,11 @@ _public int emv_authenticate_static_data(emv_t e, emv_mod_cb_t mod,
 						emv_exp_cb_t exp, void *priv);
 _public int emv_sda_ok(emv_t e);
 
+/* Dynamic data authentication */
+_public int emv_authenticate_dynamic(emv_t e, emv_mod_cb_t mod,
+					emv_exp_cb_t exp, void *priv);
+_public int emv_dda_ok(emv_t e);
+
 /* Cardholder verification, only offline plaintext pin supported for now */
 _public int emv_cvm_pin(emv_t e, const char *pin);
 _public int emv_pin_try_counter(emv_t e);

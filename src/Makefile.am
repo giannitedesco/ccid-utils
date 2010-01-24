@@ -31,6 +31,7 @@ libemv_la_SOURCES = 	gang.c \
 			emv_init.c \
 			emv_data.c \
 			emv_sda.c \
+			emv_dda.c \
 			emv_cvm.c \
 			emv_trm.c \
 			emv_err.c

@@ -173,7 +173,9 @@ static int do_emv_stuff(chipcard_t cc)
 	printf("emvtool: application data retrieved\n");
 
 	/* Step 3. Authenticate card */
-	if ( !emv_authenticate_static_data(e, get_mod, get_exp, NULL) )
+	//if ( !emv_authenticate_static_data(e, get_mod, get_exp, NULL) )
+	//	goto end;
+	if ( !emv_authenticate_dynamic(e, get_mod, get_exp, NULL) )
 		goto end;
 
 	printf("emvtool: card data authenticated\n");
