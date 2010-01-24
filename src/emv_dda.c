@@ -26,10 +26,9 @@ struct dda_req {
 	size_t icc_exp_len;
 	const uint8_t *ddol;
 	size_t ddol_len;
-	const uint8_t *pan;
-	size_t pan_len;
 	const uint8_t *ssa_data;
 	size_t ssa_data_len;
+	uint8_t pan[10];
 };
 
 static int emsa_pss_decode(const uint8_t *msg, size_t msg_len,
@@ -127,10 +126,10 @@ static int get_required_data(struct _emv *e, struct dda_req *req)
 	d = _emv_retrieve_data(e, EMV_TAG_PAN);
 	if ( NULL == d )
 		return 0;
-	req->pan = d->d_data;
-	req->pan_len = d->d_len;
-	if ( NULL == req->pan )
+	memset(req->pan, 0xff, sizeof(req->pan));
+	if ( d->d_len > sizeof(req->pan) )
 		return 0;
+	memcpy(req->pan, d->d_data, d->d_len);
 
 	return 1;
 }
@@ -392,13 +391,18 @@ static int check_icc_cert(struct _emv *e, struct dda_req *req)
 	}
 	memcpy(tmp, e->e_aip, sizeof(e->e_aip));
 
-//	printf("Encoded message of %u bytes:\n", msg_len);
-//	hex_dump(msg, msg_len, 16);
+	//printf("Encoded message of %u bytes:\n", msg_len);
+	//hex_dump(msg, msg_len, 16);
 
 	ret = emsa_pss_decode(msg, msg_len, req->icc_cert, req->icc_cert_len);
 	if ( !ret )
 		_emv_error(e, EMV_ERR_CERTIFICATE);
 	free(msg);
+
+	if ( ret && memcmp(req->icc_cert + 2, req->pan, sizeof(req->pan)) ) {
+		printf("emv-dda: ICC certificate PAN mismatch\n");
+		return 0;
+	}
 
 	return ret;
 }
