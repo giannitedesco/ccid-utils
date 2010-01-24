@@ -217,7 +217,7 @@ static RSA *make_issuer_pk(struct _emv *e, struct sda_req *req)
 	memcpy(tmp, kb, kb_len);
 	memcpy(tmp + kb_len, req->pk_r, req->pk_r_len);
 	printf("Retrieved issuer public key:\n");
-	hex_dump(kb, kb_len, 16);
+	hex_dump(kb, req->pk_cert_len, 16);
 	key = RSA_new();
 	if ( NULL == key ) {
 		_emv_sys_error(e);
