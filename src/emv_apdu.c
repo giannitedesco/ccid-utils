@@ -261,3 +261,47 @@ int _emv_generate_ac(emv_t e, uint8_t ref,
 
 	return 1;
 }
+
+_private int _emv_int_authenticate(emv_t e, const uint8_t *data, uint8_t len)
+{
+	uint8_t sw2;
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0x88);		/* INS: INT_AUTHENTICATE */
+	xfr_tx_byte(e->e_xfr, 0);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
+	xfr_tx_byte(e->e_xfr, len);		/* Lc */
+	xfr_tx_buf(e->e_xfr, data, len);	/* Data: */
+	xfr_tx_byte(e->e_xfr, 0);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+		_emv_ccid_error(e);
+		return 0;
+	}
+
+	if ( xfr_rx_sw1(e->e_xfr) != 0x61 ) {
+		_emv_icc_error(e);
+		return 0;
+	}
+	sw2 = xfr_rx_sw2(e->e_xfr);
+
+	xfr_reset(e->e_xfr);
+	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
+	xfr_tx_byte(e->e_xfr, 0xc0);		/* INS: GET RESPONSE */
+	xfr_tx_byte(e->e_xfr, 0);		/* P1 */
+	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
+	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
+
+	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+		_emv_ccid_error(e);
+		return 0;
+	}
+
+	if ( xfr_rx_sw1(e->e_xfr) != 0x90 ) {
+		_emv_icc_error(e);
+		return 0;
+	}
+
+	return 1;
+}

@@ -149,6 +149,7 @@ _private int _emv_get_proc_opts(emv_t e, const uint8_t *pdol, uint8_t len);
 
 _private int _emv_generate_ac(emv_t e, uint8_t ref,
 				const uint8_t *data, uint8_t len);
+_private int _emv_int_authenticate(emv_t e, const uint8_t *data, uint8_t len);
 
 _private void _emv_sys_error(struct _emv *e);
 _private void _emv_ccid_error(struct _emv *e);
