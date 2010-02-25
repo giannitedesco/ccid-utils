@@ -123,10 +123,6 @@ struct dol_tag {
 _private uint8_t _emv_sw1(emv_t e);
 _private uint8_t _emv_sw2(emv_t e);
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
-_private uint8_t *_emv_construct_dol(const struct dol_tag *tags,
-					size_t num_tags,
-					const uint8_t *ptr, size_t len,
-					size_t *ret_len, void *priv);
 
 /* Application selection */
 _private void _emv_free_applist(emv_t e);
@@ -138,6 +134,11 @@ _private int _emv_app_init(emv_t e, const uint8_t *aid, size_t aid_len);
 /* Application data retrieval */
 _private int _emv_read_app_data(struct _emv *e);
 _private const struct _emv_data *_emv_retrieve_data(emv_t, uint16_t id);
+
+/* DOL construction */
+_private uint8_t *_emv_construct_dol(emv_dol_cb_t cbfn,
+					const uint8_t *ptr, size_t len,
+					size_t *ret_len, void *priv);
 
 /* APDU construction + transactions */
 _private int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record);

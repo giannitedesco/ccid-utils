@@ -56,7 +56,7 @@ static const struct dol_tag *find_tag(const struct dol_tag *tags,
 }
 #endif
 
-uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
+static uint8_t *construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
 				size_t *ret_len, void *priv)
 {
 	const uint8_t *tmp, *end;
@@ -122,6 +122,18 @@ uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
 
 	*ret_len = sz;
 	return dol;
+}
+
+uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
+				size_t *ret_len, void *priv)
+{
+	return construct_dol(cbfn, ptr, len, ret_len, priv);
+}
+
+uint8_t *_emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
+				size_t *ret_len, void *priv)
+{
+	return construct_dol(cbfn, ptr, len, ret_len, priv);
 }
 
 int _emv_pin2pb(const char *pin, emv_pb_t pb)

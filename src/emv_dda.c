@@ -404,6 +404,8 @@ static int check_icc_cert(struct _emv *e, struct dda_req *req)
 		return 0;
 	}
 
+	e->e_sda_ok = 1;
+
 	return ret;
 }
 
@@ -427,6 +429,48 @@ static RSA *get_icc_pk(struct _emv *e, struct dda_req *req,
 		return NULL;
 
 	return make_icc_pk(e, req);
+}
+
+static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
+{
+	printf("DDOL tag: 0x%x\n", tag);
+//	if ( 0x9f37 == tag ) {
+//		memset(ptr, 0xa5, len);
+//		return 1;
+//	}
+	return 0;
+}
+
+
+static int verify_dynamic_sig(emv_t e, const uint8_t *ddol, size_t ddol_len)
+{
+	uint8_t *dol;
+	size_t dol_len;
+	const uint8_t *sig;
+	size_t sig_len;
+	int ret = 0;
+
+	dol = _emv_construct_dol(dol_cb, ddol, ddol_len, &dol_len, NULL);
+	if ( NULL == dol )
+		return 0;
+
+	printf("Constructed DDOL:\n");
+	hex_dump(dol, dol_len, 16);
+
+	if ( !_emv_int_authenticate(e, dol, dol_len) )
+		goto out;
+
+	sig = xfr_rx_data(e->e_xfr, &sig_len);
+	if ( NULL == sig )
+		goto out;
+
+	/* TODO: verify signed dynamic authentication data */
+	printf("Signed authentication data:\n");
+	hex_dump(sig, sig_len, 16);
+	ret = 1;
+out:
+	free(dol);
+	return ret;
 }
 
 int emv_authenticate_dynamic(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
@@ -465,7 +509,8 @@ int emv_authenticate_dynamic(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
 	if ( NULL == e->e_icc_pk )
 		return 0;
 
-	/* TODO: INTERNAL_AUTHENTICATE + verify ICC digital sig */
+	if ( !verify_dynamic_sig(e, req.ddol, req.ddol_len) )
+		return 0;
 
 	e->e_dda_ok = 1;
 	return 1;
