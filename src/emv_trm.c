@@ -20,10 +20,10 @@ static int bop_atc(const uint8_t *ptr, size_t len, void *priv)
 
 static int atc(struct _emv *e, int online)
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x9f\x13", .tag_len = 2, .op = bop_atc},
-		{ .tag = "\x9f\x36", .tag_len = 2, .op = bop_atc},
-	};
+	//static const struct ber_tag tags[] = {
+	//	{ .tag = "\x9f\x13", .tag_len = 2, .op = bop_atc},
+	//	{ .tag = "\x9f\x36", .tag_len = 2, .op = bop_atc},
+	//};
 	const uint8_t *ptr;
 	size_t len;
 	int ctr = -1;
@@ -33,8 +33,8 @@ static int atc(struct _emv *e, int online)
 	ptr = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == ptr )
 		return -1;
-	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) )
-		return -1;
+	//if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) )
+	//	return -1;
 	return ctr;
 }
 

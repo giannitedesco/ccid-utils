@@ -13,111 +13,111 @@
 
 static const struct _emv_tag unknown_soldier = {
 	.t_tag = 0x00,
-	.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+	.t_type = EMV_DATA_BINARY,
 	.t_label = "UNKNOWN",
 };
 
 static const struct _emv_tag tags[] = {
 	{.t_tag = EMV_TAG_MAGSTRIP_TRACK2,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Magnetic Strip Track 2 Equivalent"},
 	{.t_tag = EMV_TAG_PAN,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_type = EMV_DATA_BCD,
 		.t_min = 0, .t_max = 10,
 		.t_label = "Primary Account Number"},
 	{.t_tag = EMV_TAG_RECORD,
 		.t_type = EMV_DATA_BINARY,
 		.t_label = "Application Record"},
 	{.t_tag = EMV_TAG_CDOL1,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DOL | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_DOL | EMV_DATA_BINARY,
 		.t_label = "Card Risk Management DOL1"},
 	{.t_tag = EMV_TAG_CDOL2,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DOL | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_DOL | EMV_DATA_BINARY,
 		.t_label = "Card Risk Management DOL2"},
 	{.t_tag = EMV_TAG_CVM_LIST,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Cardholder Verification Method List"},
 	{.t_tag = EMV_TAG_CA_PK_INDEX,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
+		.t_type = EMV_DATA_INT,
 		.t_min = 1, .t_max = 1,
 		.t_label = "CA Public Key Index"},
 	{.t_tag = EMV_TAG_ISS_PK_CERT,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Issuer Public Key Certificate"},
 	{.t_tag = EMV_TAG_ISS_PK_R,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Issuer Public Key Remainder"},
 	{.t_tag = EMV_TAG_SSA_DATA,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Signed Static Authentication Data"},
 	{.t_tag = EMV_TAG_CARDHOLDER_NAME,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_TEXT,
+		.t_type = EMV_DATA_TEXT,
 		.t_label = "Cardholder Name"},
 	{.t_tag = EMV_TAG_DATE_EXP,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DATE,
+		.t_type = EMV_DATA_DATE,
 		.t_min = 3, .t_max = 3,
 		.t_label = "Card Expiry Date"},
 	{.t_tag = EMV_TAG_DATE_EFF,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DATE,
+		.t_type = EMV_DATA_DATE,
 		.t_min = 3, .t_max = 3,
 		.t_label = "Card Effective Date"},
 	{.t_tag = EMV_TAG_ISSUER_COUNTRY,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_type = EMV_DATA_BCD,
 		.t_min = 2, .t_max = 2,
 		.t_label = "Issuer Country Code"},
 	{.t_tag = EMV_TAG_SERVICE_CODE,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_type = EMV_DATA_BCD,
 		.t_min = 2, .t_max = 2,
 		.t_label = "Service Code"},
 	{.t_tag = EMV_TAG_PAN_SEQ,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BCD,
+		.t_type = EMV_DATA_BCD,
 		.t_min = 1, .t_max = 1,
 		.t_label = "PAN Sequence Number"},
 	{.t_tag = EMV_TAG_USAGE_CONTROL,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 2, .t_max = 2,
 		.t_label = "Application Usage Control"},
 	{.t_tag = EMV_TAG_APP_VER,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_INT,
+		.t_type = EMV_DATA_INT,
 		.t_min = 2, .t_max = 2,
 		.t_label = "Application Version Number"},
 	{.t_tag = EMV_TAG_IAC_DEFAULT,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
 		.t_label = "Issuer Action Code (Default)"},
 	{.t_tag = EMV_TAG_IAC_DENY,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
 		.t_label = "Issuer Action Code (Deny)"},
 	{.t_tag = EMV_TAG_IAC_ONLINE,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 5, .t_max = 5,
 		.t_label = "Issuer Action Code (Online)"},
 	{.t_tag = EMV_TAG_MAGSTRIP_TRACK1,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_TEXT,
+		.t_type = EMV_DATA_TEXT,
 		.t_label = "Magnetic Strip Track 1 Discretionary"},
 	{.t_tag = EMV_TAG_ISS_PK_EXP,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 1,
 		.t_label = "Issuer Public Key Exponent"},
 	{.t_tag = EMV_TAG_CURRENCY_EXP,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "Application Currency Exponent"},
 	{.t_tag = EMV_TAG_ICC_PK_CERT,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "ICC Public Key Certificate"},
 	{.t_tag = EMV_TAG_ICC_PK_EXP,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_min = 1,
 		.t_label = "ICC Public Key Exponent"},
 	{.t_tag = EMV_TAG_ICC_PK_R,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "ICC Public Key Remainder"},
 	{.t_tag = EMV_TAG_DDOL,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_DOL | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_DOL | EMV_DATA_BINARY,
 		.t_label = "Dynamic Data Object List"},
 	{.t_tag = EMV_TAG_SDA_TAG_LIST,
-		.t_type = EMV_DATA_ATOMIC | EMV_DATA_BINARY,
+		.t_type = EMV_DATA_BINARY,
 		.t_label = "SDA Tag List"},
 };
 static const unsigned int num_tags = sizeof(tags)/sizeof(*tags);
@@ -250,24 +250,16 @@ static int composite(emv_t e, struct _emv_data *d)
 	ptr = d->d_data;
 	end = ptr + d->d_len;
 
-	for(num_tags = 0; ptr < end; num_tags++) {
-		const uint8_t *tag;
-		size_t tag_len;
-		size_t clen;
+	for(num_tags = 0; ptr && ptr < end; num_tags++) {
+		struct gber_tag tag;
 
-		tag = ber_decode_tag(&ptr, end, &tag_len);
-		if ( ptr >= end ) {
+		ptr = ber_decode_tag(&tag, ptr, end - ptr);
+		if ( NULL == ptr ) {
 			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
 		}
 
-		clen = ber_decode_len(&ptr, end);
-		if ( ptr + clen > end ) {
-			_emv_error(e, EMV_ERR_BER_DECODE);
-			return 0;
-		}
-
-		ptr += clen;
+		ptr += tag.ber_len;
 	}
 
 	elem = gang_alloc(e->e_files, num_tags * sizeof(*elem));
@@ -276,43 +268,22 @@ static int composite(emv_t e, struct _emv_data *d)
 		return 0;
 	}
 
-	for(ptr = d->d_data, i = 0; ptr < end; i++) {
-		const uint8_t *tag;
-		size_t tag_len;
-		size_t clen;
-		uint16_t t;
+	for(ptr = d->d_data, i = 0; ptr && ptr < end; i++) {
+		struct gber_tag tag;
 
-		tag = ber_decode_tag(&ptr, end, &tag_len);
-		if ( ptr >= end ) {
-			_emv_error(e, EMV_ERR_BER_DECODE);
-			return 0;
-		}
-
-		clen = ber_decode_len(&ptr, end);
-		if ( ptr + clen > end ) {
-			_emv_error(e, EMV_ERR_BER_DECODE);
-			return 0;
-		}
-
-		switch(tag_len) {
-		case 1:
-			t = tag[0];
-			break;
-		case 2:
-			t = (tag[0] << 8) | tag[1];
-			break;
-		default:
+		ptr = ber_decode_tag(&tag, ptr, end - ptr);
+		if ( NULL == ptr ) {
 			_emv_error(e, EMV_ERR_BER_DECODE);
 			return 0;
 		}
 
 		elem[i] = mpool_alloc(e->e_data);
-		elem[i]->d_tag = find_tag(t);
+		elem[i]->d_tag = find_tag(tag.ber_tag);
 		/* FIXME: check min/max sizes */
 		elem[i]->d_flags = d->d_flags;
-		elem[i]->d_id = t;
+		elem[i]->d_id = tag.ber_tag;
 		elem[i]->d_data = ptr;
-		elem[i]->d_len = clen;
+		elem[i]->d_len = tag.ber_len;
 		if ( emv_data_composite(elem[i]) ) {
 			if ( !composite(e, elem[i]) )
 				return 0;
@@ -321,7 +292,7 @@ static int composite(emv_t e, struct _emv_data *d)
 			elem[i]->d_nmemb = 0;
 		}
 
-		ptr += clen;
+		ptr += tag.ber_len;
 	}
 
 	d->d_nmemb = num_tags;
@@ -333,21 +304,13 @@ static int composite(emv_t e, struct _emv_data *d)
 static int decode_record(struct db_state *s, const uint8_t *ptr,
 				size_t len, int sda)
 {
-	const uint8_t *end = ptr + len;
+	struct gber_tag tag;
 	uint8_t *tmp;
 	struct _emv_data *d;
 
-	if ( len < 2 || ptr[0] != EMV_TAG_RECORD ) {
+	ptr = ber_decode_tag(&tag, ptr, len);
+	if ( NULL == ptr ) {
 		printf("emv: bad application data format\n");
-		_emv_error(s->e, EMV_ERR_BER_DECODE);
-		return 0;
-	}
-
-	ptr++;
-	len--;
-
-	len = ber_decode_len(&ptr, end);
-	if ( ptr + len > end ) {
 		_emv_error(s->e, EMV_ERR_BER_DECODE);
 		return 0;
 	}
@@ -358,19 +321,19 @@ static int decode_record(struct db_state *s, const uint8_t *ptr,
 		return 0;
 	}
 
-	tmp = gang_alloc(s->e->e_files, len);
+	tmp = gang_alloc(s->e->e_files, tag.ber_len);
 	if ( NULL == ptr ) {
 		_emv_sys_error(s->e);
 		return 0;
 	}
 
-	memcpy(tmp, ptr, len);
+	memcpy(tmp, ptr, tag.ber_len);
 
 	d->d_tag = find_tag(EMV_TAG_RECORD);
 	d->d_id = EMV_TAG_RECORD;
 	d->d_flags = (sda) ? EMV_DATA_SDA : 0;
 	d->d_data = tmp;
-	d->d_len = len;
+	d->d_len = tag.ber_len;
 
 	*s->rec = d;
 	s->rec++;

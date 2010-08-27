@@ -24,6 +24,10 @@
 #include <gang.h>
 #include <mpool.h>
 
+#include <ber.h>
+#include "pse_fci.h"
+#include "adf_fci.h"
+
 #define EMV_ERR_TYPE_SHIFT	30
 #define EMV_ERR_CODE_MASK	((1 << EMV_ERR_TYPE_SHIFT) - 1)
 
@@ -31,9 +35,8 @@ typedef uint8_t emv_pb_t[EMV_PIN_BLOCK_LEN];
 
 #define EMV_DATA_SDA		(1<<0)
 
-#define EMV_DATA_ATOMIC		(1<<15)
-#define EMV_DATA_DOL		(1<<14)
-#define EMV_DATA_TYPE_MASK 	((1<<14)-1)
+#define EMV_DATA_DOL		(1<<1)
+#define EMV_DATA_TYPE_MASK 	((1<<15)-1)
 struct _emv_tag {
 	uint16_t t_tag;
 	uint16_t t_type;
@@ -51,13 +54,9 @@ struct _emv_data {
 	unsigned int d_nmemb;
 };
 
-static inline int emv_data_atomic(struct _emv_data *d)
-{
-	return !!(d->d_tag->t_type & EMV_DATA_ATOMIC);
-}
 static inline int emv_data_composite(struct _emv_data *d)
 {
-	return !(d->d_tag->t_type & EMV_DATA_ATOMIC);
+	return ber_id_octet_constructed(ber_tag_id_octet(d->d_tag->t_tag));
 }
 
 struct _emv_db {
@@ -69,15 +68,10 @@ struct _emv_db {
 	struct _emv_data **db_sda;
 };
 
-struct _emv_app {
-	uint8_t a_recno;
-	uint8_t a_prio;
-	uint8_t a_id_sz;
-	/* uint8_t a_pad0; */
-	uint8_t a_id[16];
-	char a_name[16];
-	char a_pname[16];
-	struct list_head a_list;
+
+struct _emv_pse {
+	struct pse_fci *p_fci;
+	struct list_head p_list;
 };
 
 struct _emv {
@@ -90,9 +84,9 @@ struct _emv {
 	struct _emv_db e_db;
 
 	/* application selection */
-	unsigned int e_num_apps;
-	struct list_head e_apps;
-	struct _emv_app *e_app;
+	unsigned int e_num_pse;
+	struct list_head e_pse;
+	struct adf_fci *e_app_fci;
 
 	uint8_t e_aip[2];
 	uint8_t *e_afl;

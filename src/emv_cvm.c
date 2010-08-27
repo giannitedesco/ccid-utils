@@ -20,22 +20,20 @@ static int bop_ptc(const uint8_t *ptr, size_t len, void *priv)
 
 static int ptc(struct _emv *e)
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x9f\x17", .tag_len = 2, .op = bop_ptc},
-	};
+	//static const struct ber_tag tags[] = {
+	//	{ .tag = "\x9f\x17", .tag_len = 2, .op = bop_ptc},
+	//};
 	const uint8_t *ptr;
 	size_t len;
 	int ctr = -1;
 
 	if ( !_emv_get_data(e, 0x9f, 0x17) )
-		return -1;
+		return ctr;
 	ptr = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == ptr )
-		return -1;
-	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) ) {
-		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
-		return -1;
-	}
+		return ctr;
+
+	_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 	return ctr;
 }
 

@@ -22,16 +22,16 @@ static const struct t_app apps[] = {
 	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x29", .aid_len = 5, .asi = 1},
 };
 
-static int app_cmp(emv_app_t a, const struct t_app *b)
+static int app_cmp(emv_pse_t a, const struct t_app *b)
 {
 	if ( b->asi ) {
 		emv_rid_t rid;
-		emv_app_rid(a, rid);
+		emv_pse_rid(a, rid);
 		return memcmp(rid, b->aid, EMV_RID_LEN);
 	}else{
 		uint8_t aid[EMV_AID_LEN];
 		size_t sz;
-		emv_app_aid(a, aid, &sz);
+		emv_pse_aid(a, aid, &sz);
 		if ( sz < b->aid_len )
 			return -1;
 		if ( sz > b->aid_len )
@@ -40,7 +40,7 @@ static int app_cmp(emv_app_t a, const struct t_app *b)
 	}
 }
 
-static int app_supported(emv_app_t a)
+static int app_supported(emv_pse_t a)
 {
 	unsigned int i;
 
@@ -55,22 +55,22 @@ static int app_supported(emv_app_t a)
 /* Step 0. Select application */
 static int select_app(emv_t e)
 {
-	emv_app_t app;
+	emv_pse_t app;
 	unsigned int i;
 
 	/* Selection of apps by PSE directory */
-	if ( emv_appsel_pse(e) ) {
+	if ( emv_appsel_psd(e) ) {
 		for(app = emv_appsel_pse_first(e); app; ) {
 			if ( !app_supported(app) ) {
 				printf("emvtool: unsupported PSE app: %s\n",
-					emv_app_pname(app));
-				emv_app_t f = app;
+					emv_pse_pname(app));
+				emv_pse_t f = app;
 				app = emv_appsel_pse_next(e, app);
-				emv_app_delete(f);
+				emv_pse_delete(f);
 				continue;
 			}
 			printf("emvtool: PSE app: %s\n",
-				emv_app_pname(app));
+				emv_pse_pname(app));
 			app = emv_appsel_pse_next(e, app);
 		}
 
@@ -78,7 +78,7 @@ static int select_app(emv_t e)
 			app = emv_appsel_pse_next(e, app)) {
 			if ( emv_app_select_pse(e, app) ) {
 				printf("emvtool: Selected PSE app: %s\n",
-					emv_app_pname(app));
+					emv_pse_pname(app));
 				return 1;
 			}
 		}
@@ -92,7 +92,7 @@ static int select_app(emv_t e)
 		app = emv_current_app(e);
 		if ( !app_cmp(app, apps + i) ) {
 			printf("emvtool: Selected AID app: %s\n",
-				emv_app_pname(app));
+				emv_pse_pname(app));
 			return 1;
 		}
 
@@ -102,7 +102,7 @@ static int select_app(emv_t e)
 			if ( app_cmp(app, apps + i) )
 				continue;
 			printf("emvtool: Selected partial AID app: %s\n",
-				emv_app_pname(app));
+				emv_pse_pname(app));
 			return 1;
 		}
 	}

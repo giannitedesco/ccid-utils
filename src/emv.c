@@ -65,40 +65,29 @@ uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
 
 	end = ptr + len;
 
-	for(sz = 0, tmp = ptr; tmp < end; tmp++) {
-		size_t tag_len;
+	for(sz = 0, tmp = ptr; tmp && tmp < end; ) {
+		struct gber_tag tag;
 
-		tag_len = ber_tag_len(tmp, end);
-		if ( tag_len == 0 )
+		tmp = ber_tag_info(&tag, tmp, end - tmp);
+		if ( NULL == tmp )
 			return NULL;
 
-		tmp += tag_len;
-		sz += *tmp;
+		sz += tag.ber_len;
 	}
 
 	dol = dtmp = malloc(sz);
 	if ( NULL == dol )
 		return NULL;
 
-	for(tmp = ptr; tmp < end; tmp++) {
-		//const struct dol_tag *tag;
-		size_t tag_len;
-		uint16_t tag;
+	for(tmp = ptr; tmp && tmp < end; ) {
+		struct gber_tag tag;
 
-		tag_len = ber_tag_len(tmp, end);
-		switch(tag_len) {
-		case 1:
-			tag = tmp[0];
-			break;
-		case 2:
-			tag = (tmp[0] << 8) | tmp[1];
-			break;
-		default:
+		tmp = ber_tag_info(&tag, tmp, end - tmp);
+		if ( NULL == tmp ) {
 			free(dol);
 			return NULL;
 		}
 
-		tmp += tag_len;
 #if 0
 		tag = find_tag(tags, num_tags, tmp, tag_len);
 
@@ -114,10 +103,11 @@ uint8_t *emv_construct_dol(emv_dol_cb_t cbfn, const uint8_t *ptr, size_t len,
 			memset(dtmp, 0, *tmp);
 		}
 #else
-		if ( NULL == cbfn || !(*cbfn)(tag, dtmp, *tmp, priv) )
+		if ( NULL == cbfn || !(*cbfn)(tag.ber_tag, dtmp,
+					tag.ber_len, priv) )
 			memset(dtmp, 0, *tmp);
 #endif
-		dtmp += *tmp;
+		dtmp += tag.ber_len;
 	}
 
 	*ret_len = sz;
@@ -167,7 +157,7 @@ static void do_emv_fini(emv_t e)
 
 		_emv_free_applist(e);
 
-		free(e->e_app);
+		adf_fci_free(e->e_app_fci);
 
 		mpool_free(e->e_data);
 		gang_free(e->e_files);
@@ -183,7 +173,7 @@ static void do_emv_fini(emv_t e)
 
 emv_app_t emv_current_app(emv_t e)
 {
-	return e->e_app;
+	return e->e_app_fci;
 }
 
 emv_t emv_init(chipcard_t cc)
@@ -196,7 +186,7 @@ emv_t emv_init(chipcard_t cc)
 	e = calloc(1, sizeof(*e));
 	if ( e ) {
 		e->e_dev = cc;
-		INIT_LIST_HEAD(&e->e_apps);
+		INIT_LIST_HEAD(&e->e_pse);
 
 		e->e_xfr = xfr_alloc(1024, 1204);
 		if ( NULL == e->e_xfr )

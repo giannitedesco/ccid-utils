@@ -6,6 +6,7 @@
 
 #include <ccid.h>
 #include <ccid-spec.h>
+#include <ber.h>
 #include <Python.h>
 #include <structmember.h>
 #include "py_ccid.h"
@@ -516,7 +517,7 @@ static PyObject *cp_ber_dump(PyObject *self, PyObject *args)
 	int len;
 	if ( !PyArg_ParseTuple(args, "s#", &ptr, &len) )
 		return NULL;
-	ber_dump(ptr, len, 1);
+	ber_dump(ptr, len);
 	Py_INCREF(Py_None);
 	return Py_None;
 }

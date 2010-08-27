@@ -1,12 +1,10 @@
-#include <stdint.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <ctype.h>
-
 #include <ber.h>
 
-static void hex_dump(const uint8_t *tmp, size_t len,
+static void hex_dumpf_r(FILE *f, const uint8_t *tmp, size_t len,
 			size_t llen, unsigned int depth)
 {
 	size_t i, j;
@@ -19,273 +17,157 @@ static void hex_dump(const uint8_t *tmp, size_t len,
 			line = llen;
 		}
 
-		printf("%*c%05x : ", depth, ' ', j);
+		fprintf(f, "%*c%05x : ", depth, ' ', j);
 
 		for(i = 0; i < line; i++) {
 			if ( isprint(tmp[i]) ) {
-				printf("%c", tmp[i]);
+				fprintf(f, "%c", tmp[i]);
 			}else{
-				printf(".");
+				fprintf(f, ".");
 			}
 		}
 
 		for(; i < llen; i++)
-			printf(" ");
+			fprintf(f, " ");
 
 		for(i=0; i < line; i++)
-			printf(" %02x", tmp[i]);
+			fprintf(f, " %02x", tmp[i]);
 
-		printf("\n");
+		fprintf(f, "\n");
 	}
-	printf("\n");
+	fprintf(f, "\n");
 }
 
-#if 0
-static unsigned int ber_id_octet_class(const uint8_t cls)
+static int do_ber_dump(FILE *f, const uint8_t *ptr, size_t len,
+			unsigned int depth)
 {
-	return (cls & 0xc0) >> 6;
-}
-#endif
+	const uint8_t *end = ptr + len;
 
-static unsigned int ber_id_octet_constructed(const uint8_t cls)
-{
-	return (cls & 0x20) >> 5;
+	while(ptr < end) {
+		struct gber_tag tag;
+		ptr = ber_decode_tag(&tag, ptr, end - ptr);
+		if ( NULL == ptr )
+			return 0;
+
+		fprintf(f, "%*c.tag = %x\n", depth, ' ', tag.ber_tag);
+		fprintf(f, "%*c.class = %s\n", depth, ' ',
+			ber_id_octet_clsname(tag.ber_id));
+		fprintf(f, "%*c.constructed = %s\n", depth, ' ',
+			ber_id_octet_constructed(tag.ber_id) ? "yes" : "no");
+
+		fprintf(f, "%*c.len = %u (0x%.2x)\n",
+			depth, ' ', tag.ber_len, tag.ber_len);
+
+		if ( ber_id_octet_constructed(tag.ber_id) ) {
+			if ( !do_ber_dump(f, ptr, tag.ber_len, depth + 1) )
+				return 0;
+		}else{
+			hex_dumpf_r(f, ptr, tag.ber_len, 16, depth + 1);
+		}
+
+		ptr += tag.ber_len;
+	}
+
+	return 1;
 }
 
-static unsigned int ber_id_octet_tag(const uint8_t cls)
+int ber_dump(const uint8_t *ptr, size_t len)
 {
-	return cls & 0x1f;
+	return do_ber_dump(stdout, ptr, len, 1);
 }
 
-static unsigned int ber_len_form_short(const uint8_t cls)
+int ber_dumpf(FILE *f, const uint8_t *ptr, size_t len)
 {
-	return !(cls & 0x80);
+	return do_ber_dump(f, ptr, len, 1);
 }
 
-static unsigned int ber_len_short(const uint8_t cls)
+const char * const ber_id_octet_clsname(uint8_t id)
 {
-	return cls & 0x7f;
-}
-
-void ber_dump(const uint8_t *buf, size_t len, unsigned int depth)
-{
-	const uint8_t *end = buf + len;
-	uint32_t clen, num, i;
-	uint8_t idb;
-#if 0
-	const char * const clsname[]={
+	static const char * const clsname[]={
 		"universal",
 		"application",
 		"context-specific",
 		"private",
 	};
-#endif
-again:
-	if ( buf >= end )
-		return;
-
-	idb = *buf;
-	num = ber_id_octet_tag(*buf);
-	buf++;
-
-	/* FIXME: if ( tag == 0x1f ) get rest of type... */
-	if ( num >= 0x1f ) {
-		for(num = 0, i = 0; buf < end; i++) {
-			num <<= 7;
-			num |= *buf & 0x7f;
-			buf++;
-			if ( !(*buf & 0x80) )
-				break;
-		}
-	}
-
-	printf("%*c.tag = %u (0x%x)\n", depth, ' ', num, num);
-
-	if ( buf >= end )
-		return;
-
-	if ( ber_len_form_short(*buf) ) {
-		clen = ber_len_short(*buf);
-		buf++;
-	}else{
-		uint32_t l;
-
-		l = ber_len_short(*buf);
-		if ( l > 4 || buf + l > end )
-			return;
-		buf++;
-		for(clen = i = 0; i < l; i++, buf++) {
-			clen <<= 8;
-			clen |= *buf;
-		}
-
-	}
-
-	if ( buf + clen > end )
-		return;
-
-	printf("%*c.len = %u (0x%x)",
-		depth, ' ', len, len);
-
-	if ( ber_id_octet_constructed(idb) ) {
-		printf(" {\n");
-		ber_dump(buf, clen, depth + 2);
-		printf("%*c}\n", depth, ' ');
-	}else{
-		printf("\n");
-		hex_dump(buf, clen, 16, depth);
-	}
-
-	buf += clen;
-	goto again;
+	return clsname[(id & 0xc0) >> 6];
 }
 
-static int tag_cmp(const struct ber_tag *tag, const uint8_t *idb, size_t len)
+unsigned int ber_id_octet_class(uint8_t id)
 {
-	if ( tag->tag_len < len )
-		return 1;
-	if ( tag->tag_len > len )
-		return -1;
-	return memcmp(idb, tag->tag, len);
+	return (id & 0xc0) >> 6;
 }
 
-static const struct ber_tag *find_tag(const struct ber_tag *tags,
-					unsigned int num_tags,
-					const uint8_t *idb,
-					size_t tag_len)
+unsigned int ber_id_octet_constructed(uint8_t id)
 {
-	while ( num_tags ) {
-		unsigned int i;
-		int cmp;
-
-		i = num_tags / 2U;
-		cmp = tag_cmp(tags + i, idb, tag_len);
-		if ( cmp < 0 ) {
-			num_tags = i;
-		}else if ( cmp > 0 ) {
-			tags = tags + (i + 1U);
-			num_tags = num_tags - (i + 1U);
-		}else
-			return tags + i;
-	}
-
-	return NULL;
+	return (id & 0x20) >> 5;
 }
 
-static const uint8_t *decode_tag(const uint8_t **ptr,
-					const uint8_t *end,
-					size_t *tag_len)
+uint8_t ber_tag_id_octet(uint16_t tag)
 {
-	const uint8_t *tmp = *ptr;
-
-	if ( tmp >= end ) {
-		*ptr = end;
-		return NULL;
-	}
-
-	if ( ber_id_octet_tag(*tmp) != 0x1f ) {
-		tmp++;
-	}else{
-		for( tmp++; tmp < end; tmp++) {
-			if ( 0 == (*tmp & 0x80) ) {
-				tmp++;
-				break;
-			}
-		}
-	}
-
-	*tag_len = tmp - *ptr;
-	end = *ptr;
-	*ptr = tmp;
-	return end;
+	return (((tag >> 8) & 0x1f) == 0x1f) ? (tag >> 8) : (tag & 0xff);
 }
 
-size_t ber_tag_len(const uint8_t *ptr, const uint8_t *end)
+static uint8_t ber_len_form_short(uint8_t lb)
 {
-	size_t ret;
-	if ( NULL == decode_tag(&ptr, end, &ret) )
-		return 0;
-	return ret;
+	return !(lb & 0x80);
 }
 
-const uint8_t *ber_decode_tag(const uint8_t **ptr,
-					const uint8_t *end,
-					size_t *tag_len)
+static uint8_t ber_len_short(uint8_t lb)
 {
-	return decode_tag(ptr, end, tag_len);
+	return lb & ~0x80;
 }
 
-static size_t decode_len(const uint8_t **ptr, const uint8_t *end)
-{
-	const uint8_t *tmp = *ptr;
-	size_t ret;
-
-	if ( ber_len_form_short(*tmp) ) {
-		ret = ber_len_short(*tmp);
-		tmp++;
-	}else{
-		size_t i, l;
-
-		l = ber_len_short(*tmp);
-		if ( l > 4 || tmp + l > end ) {
-			*ptr = end;
-			return 1;
-		}
-
-		tmp++;
-		for(ret = i = 0; i < l; i++, tmp++) {
-			ret <<= 8;
-			ret |= *tmp;
-		}
-
-	}
-
-	*ptr = tmp;
-	return ret;
-}
-
-size_t ber_decode_len(const uint8_t **ptr, const uint8_t *end)
-{
-	return decode_len(ptr, end);
-}
-
-int ber_decode(const struct ber_tag *tags, unsigned int num_tags,
-		const uint8_t *ptr, size_t len, void *priv)
+static const uint8_t *do_decode_tag(struct gber_tag *tag,
+				const uint8_t *ptr, size_t len)
 {
 	const uint8_t *end = ptr + len;
-	unsigned int i;
-	uint32_t clen;
 
-//	printf("BER DECODE:\n");
-//	hex_dump(ptr, len, 16, 0);
+	if ( len < 2 )
+		return NULL;
 
-	for(i = 0; ptr < end; ptr += clen) {
-		const uint8_t *idb;
-		const struct ber_tag *tag;
-		size_t tag_len;
-
-		idb = decode_tag(&ptr, end, &tag_len);
+	tag->ber_id = *(ptr++);
+	tag->ber_tag = tag->ber_id;
+	if ( (tag->ber_id & 0x1f) == 0x1f ) {
+		if ( (*ptr & 0x80) )
+			return NULL;
+		tag->ber_tag <<= 8;
+		tag->ber_tag |= *(ptr++);
 		if ( ptr >= end )
-			return 0;
+			return NULL;
+	}
 
-		clen = decode_len(&ptr, end);
-		if ( ptr + clen > end )
-			return 0;
+	if ( ber_len_form_short(*ptr) ) {
+		tag->ber_len = ber_len_short(*ptr);
+		ptr++;
+	}else{
+		unsigned int i;
+		uint8_t ll;
 
-		tag = find_tag(tags, num_tags, idb, tag_len);
-		if ( tag ) {
-			if ( tag->op && !(*tag->op)(ptr, clen, priv) )
-				return 0;
-			i++;
-		}else{
-			size_t i;
-			printf("unknown tag: ");
-			for(i = 0; i < tag_len; i++)
-				printf("%.2x ", idb[i]);
-			printf("\n");
-			hex_dump(ptr, clen, 16, 0);
+		ll = ber_len_short(*(ptr++));
+		if ( ptr + ll > end || ll > 4 )
+			return NULL;
+
+		for(tag->ber_len = 0, i = 0; i < ll; i++, ptr++) {
+			tag->ber_len <<= 8;
+			tag->ber_len |= *ptr;
 		}
 	}
 
-	return i;
+	return ptr;
+}
+
+const uint8_t *ber_tag_info(struct gber_tag *tag,
+				const uint8_t *ptr, size_t len)
+{
+	return do_decode_tag(tag, ptr, len);
+}
+
+const uint8_t *ber_decode_tag(struct gber_tag *tag,
+				const uint8_t *ptr, size_t len)
+{
+	const uint8_t *end = ptr + len;
+	ptr = do_decode_tag(tag, ptr, len);
+	if ( NULL == ptr || ptr + tag->ber_len > end )
+		return NULL;
+	return ptr;
 }

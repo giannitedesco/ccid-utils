@@ -7,147 +7,96 @@
 #include <ccid.h>
 #include <list.h>
 #include <emv.h>
-#include <ber.h>
 #include "emv-internal.h"
-
-static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
-{
-	struct _emv_app *a = priv;
-	assert(len >= EMV_RID_LEN && len <= EMV_AID_LEN);
-	a->a_id_sz = len;
-	memcpy(a->a_id, ptr, sizeof(a->a_id));
-	return 1;
-}
-
-static int bop_label(const uint8_t *ptr, size_t len, void *priv)
-{
-	struct _emv_app *a = priv;
-	snprintf(a->a_name, sizeof(a->a_name), "%.*s", len, ptr);
-	return 1;
-}
-
-static int bop_pname(const uint8_t *ptr, size_t len, void *priv)
-{
-	struct _emv_app *a = priv;
-	snprintf(a->a_pname, sizeof(a->a_pname), "%.*s", len, ptr);
-	return 1;
-}
-
-static int bop_prio(const uint8_t *ptr, size_t len, void *priv)
-{
-	struct _emv_app *a = priv;
-	assert(1U == len);
-	a->a_prio = *ptr;
-	return 1;
-}
-
-static int bop_dtemp(const uint8_t *ptr, size_t len, void *priv)
-{
-	struct _emv *e = priv;
-	struct _emv_app *app;
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x4f", .tag_len = 1, .op = bop_adfname },
-		{ .tag = "\x50", .tag_len = 1, .op = bop_label },
-		{ .tag = "\x87", .tag_len = 1, .op = bop_prio },
-		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname },
-	};
-
-	app = calloc(1, sizeof(*app));
-	if ( NULL == app )
-		return 0;
-
-	if ( ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, app) ) {
-		list_add_tail(&app->a_list, &e->e_apps);
-		e->e_num_apps++;
-		return 1;
-	}else{
-		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
-		free(app);
-		return 0;
-	}
-}
-
-static int bop_psd(const uint8_t *ptr, size_t len, void *priv)
-{
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x61", .tag_len = 1, .op = bop_dtemp },
-	};
-	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
-}
 
 static int add_app(emv_t e)
 {
+	struct _emv_pse *pse;
+	struct pse_fci *pse_fci;
 	const uint8_t *res;
 	size_t len;
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x70", .tag_len = 1, .op = bop_psd },
-	};
 
 	res = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == res )
 		return 0;
 
-	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), res, len, e) ) {
+	pse_fci = pse_fci_decode(res, len);
+	if ( NULL == pse_fci ) {
 		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return 0;
-	}else
-		return 1;
+	}
+
+	pse = malloc(sizeof(*pse));
+	if ( NULL == pse ) {
+		_emv_sys_error(e);
+		pse_fci_free(pse_fci);
+		return 0;
+	}
+
+	pse->p_fci = pse_fci;
+	list_add_tail(&pse->p_list, &e->e_pse);
+	return 1;
 }
 
 void _emv_free_applist(emv_t e)
 {
-	struct _emv_app *a, *t;
-	list_for_each_entry_safe(a, t, &e->e_apps, a_list) {
-		list_del(&a->a_list);
-		free(a);
+	struct _emv_pse *pse, *t;
+	list_for_each_entry_safe(pse, t, &e->e_pse, p_list) {
+		pse_fci_free(pse->p_fci);
+		list_del(&pse->p_list);
+		free(pse);
 	}
 }
 
-void emv_app_rid(emv_app_t a, emv_rid_t ret)
+void emv_pse_rid(emv_pse_t pse, emv_rid_t ret)
 {
-	memcpy(ret, a->a_id, EMV_RID_LEN);
+	memcpy(ret, pse->p_fci->pse_app.pse_adf_name, EMV_RID_LEN);
 }
 
-void emv_app_aid(emv_app_t a, uint8_t *ret, size_t *len)
+void emv_pse_aid(emv_pse_t pse, uint8_t *ret, size_t *len)
 {
-	memcpy(ret, a->a_id, a->a_id_sz);
-	*len = a->a_id_sz;
+	memcpy(ret, pse->p_fci->pse_app.pse_adf_name,
+		pse->p_fci->pse_app._pse_adf_name_count);
+	*len = pse->p_fci->pse_app._pse_adf_name_count;
 }
 
-const char *emv_app_label(emv_app_t a)
+const char *emv_pse_label(emv_pse_t pse)
 {
-	return a->a_name;
+	/* FIXME: may not be nul terminated */
+	return (char *)pse->p_fci->pse_app.pse_label;
 }
 
-const char *emv_app_pname(emv_app_t a)
+const char *emv_pse_pname(emv_pse_t pse)
 {
-	if ( '\0' != *a->a_pname )
-		return a->a_pname;
-	return a->a_name;
+	if ( pse->p_fci->pse_app._present & PSE_APP_PSE_PNAME )
+		return (char *)pse->p_fci->pse_app.pse_pname;
+	else
+		return NULL;
 }
 
-uint8_t emv_app_prio(emv_app_t a)
+uint8_t emv_pse_prio(emv_pse_t pse)
 {
-	return a->a_prio & 0x7f;
+	return pse->p_fci->pse_app.pse_prio & 0x7f;
 }
 
-int emv_app_confirm(emv_app_t a)
+int emv_pse_confirm(emv_pse_t pse)
 {
-	return a->a_prio >> 7;
+	return pse->p_fci->pse_app.pse_prio >> 7;
 }
 
-int emv_appsel_pse(emv_t e)
+int emv_appsel_psd(emv_t e)
 {
-	static const char * const pse = "1PAY.SYS.DDF01";
-	struct _emv_app *a, *tmp;
+	static const char * const psd = "1PAY.SYS.DDF01";
+	struct _emv_pse *pse, *tmp;
 	unsigned int i;
 
-	if ( !_emv_select(e, (uint8_t *)pse, strlen(pse)) )
+	if ( !_emv_select(e, (uint8_t *)psd, strlen(psd)) )
 		return 0;
 
-	list_for_each_entry_safe(a, tmp, &e->e_apps, a_list) {
-		list_del(&a->a_list);
-		free(a);
+	list_for_each_entry_safe(pse, tmp, &e->e_pse, p_list) {
+		pse_fci_free(pse->p_fci);
+		list_del(&pse->p_list);
+		free(pse);
 	}
 
 	for (i = 1; ; i++) {
@@ -162,53 +111,30 @@ int emv_appsel_pse(emv_t e)
 	return 1;
 }
 
-emv_app_t emv_appsel_pse_first(emv_t e)
+emv_pse_t emv_appsel_pse_first(emv_t e)
 {
-	return list_entry(e->e_apps.next, struct _emv_app, a_list);
-}
-
-emv_app_t emv_appsel_pse_next(emv_t e, emv_app_t app)
-{
-	if ( app->a_list.next == &e->e_apps )
+	if ( list_empty(&e->e_pse) )
 		return NULL;
-	return list_entry(app->a_list.next, struct _emv_app, a_list);
+	return list_entry(e->e_pse.next, struct _emv_pse, p_list);
 }
 
-_public void emv_app_delete(emv_app_t a)
+emv_pse_t emv_appsel_pse_next(emv_t e, emv_pse_t app)
 {
-	list_del(&a->a_list);
-	free(a);
+	if ( app->p_list.next == &e->e_pse )
+		return NULL;
+	return list_entry(app->p_list.next, struct _emv_pse, p_list);
 }
 
-static int bop_fci2(const uint8_t *ptr, size_t len, void *priv)
+_public void emv_pse_delete(emv_pse_t pse)
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x50", .tag_len = 1, .op = bop_label},
-		{ .tag = "\x87", .tag_len = 1, .op = bop_prio},
-		{ .tag = "\x5f\x2d", .tag_len = 2, .op = NULL},
-		{ .tag = "\x9f\x11", .tag_len = 2, .op = NULL},
-		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname},
-		{ .tag = "\xbf\x0c", .tag_len = 2, .op = NULL},
-		/* FIXME: retrieve optional PDOL if present */
-	};
-	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
-}
-
-static int bop_fci(const uint8_t *ptr, size_t len, void *priv)
-{
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x84", .tag_len = 1, .op = bop_adfname},
-		{ .tag = "\xa5", .tag_len = 1, .op = bop_fci2},
-	};
-	return ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, priv);
+	pse_fci_free(pse->p_fci);
+	list_del(&pse->p_list);
+	free(pse);
 }
 
 static int set_app(emv_t e)
 {
-	static const struct ber_tag tags[] = {
-		{ .tag = "\x6f", .tag_len = 1, .op = bop_fci},
-	};
-	struct _emv_app *cur;
+	struct adf_fci *adf_fci;
 	const uint8_t *fci;
 	size_t len;
 
@@ -216,22 +142,23 @@ static int set_app(emv_t e)
 	if ( NULL == fci )
 		return 0;
 
-	cur = calloc(1, sizeof(*cur));
-	if ( NULL == cur )
-		return 0;
-
-	if ( !ber_decode(tags, BER_NUM_TAGS(tags), fci, len, cur) ) {
-		free(cur);
+	adf_fci = adf_fci_decode(fci, len);
+	if ( NULL == adf_fci ) {
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return 0;
 	}
 
-	e->e_app = cur;
-	return 1;
+	if ( e->e_app_fci )
+		adf_fci_free(e->e_app_fci);
+
+	e->e_app_fci = adf_fci;
+	return 0;
 }
 
-int emv_app_select_pse(emv_t e, emv_app_t a)
+int emv_app_select_pse(emv_t e, emv_pse_t pse)
 {
-	if ( !_emv_select(e, a->a_id, a->a_id_sz) )
+	if ( !_emv_select(e, pse->p_fci->pse_app.pse_adf_name,
+		pse->p_fci->pse_app._pse_adf_name_count) )
 		return 0;
 	return set_app(e);
 }

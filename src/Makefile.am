@@ -28,6 +28,9 @@ libemv_la_SOURCES = 	gang.c \
 			emv.c \
 			emv_apdu.c \
 			emv_appsel.c \
+			autober.c \
+			pse_fci.c \
+			adf_fci.c \
 			emv_init.c \
 			emv_data.c \
 			emv_sda.c \
