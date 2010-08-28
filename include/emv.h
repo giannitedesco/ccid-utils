@@ -34,7 +34,7 @@ typedef uint32_t emv_err_t;
 
 typedef struct _emv *emv_t;
 typedef struct _emv_pse *emv_pse_t;
-typedef struct _adf_fci *emv_app_t;
+typedef struct adf_fci *emv_app_t;
 typedef const struct _emv_data *emv_data_t;
 typedef uint8_t emv_rid_t[EMV_RID_LEN];
 typedef const uint8_t *(*emv_mod_cb_t)(void *priv, unsigned int index,

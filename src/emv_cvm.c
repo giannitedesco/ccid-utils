@@ -10,19 +10,8 @@
 #include <ber.h>
 #include "emv-internal.h"
 
-static int bop_ptc(const uint8_t *ptr, size_t len, void *priv)
-{
-	int *ctr = priv;
-	assert(1 == len);
-	*ctr = *ptr;
-	return 1;
-}
-
 static int ptc(struct _emv *e)
 {
-	//static const struct ber_tag tags[] = {
-	//	{ .tag = "\x9f\x17", .tag_len = 2, .op = bop_ptc},
-	//};
 	const uint8_t *ptr;
 	size_t len;
 	int ctr = -1;
