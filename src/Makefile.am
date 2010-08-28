@@ -9,7 +9,7 @@ bin_PROGRAMS = emvtool simtool
 
 libccid_la_LIBADD = -lusb-1.0
 libccid_la_SOURCES = \
-	ccid-internals.h \
+	ccid-internal.h \
 	util.c \
 	ber.c \
 	xfr.c \
