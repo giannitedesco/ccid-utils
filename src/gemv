@@ -608,6 +608,11 @@ class EMVShell(ui.App):
 			self.__app = self.__emv.current_app()
 			self.set_status("%s selected"%self.__app.label())
 			self.__read_data()
+			try:
+				self.__auc = self.__data[\
+					emv.EMV_TAG_USAGE_CONTROL].value()
+			except KeyError:
+				self.__auc = None
 		except Exception, e:
 			self.error(e)
 		return
@@ -644,7 +649,7 @@ class EMVShell(ui.App):
 		try:
 			cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
 			cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
-		except:
+		except KeyError:
 			self.__ab.set_status("CDOL's not found")
 			return
 
@@ -719,6 +724,7 @@ class EMVShell(ui.App):
 		self.__emv = emv.card(card)
 		self.__app = None
 		self.__aip = None
+		self.__auc = None
 
 		self.set_contents(vs)
 
