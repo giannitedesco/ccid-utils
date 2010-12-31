@@ -249,7 +249,7 @@ again:
 
 	_chipcard_set_status(&cci->cci_slot[msg->bSlot], msg->in.bStatus);
 
-	if ( xfr->x_rxhdr->in.bStatus == CCID_RESULT_TIMEOUT && try )
+	if ( xfr->x_rxhdr->in.bStatus == CCID_RESULT_TIMEOUT && --try )
 		goto again;
 
 	return _cmd_result(cci, xfr->x_rxhdr);
