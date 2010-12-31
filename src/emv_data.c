@@ -545,8 +545,8 @@ int emv_read_app_data(struct _emv *e)
 
 	for(ptr = e->e_afl, end = e->e_afl + e->e_afl_len;
 		ptr + 4 <= end; ptr += 4) {
-		printf("SFI %u: %u rec %u sda\n",
-			 ptr[0] >> 3, (ptr[2] + 1) - ptr[1], ptr[3]);
+		//printf("SFI %u: %u rec %u sda\n",
+		//	 ptr[0] >> 3, (ptr[2] + 1) - ptr[1], ptr[3]);
 		db->db_numsda += ptr[3];
 		db->db_numrec += (ptr[2] + 1) - ptr[1];
 	}
