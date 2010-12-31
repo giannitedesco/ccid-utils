@@ -22,6 +22,7 @@ struct dda_req {
 	size_t icc_cert_len;
 	const uint8_t *icc_r;
 	size_t icc_r_len;
+	size_t icc_mod_len;
 	const uint8_t *icc_exp;
 	size_t icc_exp_len;
 	const uint8_t *ddol;
@@ -257,8 +258,8 @@ static RSA *make_issuer_pk(struct _emv *e, struct dda_req *req)
 
 	memcpy(tmp, kb, kb_len);
 	memcpy(tmp + kb_len, req->pk_r, req->pk_r_len);
-	printf("Retrieved issuer public key:\n");
-	hex_dump(kb, req->pk_cert_len, 16);
+	//printf("Retrieved issuer public key:\n");
+	//hex_dump(kb, req->pk_cert_len, 16);
 	key = RSA_new();
 	if ( NULL == key ) {
 		_emv_sys_error(e);
@@ -292,8 +293,8 @@ static RSA *get_issuer_pk(struct _emv *e, struct dda_req *req,
 		return NULL;
 	}
 
-//	printf("recovered issuer pubkey cert:\n");
-//	hex_dump(req->pk_cert, key_len, 16);
+	//printf("recovered issuer pubkey cert:\n");
+	//hex_dump(req->pk_cert, key_len, 16);
 
 	if ( !check_pk_cert(e, req) )
 		return NULL;
@@ -316,11 +317,12 @@ static RSA *make_icc_pk(struct _emv *e, struct dda_req *req)
 
 	kb = req->icc_cert + 21;
 	kb_len = req->icc_cert_len - (21 + SHA_DIGEST_LENGTH + 1);
+	req->icc_mod_len = kb_len + req->icc_r_len;
 
 	memcpy(tmp, kb, kb_len);
 	memcpy(tmp + kb_len, req->icc_r, req->icc_r_len);
-	printf("Retrieved ICC public key:\n");
-	hex_dump(kb, req->icc_cert_len, 16);
+	//printf("Retrieved ICC public key:\n");
+	//hex_dump(tmp, req->icc_mod_len, 16);
 	key = RSA_new();
 	if ( NULL == key ) {
 		_emv_sys_error(e);
@@ -328,7 +330,7 @@ static RSA *make_icc_pk(struct _emv *e, struct dda_req *req)
 		return NULL;
 	}
 
-	key->n = BN_bin2bn(tmp, req->icc_cert_len, NULL);
+	key->n = BN_bin2bn(tmp, req->icc_mod_len, NULL);
 	key->e = BN_bin2bn(req->icc_exp, req->icc_exp_len, NULL);
 	free(tmp);
 	if ( NULL == key->n || NULL == key->e ) {
@@ -434,16 +436,25 @@ static RSA *get_icc_pk(struct _emv *e, struct dda_req *req,
 static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 {
 	printf("DDOL tag: 0x%x\n", tag);
-//	if ( 0x9f37 == tag ) {
-//		memset(ptr, 0xa5, len);
-//		return 1;
-//	}
+	if ( 0x9f37 == tag ) {
+#if 0
+		unsigned int i;
+		for(i = 0; i < len; i++)
+			i = rand() & 0xff;
+		return 1;
+#else
+		memset(ptr, 0, len);
+#endif
+	}
 	return 0;
 }
 
-
-static int verify_dynamic_sig(emv_t e, const uint8_t *ddol, size_t ddol_len)
+static int verify_dynamic_sig(emv_t e, size_t icc_pk_len,
+				const uint8_t *ddol, size_t ddol_len)
 {
+	uint8_t hbuf[icc_pk_len + ddol_len];
+	uint8_t md[SHA_DIGEST_LENGTH];
+	uint8_t da[icc_pk_len];
 	uint8_t *dol;
 	size_t dol_len;
 	const uint8_t *sig;
@@ -454,8 +465,8 @@ static int verify_dynamic_sig(emv_t e, const uint8_t *ddol, size_t ddol_len)
 	if ( NULL == dol )
 		return 0;
 
-	printf("Constructed DDOL:\n");
-	hex_dump(dol, dol_len, 16);
+	//printf("Constructed DDOL:\n");
+	//hex_dump(dol, dol_len, 16);
 
 	if ( !_emv_int_authenticate(e, dol, dol_len) )
 		goto out;
@@ -463,10 +474,40 @@ static int verify_dynamic_sig(emv_t e, const uint8_t *ddol, size_t ddol_len)
 	sig = xfr_rx_data(e->e_xfr, &sig_len);
 	if ( NULL == sig )
 		goto out;
+	
+	if ( sig_len != icc_pk_len + 2 || icc_pk_len < 24 ||
+			sig[0] != 0x80 || sig[1] != icc_pk_len ) {
+		printf("Signed dynamic application data is corrupt\n");
+		_emv_error(e, EMV_ERR_BER_DECODE);
+		goto out;
+	}
 
-	/* TODO: verify signed dynamic authentication data */
-	printf("Signed authentication data:\n");
-	hex_dump(sig, sig_len, 16);
+	memcpy(da, sig + 2, icc_pk_len);
+	if ( !recover(da, icc_pk_len, e->e_icc_pk) ) {
+		_emv_error(e, EMV_ERR_CERTIFICATE);
+		goto out;
+	}
+	
+	if ( da[0] != 0x6a || da[1] != 0x05 || da[2] != 0x01) {
+		printf("Dynamic application data is corrupt\n");
+		_emv_error(e, EMV_ERR_CERTIFICATE);
+		goto out;
+	}
+
+	//printf("Signed authentication data:\n");
+	//hex_dump(da, icc_pk_len, 16);
+
+	memcpy(hbuf, da + 1, icc_pk_len - 22);
+	memcpy(hbuf + (icc_pk_len - 22), dol, dol_len);
+	//printf("Data covered by hash:\n");
+	//hex_dump(hbuf, (icc_pk_len - 22) + dol_len, 16);
+
+	SHA1(hbuf, (icc_pk_len - 22) + dol_len, md);
+
+	if ( memcmp(md, (da + icc_pk_len) - (SHA_DIGEST_LENGTH + 1),
+			SHA_DIGEST_LENGTH) ) {
+		goto out;
+	}
 	ret = 1;
 out:
 	free(dol);
@@ -509,7 +550,7 @@ int emv_authenticate_dynamic(emv_t e, emv_mod_cb_t mod, emv_exp_cb_t exp,
 	if ( NULL == e->e_icc_pk )
 		return 0;
 
-	if ( !verify_dynamic_sig(e, req.ddol, req.ddol_len) )
+	if ( !verify_dynamic_sig(e, req.icc_mod_len, req.ddol, req.ddol_len) )
 		return 0;
 
 	e->e_dda_ok = 1;
