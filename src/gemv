@@ -617,7 +617,7 @@ class EMVShell(ui.App):
 			self.error(e)
 		return
 
-	def __sda(self, a):
+	def __sda(self):
 		try:
 			self.__emv.authenticate_static_data(mod, exp)
 		except Exception, e:
@@ -628,6 +628,25 @@ class EMVShell(ui.App):
 			self.__ts.set_value(x, 0,
 					gtk.STOCK_DIALOG_AUTHENTICATION)
 		return
+
+	def __dda(self):
+		try:
+			self.__emv.authenticate_dynamic(mod, exp)
+		except Exception, e:
+			self.error(e)
+			return
+		self.set_status("DDA data authenticated")
+		return
+
+	def __auth_card(self, a):
+		if self.__aip is None:
+			self.set_status("Must select application first")
+			return
+		if self.__aip[0] & emv.EMV_AIP_DDA:
+			self.__dda()
+		elif self.__aip[0] & emv.EMV_AIP_SDA:
+			self.__sda()
+			return
 
 	def __cvm(self, a):
 		d = EMVPinDialog(self, self.__emv)
@@ -677,7 +696,7 @@ class EMVShell(ui.App):
 					self.__appsel),
 				("Authenticate Card",
 					gtk.STOCK_DIALOG_AUTHENTICATION,
-					self.__sda),
+					self.__auth_card),
 				("Verify Cardholder",
 					gtk.STOCK_YES,
 					self.__cvm),

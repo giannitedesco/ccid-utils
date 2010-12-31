@@ -645,6 +645,22 @@ static PyObject *cp_sda(struct cp_emv *self, PyObject *args)
 	return Py_None;
 }
 
+static PyObject *cp_dda(struct cp_emv *self, PyObject *args)
+{
+	struct key_cb cb;
+
+	if ( !PyArg_ParseTuple(args, "OO", &cb.mod, &cb.exp) )
+		return NULL;
+
+	if ( !emv_authenticate_dynamic(self->emv, get_mod, get_exp, &cb) ) {
+		set_err(self->emv);
+		return NULL;
+	}
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyObject *cp_cvm_pin(struct cp_emv *self, PyObject *args)
 {
 	char *pin;
@@ -742,7 +758,10 @@ static PyMethodDef cp_emv_methods[] = {
 		"emv.read_app_data() - Read application data"},
 	{"authenticate_static_data",(PyCFunction)cp_sda, METH_VARARGS,
 		"authenticate_static_data(mod_cb, exp_cb) - "
-		"Does what it says on the tin"},
+		"Static data authentication"},
+	{"authenticate_dynamic",(PyCFunction)cp_dda, METH_VARARGS,
+		"authenticate_static_data(mod_cb, exp_cb) - "
+		"Dynamic data authentication"},
 	{"cvm_pin",(PyCFunction)cp_cvm_pin, METH_VARARGS,
 		"emv.cvm_pin(string) - Plaintext PIN cardholder verification"},
 	{"pin_try_counter",(PyCFunction)cp_pin_try_counter, METH_NOARGS,

@@ -435,7 +435,7 @@ static RSA *get_icc_pk(struct _emv *e, struct dda_req *req,
 
 static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 {
-	printf("DDOL tag: 0x%x\n", tag);
+	//printf("DDOL tag: 0x%x\n", tag);
 	if ( 0x9f37 == tag ) {
 #if 0
 		unsigned int i;
