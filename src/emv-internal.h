@@ -149,8 +149,8 @@ _private void _emv_icc_error(struct _emv *e);
 _private void _emv_error(struct _emv *e, unsigned int code);
 _private void _emv_success(struct _emv *e);
 
-/* Static data authentication */
-//_private int _sda_get_issuer_key(struct _sda *s, RSA *key, size_t key_len);
-//_private int _sda_verify_ssa_data(struct _sda *s);
+/* data authentication */
+_private int _emsa_pss_decode(const uint8_t *msg, size_t msg_len,
+				const uint8_t *em, size_t em_len);
 
 #endif /* _EMV_INTERNAL_H */

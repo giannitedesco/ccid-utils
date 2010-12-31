@@ -32,30 +32,6 @@ struct dda_req {
 	uint8_t pan[10];
 };
 
-static int emsa_pss_decode(const uint8_t *msg, size_t msg_len,
-				const uint8_t *em, size_t em_len)
-{
-	uint8_t md[SHA_DIGEST_LENGTH];
-	size_t mdb_len;
-
-	/* 2. mHash < Hash(m) */
-	SHA1(msg, msg_len, md);
-
-	/* 4. if the rightmost octet of em does not have hexadecimal
-	 * value 0xBC, output “invalid” */
-	if ( em[em_len - 1] != 0xbc ) {
-		printf("emsa-pss: bad trailer\n");
-		return 0;
-	}
-	
-	mdb_len = em_len - sizeof(md) - 1;
-
-	if ( memcmp(em + mdb_len, md, SHA_DIGEST_LENGTH) )
-		return 0;
-
-	return 1;
-}
-
 static int get_required_data(struct _emv *e, struct dda_req *req)
 {
 	const struct _emv_data *d;
@@ -232,7 +208,7 @@ static int check_pk_cert(struct _emv *e, struct dda_req *req)
 	//printf("Encoded message of %u bytes:\n", msg_len);
 	//hex_dump(msg, msg_len, 16);
 
-	ret = emsa_pss_decode(msg, msg_len, req->pk_cert, req->pk_cert_len);
+	ret = _emsa_pss_decode(msg, msg_len, req->pk_cert, req->pk_cert_len);
 	if ( !ret )
 		_emv_error(e, EMV_ERR_CERTIFICATE);
 	free(msg);
@@ -396,7 +372,7 @@ static int check_icc_cert(struct _emv *e, struct dda_req *req)
 	//printf("Encoded message of %u bytes:\n", msg_len);
 	//hex_dump(msg, msg_len, 16);
 
-	ret = emsa_pss_decode(msg, msg_len, req->icc_cert, req->icc_cert_len);
+	ret = _emsa_pss_decode(msg, msg_len, req->icc_cert, req->icc_cert_len);
 	if ( !ret )
 		_emv_error(e, EMV_ERR_CERTIFICATE);
 	free(msg);
@@ -436,7 +412,8 @@ static RSA *get_icc_pk(struct _emv *e, struct dda_req *req,
 static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 {
 	//printf("DDOL tag: 0x%x\n", tag);
-	if ( 0x9f37 == tag ) {
+	switch(tag) {
+	case EMV_TAG_UNPREDICTABLE_NUMBER:
 #if 0
 		unsigned int i;
 		for(i = 0; i < len; i++)
@@ -445,8 +422,11 @@ static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 #else
 		memset(ptr, 0, len);
 #endif
+		return 1;
+	default:
+		return 0;
+		break;
 	}
-	return 0;
 }
 
 static int verify_dynamic_sig(emv_t e, size_t icc_pk_len,

@@ -22,30 +22,6 @@ struct sda_req {
 	size_t ssa_data_len;
 };
 
-static int emsa_pss_decode(const uint8_t *msg, size_t msg_len,
-				const uint8_t *em, size_t em_len)
-{
-	uint8_t md[SHA_DIGEST_LENGTH];
-	size_t mdb_len;
-
-	/* 2. mHash < Hash(m) */
-	SHA1(msg, msg_len, md);
-
-	/* 4. if the rightmost octet of em does not have hexadecimal
-	 * value 0xBC, output “invalid” */
-	if ( em[em_len - 1] != 0xbc ) {
-		printf("emsa-pss: bad trailer\n");
-		return 0;
-	}
-	
-	mdb_len = em_len - sizeof(md) - 1;
-
-	if ( memcmp(em + mdb_len, md, SHA_DIGEST_LENGTH) )
-		return 0;
-
-	return 1;
-}
-
 static int get_required_data(struct _emv *e, struct sda_req *req)
 {
 	const struct _emv_data *d;
@@ -190,7 +166,7 @@ static int check_pk_cert(struct _emv *e, struct sda_req *req)
 //	printf("Encoded message of %u bytes:\n", msg_len);
 //	hex_dump(msg, msg_len, 16);
 
-	ret = emsa_pss_decode(msg, msg_len, req->pk_cert, req->pk_cert_len);
+	ret = _emsa_pss_decode(msg, msg_len, req->pk_cert, req->pk_cert_len);
 	if ( !ret )
 		_emv_error(e, EMV_ERR_CERTIFICATE);
 	free(msg);
@@ -300,7 +276,7 @@ static int check_ssa(struct _emv *e, const uint8_t *ptr, size_t len,
 	hex_dump(msg, msg_len, 16);
 #endif
 
-	ret = emsa_pss_decode(msg, msg_len, ptr, len);
+	ret = _emsa_pss_decode(msg, msg_len, ptr, len);
 	if ( !ret )
 		_emv_error(e, EMV_ERR_SSA_SIGNATURE);
 	free(msg);

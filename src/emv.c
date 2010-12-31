@@ -22,6 +22,30 @@ uint8_t _emv_sw2(emv_t e)
 	return xfr_rx_sw2(e->e_xfr);
 }
 
+int _emsa_pss_decode(const uint8_t *msg, size_t msg_len,
+				const uint8_t *em, size_t em_len)
+{
+	uint8_t md[SHA_DIGEST_LENGTH];
+	size_t mdb_len;
+
+	/* 2. mHash < Hash(m) */
+	SHA1(msg, msg_len, md);
+
+	/* 4. if the rightmost octet of em does not have hexadecimal
+	 * value 0xBC, output “invalid” */
+	if ( em[em_len - 1] != 0xbc ) {
+		printf("emsa-pss: bad trailer\n");
+		return 0;
+	}
+	
+	mdb_len = em_len - sizeof(md) - 1;
+
+	if ( memcmp(em + mdb_len, md, SHA_DIGEST_LENGTH) )
+		return 0;
+
+	return 1;
+}
+
 #if 0
 static int tag_cmp(const struct dol_tag *tag, const uint8_t *idb, size_t len)
 {

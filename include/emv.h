@@ -175,4 +175,6 @@ _public const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
 #define EMV_TAG_DDOL			0x9f49
 #define EMV_TAG_SDA_TAG_LIST		0x9f4a
 
+#define EMV_TAG_UNPREDICTABLE_NUMBER	0x9f37
+
 #endif /* _EMV_H */

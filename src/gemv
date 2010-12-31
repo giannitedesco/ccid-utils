@@ -288,7 +288,8 @@ class EMVDolDruidPage(ui.DruidPage):
 					EMVDolDate, (), gtk.FILL | gtk.EXPAND),
 			0x009c : ("Transaction Type",
 					EMVDolType, (), 0),
-			0x9f37 : ("Unpredictable Number",
+			emv.EMV_TAG_UNPREDICTABLE_NUMBER:
+					("Unpredictable Number",
 					EMVDolRandom, (), 0) }
 		self.__cdol = cdol
 
