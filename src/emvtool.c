@@ -181,6 +181,7 @@ static int do_emv_stuff(chipcard_t cc)
 	printf("emvtool: card data authenticated\n");
 
 	/* Step 4. Authenticate cardholder */
+#if 0
 	if ( !emv_cvm_pin(e, "1337") )
 		goto end;
 
@@ -191,6 +192,7 @@ static int do_emv_stuff(chipcard_t cc)
 		goto end;
 
 	/* Step 6. Terminal/Card action analysis */
+#endif
 
 end:	/* Step 6. terminate processing */
 	emv_fini(e);
