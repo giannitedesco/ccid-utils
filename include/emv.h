@@ -6,16 +6,9 @@
 #ifndef _EMV_H
 #define _EMV_H
 
+#define EMV_AIP_LEN 		2
 #define EMV_RID_LEN		5
 #define EMV_AID_LEN		11
-
-#define EMV_AIP_LEN 		2
-#define EMV_AIP_CDA		0x01 /* CDA support */
-#define EMV_AIP_ISS		0x04 /* issuer authentication support */
-#define EMV_AIP_TRM		0x08 /* terminal risk management required */
-#define EMV_AIP_CVM		0x10 /* cardholder verification support */
-#define EMV_AIP_DDA		0x20 /* DDA support */
-#define EMV_AIP_SDA		0x40 /* SDA support */
 
 #define EMV_DATA_BINARY		0x0
 #define EMV_DATA_TEXT		0x1
@@ -125,11 +118,33 @@ _public const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
 					size_t *rlen);
 
 /* Definitions from EMV spec */
-#define EMV_AC_AAC	0x00 /* app authnticate  cryptogram . decliend */
-#define EMV_AC_TC	0x40 /* transaction certificate / approved */
-#define EMV_AC_ARQC	0x80 /* authorisation request / online requested */
-#define EMV_AC_CDA	0x10 /* cda signature requested */
+#define EMV_AC_AAC		0x00 /* app auth cryptogram . decliend */
+#define EMV_AC_TC		0x40 /* transaction certificate / approved */
+#define EMV_AC_ARQC		0x80 /* auth request / online requested */
+#define EMV_AC_CDA		0x10 /* cda signature requested */
 
+/* Application Interchange Profile */
+#define EMV_AIP_CDA		0x01 /* CDA support */
+#define EMV_AIP_ISS		0x04 /* issuer authentication support */
+#define EMV_AIP_TRM		0x08 /* terminal risk management required */
+#define EMV_AIP_CVM		0x10 /* cardholder verification support */
+#define EMV_AIP_DDA		0x20 /* DDA support */
+#define EMV_AIP_SDA		0x40 /* SDA support */
+
+/* Application Usage Control */
+#define ENV_AUC1_DOMESTIC_CASH		(1<<7)
+#define EMV_AUC1_INT_CASH		(1<<6)
+#define EMV_AUC1_DOMESTIC_GOODS		(1<<5)
+#define EMV_AUC1_INT_GOODS		(1<<4)
+#define EMV_AUC1_DOMESTIC_SERVICES	(1<<3)
+#define EMV_AUC1_INT_SERVICES		(1<<2)
+#define EMV_AUC1_ATM			(1<<1)
+#define EMV_AUC1_NON_ATM_TERMINALS	(1<<0)
+
+#define EMV_AUC2_DOMESTIC_CASHBACK	(1<<7)
+#define EMV_AUC2_INT_CASHBACK		(1<<6)
+
+/* Selected data items (seen on EMV cards issued in UK) */
 #define EMV_TAG_MAGSTRIP_TRACK2		0x0057
 #define EMV_TAG_PAN			0x005a
 #define EMV_TAG_RECORD			0x0070
