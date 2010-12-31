@@ -132,7 +132,7 @@ _public const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
 #define EMV_AIP_SDA		0x40 /* SDA support */
 
 /* Application Usage Control */
-#define ENV_AUC1_DOMESTIC_CASH		(1<<7)
+#define EMV_AUC1_DOMESTIC_CASH		(1<<7)
 #define EMV_AUC1_INT_CASH		(1<<6)
 #define EMV_AUC1_DOMESTIC_GOODS		(1<<5)
 #define EMV_AUC1_INT_GOODS		(1<<4)

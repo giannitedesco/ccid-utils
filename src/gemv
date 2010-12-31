@@ -288,7 +288,7 @@ class EMVDolDruidPage(ui.DruidPage):
 					EMVDolDate, (), gtk.FILL | gtk.EXPAND),
 			0x009c : ("Transaction Type",
 					EMVDolType, (), 0),
-			emv.EMV_TAG_UNPREDICTABLE_NUMBER:
+			emv.TAG_UNPREDICTABLE_NUMBER:
 					("Unpredictable Number",
 					EMVDolRandom, (), 0) }
 		self.__cdol = cdol
@@ -375,7 +375,7 @@ class EMVActionDialog(gtk.Dialog):
 	def __p1_next(self, p, d):
 		dol = p.create_dol()
 		try:
-			rx = self.__emv.generate_ac(emv.EMV_AC_ARQC, dol)
+			rx = self.__emv.generate_ac(emv.AC_ARQC, dol)
 		except Exception, e:
 			self.__parent.error(e)
 			self.response(gtk.RESPONSE_REJECT)
@@ -392,7 +392,7 @@ class EMVActionDialog(gtk.Dialog):
 	def __p3_next(self, p, d):
 		dol = p.create_dol()
 		try:
-			rx = self.__emv.generate_ac(emv.EMV_AC_TC, dol)
+			rx = self.__emv.generate_ac(emv.AC_TC, dol)
 		except Exception, e:
 			self.__parent.error(e)
 			self.response(gtk.RESPONSE_REJECT)
@@ -525,8 +525,8 @@ class EMVShell(ui.App):
 	def error(self, e):
 		msg = e.args[0]
 		if len(e.args) >= 3 and \
-				e.args[1] == emv.EMV_ERR_EMV and \
-				e.args[2] == emv.EMV_ERR_BAD_PIN:
+				e.args[1] == emv.ERR_EMV and \
+				e.args[2] == emv.ERR_BAD_PIN:
 			msg = msg + ", %d tries remaining"%\
 				self.__emv.pin_try_counter()
 		if msg == "":
@@ -566,7 +566,7 @@ class EMVShell(ui.App):
 
 	def __add_children(self, iter, d):
 		for (k, v) in d.children().items():
-			if v.type() == emv.EMV_DATA_BINARY:
+			if v.type() == emv.DATA_BINARY:
 				t = "Monospace"
 			else:
 				t = None
@@ -611,7 +611,7 @@ class EMVShell(ui.App):
 			self.__read_data()
 			try:
 				self.__auc = self.__data[\
-					emv.EMV_TAG_USAGE_CONTROL].value()
+					emv.TAG_USAGE_CONTROL].value()
 			except KeyError:
 				self.__auc = None
 		except Exception, e:
@@ -643,9 +643,9 @@ class EMVShell(ui.App):
 		if self.__aip is None:
 			self.set_status("Must select application first")
 			return
-		if self.__aip[0] & emv.EMV_AIP_DDA:
+		if self.__aip[0] & emv.AIP_DDA:
 			self.__dda()
-		elif self.__aip[0] & emv.EMV_AIP_SDA:
+		elif self.__aip[0] & emv.AIP_SDA:
 			self.__sda()
 			return
 
@@ -667,8 +667,8 @@ class EMVShell(ui.App):
 
 	def __transact(self, a):
 		try:
-			cdol1 = self.__data[emv.EMV_TAG_CDOL1].value()
-			cdol2 = self.__data[emv.EMV_TAG_CDOL2].value()
+			cdol1 = self.__data[emv.TAG_CDOL1].value()
+			cdol2 = self.__data[emv.TAG_CDOL2].value()
 		except KeyError:
 			self.__ab.set_status("CDOL's not found")
 			return
