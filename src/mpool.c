@@ -22,8 +22,6 @@
 struct _mpool {
 	/** Object size. */
 	size_t obj_size;
-	/** Pointer to next available object */
-	void *next_obj;
 	/** Size of each block including mpool_hdr overhead. */
 	size_t slab_size;
 	/** List of blocks. */
@@ -38,6 +36,8 @@ struct _mpool {
 struct _mpool_hdr {
 	/** Pointer to next item in the list */
 	struct _mpool_hdr *next;
+	/** Pointer to next available object */
+	void *next_obj;
 	/** Data up to the slab_size */
 	uint8_t data[0];
 };
