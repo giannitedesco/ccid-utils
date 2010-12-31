@@ -94,6 +94,7 @@ static const char * const emv_errs[] = {
 	[ EMV_ERR_SSA_SIGNATURE	] "Invald SSA data signature",
 	[ EMV_ERR_BAD_PIN ] "Wrong PIN",
 	[ EMV_ERR_BER_DECODE ] "Malformed BER TLV data",
+	[ EMV_ERR_APP_NOT_SELECTED ] "No application selected",
 };
 
 static const char *err_string(uint32_t code)

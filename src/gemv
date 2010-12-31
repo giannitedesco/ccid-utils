@@ -604,7 +604,7 @@ class EMVShell(ui.App):
 		if ret == False:
 			return
 		try:
-			self.__emv.init()
+			self.__aip = self.__emv.init()
 			self.__app = self.__emv.current_app()
 			self.set_status("%s selected"%self.__app.label())
 			self.__read_data()
@@ -718,6 +718,7 @@ class EMVShell(ui.App):
 
 		self.__emv = emv.card(card)
 		self.__app = None
+		self.__aip = None
 
 		self.set_contents(vs)
 

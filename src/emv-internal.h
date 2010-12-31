@@ -6,16 +6,7 @@
 #ifndef _EMV_INTERNAL_H
 #define _EMV_INTERNAL_H
 
-#define EMV_AIP_LEN 2
-
 #define EMV_PIN_BLOCK_LEN 8
-
-#define EMV_AIP_CDA	0x01 /* CDA support */
-#define EMV_AIP_ISS	0x04 /* issuer authentication support */
-#define EMV_AIP_TRM	0x08 /* terminal risk management required */
-#define EMV_AIP_CVM	0x10 /* cardholder verification support */
-#define EMV_AIP_DDA	0x20 /* DDA support */
-#define EMV_AIP_SDA	0x40 /* SDA support */
 
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
@@ -95,7 +86,7 @@ struct _emv {
 	struct list_head e_apps;
 	struct _emv_app *e_app;
 
-	uint8_t e_aip[2];
+	emv_aip_t e_aip;
 	uint8_t *e_afl;
 	size_t e_afl_len;
 

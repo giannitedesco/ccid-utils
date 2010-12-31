@@ -526,12 +526,30 @@ static PyObject *cp_current_app(struct cp_emv *self, PyObject *args)
 
 static PyObject *cp_init(struct cp_emv *self, PyObject *args)
 {
+	PyObject *tup;
+	emv_aip_t aip;
+
 	if ( !emv_app_init(self->emv) ) {
 		set_err(self->emv);
 		return NULL;
 	}
-	Py_INCREF(Py_None);
-	return Py_None;
+
+	if ( !emv_app_aip(self->emv, aip) ) {
+		set_err(self->emv);
+		return NULL;
+	}
+
+	tup = PyTuple_New(2);
+	if ( NULL == tup )
+		return NULL;
+	
+	if ( PyTuple_SetItem(tup, 0, PyInt_FromLong(aip[0])) ||
+		PyTuple_SetItem(tup, 1, PyInt_FromLong(aip[1])) ) {
+		Py_DECREF(tup);
+		return NULL;
+	}
+
+	return tup;
 }
 
 static PyObject *data_list(struct cp_emv *owner, emv_data_t *elem,
@@ -918,6 +936,13 @@ PyMODINIT_FUNC initemv(void)
 	_INT_CONST(m, EMV_AC_TC);
 	_INT_CONST(m, EMV_AC_ARQC);
 	_INT_CONST(m, EMV_AC_CDA);
+
+	_INT_CONST(m, EMV_AIP_CDA);
+	_INT_CONST(m, EMV_AIP_ISS);
+	_INT_CONST(m, EMV_AIP_TRM);
+	_INT_CONST(m, EMV_AIP_CVM);
+	_INT_CONST(m, EMV_AIP_DDA);
+	_INT_CONST(m, EMV_AIP_SDA);
 
 	Py_INCREF(&emv_pytype);
 	PyModule_AddObject(m, "card", (PyObject *)&emv_pytype);

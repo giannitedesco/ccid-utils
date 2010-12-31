@@ -53,6 +53,7 @@ int emv_app_init(emv_t e)
 	if ( !get_aip(e) )
 		return 0;
 
+#if 0
 	if ( e->e_aip[0] & EMV_AIP_ISS )
 		printf("AIP: Issuer authentication\n");
 	if ( e->e_aip[0] & EMV_AIP_TRM )
@@ -65,7 +66,19 @@ int emv_app_init(emv_t e)
 		printf("AIP: Static data authentication\n");
 	if ( e->e_aip[0] & EMV_AIP_CDA)
 		printf("AIP: Combined data authentication\n");
+#endif
 
 	_emv_success(e);
+	return 1;
+}
+
+int emv_app_aip(emv_t e, emv_aip_t aip)
+{
+	if ( NULL == e->e_app ) {
+		_emv_error(e, EMV_ERR_APP_NOT_SELECTED);
+		return 0;
+	}
+
+	memcpy(aip, e->e_aip, sizeof(e->e_aip));
 	return 1;
 }

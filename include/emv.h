@@ -6,8 +6,16 @@
 #ifndef _EMV_H
 #define _EMV_H
 
-#define EMV_RID_LEN	5
-#define EMV_AID_LEN	11
+#define EMV_RID_LEN		5
+#define EMV_AID_LEN		11
+
+#define EMV_AIP_LEN 		2
+#define EMV_AIP_CDA		0x01 /* CDA support */
+#define EMV_AIP_ISS		0x04 /* issuer authentication support */
+#define EMV_AIP_TRM		0x08 /* terminal risk management required */
+#define EMV_AIP_CVM		0x10 /* cardholder verification support */
+#define EMV_AIP_DDA		0x20 /* DDA support */
+#define EMV_AIP_SDA		0x40 /* SDA support */
 
 #define EMV_DATA_BINARY		0x0
 #define EMV_DATA_TEXT		0x1
@@ -30,10 +38,12 @@
 #define  EMV_ERR_SSA_SIGNATURE		0x08
 #define  EMV_ERR_BAD_PIN		0x09
 #define  EMV_ERR_BER_DECODE		0x0a
+#define  EMV_ERR_APP_NOT_SELECTED	0x0b
 typedef uint32_t emv_err_t;
 
 typedef struct _emv *emv_t;
 typedef struct _emv_app *emv_app_t;
+typedef uint8_t emv_aip_t[EMV_AIP_LEN];
 typedef const struct _emv_data *emv_data_t;
 typedef uint8_t emv_rid_t[EMV_RID_LEN];
 typedef const uint8_t *(*emv_mod_cb_t)(void *priv, unsigned int index,
@@ -72,6 +82,7 @@ _public int emv_app_confirm(emv_app_t a);
 
 /* Application initiation */
 _public int emv_app_init(emv_t e);
+_public int emv_app_aip(emv_t e, emv_aip_t aip);
 
 /* Application data */
 _public int emv_read_app_data(emv_t e);
