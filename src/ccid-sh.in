@@ -408,7 +408,7 @@ class scsh:
 
 		return '/'.join(map(lambda x:x[0], ent))
 
-	def load_ins_db(self, fn = '/usr/share/ccid-utils/ins.db')
+	def load_ins_db(self, fn = '@CCID_UTILS_DATADIR@/@PACKAGE@/ins.db')
 		f = open(fn)
 		while True:
 			l = f.readline()
@@ -434,7 +434,7 @@ class scsh:
 				self.__ins_db[ins] = []
 			self.__ins_db[ins].append((name, cla))
 
-	def load_sw_db(self, fn = '/usr/share/ccid-utils/sw.db')
+	def load_sw_db(self, fn = '@CCID_UTILS_DATADIR@/@PACKAGE@/sw.db')
 		f = open(fn)
 		cur = None
 		while True:

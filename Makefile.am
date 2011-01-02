@@ -2,14 +2,14 @@
 
 SUBDIRS = src
 
+dist_pkgdata_DATA = ins.db sw.db
+
 EXTRA_DIST = \
 	python_stuff \
 	autogen.sh
 
-#dist_pkgdata_DATA = ins.db sw.db
-
-python_uninstall_data := uninstall-data
-python_build_dir := python-build
+python_uninstall_data = uninstall-data
+python_build_dir = python-build
 
 .PHONY: python_stuff
 python_stuff:
