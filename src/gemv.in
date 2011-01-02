@@ -6,6 +6,9 @@ from gnome import ui
 import ccid
 import emv
 
+__copyright__ = "Copyright (c) 2009 Gianni Tedesco"
+__licence__ = "GPLv3"
+
 visa1152_mod =  "\xA8\x9F\x25\xA5\x6F\xA6\xDA\x25" \
 		"\x8C\x8C\xA8\xB4\x04\x27\xD9\x27" \
 		"\xB4\xA1\xEB\x4D\x7E\xA3\x26\xBB" \
@@ -764,7 +767,7 @@ def bail(msg):
 	raise SystemExit
 
 if __name__ == '__main__':
-	gnome.program_init("gemv", "0.1")
+	gnome.program_init("gemv", "@VERSION@")
 	wins = []
 	for dev in ccid.devlist():
 		try:
