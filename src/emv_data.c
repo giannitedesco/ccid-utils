@@ -383,6 +383,7 @@ static int decode_record(struct db_state *s, const uint8_t *ptr,
 	return composite(s->e, d);
 }
 
+#if 0
 static void hex_dump_r(const uint8_t *tmp, size_t len,
 			size_t llen, unsigned int depth)
 {
@@ -417,7 +418,6 @@ static void hex_dump_r(const uint8_t *tmp, size_t len,
 	printf("\n");
 }
 
-#if 0
 static const char *label(struct _emv_data *d)
 {
 	static char buf[20];
