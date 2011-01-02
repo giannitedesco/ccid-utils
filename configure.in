@@ -21,18 +21,6 @@ if test -n "$GCC"; then
 	CFLAGS="${CFLAGS} -Wall -pipe"
 fi
 dnl
-PYTHON_LDADD=""
-if python-config --prefix > /dev/null; then
-	echo "checking for python CFLAGS... `python-config --cflags`"
-	CFLAGS="${CFLAGS} `python-config --cflags`"
-	echo "checking for python LDFLAGS... `python-config --ldflags`"
-	PYTHON_LDADD="`python-config --ldflags`"
-	AC_SUBST(PYTHON_LDADD)
-else
-	echo "*** ERROR: python-dev required"
-	exit 1
-fi
-dnl
 LIBUSB_LDADD=""
 usbmod="libusb-1.0"
 if pkg-config $usbmod --modversion > /dev/null; then
