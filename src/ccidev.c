@@ -15,7 +15,7 @@ static void do_init(void)
 		libusb_init(&ctx);
 }
 
-static int check_interface(struct libusb_device *dev, int c, int i)
+static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 {
 	struct libusb_config_descriptor *conf;
 	const struct libusb_interface *iface;
@@ -26,14 +26,39 @@ static int check_interface(struct libusb_device *dev, int c, int i)
 
 	iface = &conf->interface[i];
 
+	/* Scan for generic CCID class */
 	for (ret = a = 0; a < iface->num_altsetting; a++) {
 		const struct libusb_interface_descriptor *id =
 							&iface->altsetting[a];
-		if ( id->bInterfaceClass == 0x0b )
+		if ( id->bInterfaceClass == 0x0b ) {
 			return a;
+		}
+	}
+	
+	if ( generic )
+		goto out;
+
+	/* If no generic CCID found, try first proprietary since the vendor
+	 * and device ID's are in our list
+	 */
+	for (ret = a = 0; a < iface->num_altsetting; a++) {
+		const struct libusb_interface_descriptor *id =
+							&iface->altsetting[a];
+		if ( id->bInterfaceClass == 0xff ) {
+			return a;
+		}
+	}
+out:
+	return -1;
+}
+
+static int check_vendor_dev_list(uint16_t idVendor, uint16_t idProduct)
+{
+	if ( idVendor == 0x4e6 && idProduct == 0xe003 ) {
+		return 1;
 	}
 
-	return -1;
+	return 0;
 }
 
 /** Probe a USB device for a CCID interface.
@@ -47,25 +72,21 @@ static int check_interface(struct libusb_device *dev, int c, int i)
 int _probe_descriptors(struct libusb_device *dev, int *cp, int *ip, int *ap)
 {
 	struct libusb_device_descriptor d;
-	int c, i, a;
+	int c, i, a, supported;
 
 	c = i = a = 0;
 
 	if ( libusb_get_device_descriptor(dev, &d) )
 		return 0;
 
-	if ( d.idVendor == 0x4e6 &&
-		d.idProduct == 0xe003 ) {
-		c = 1;
-			goto success;
-	}
+	supported = check_vendor_dev_list(d.idVendor, d.idProduct);
 
 	for(c = 0; c < d.bNumConfigurations; c++) {
 		struct libusb_config_descriptor *conf;
 		if ( libusb_get_config_descriptor(dev, c, &conf) )
 			return 0;
 		for(i = 0; i < conf->bNumInterfaces; i++) {
-			a = check_interface(dev, c, i);
+			a = check_interface(dev, c, i, !supported);
 			if ( a < 0 )
 				continue;
 
@@ -76,6 +97,8 @@ int _probe_descriptors(struct libusb_device *dev, int *cp, int *ip, int *ap)
 	return 0;
 
 success:
+	c++;
+
 	if ( cp )
 		*cp = c;
 	if ( ip )

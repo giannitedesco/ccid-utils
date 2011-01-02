@@ -626,8 +626,6 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	int c, i, a;
 
 	if ( !_probe_descriptors(dev, &c, &i, &a) ) {
-		//fprintf(stderr, "*** error: failed to probe device %s/%s\n",
-		//	dev->bus->dirname, dev->filename);
 		goto out;
 	}
 
@@ -645,8 +643,9 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 			goto out_free;
 	}
 
-	//trace(cci, "Probe CCI on dev %s/%s %d:%d:%d\n",
-	//	dev->bus->dirname, dev->filename, c, i, a);
+	trace(cci, "Probe CCI on dev %u:%u %d/%d/%d\n",
+		libusb_get_bus_number(dev),
+		libusb_get_device_address(dev), c, i, a);
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
@@ -663,14 +662,17 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 #endif
 
 	if ( libusb_set_configuration(cci->cci_dev, c) ) {
+		trace(cci, "error setting configuration\n");
 		goto out_close;
 	}
 
 	if ( libusb_claim_interface(cci->cci_dev, i) ) {
+		trace(cci, "error claiming interface\n");
 		goto out_close;
 	}
 
 	if ( libusb_set_interface_alt_setting(cci->cci_dev, i, a) ) {
+		trace(cci, "error setting alternate settings\n");
 		goto out_close;
 	}
 
