@@ -6,7 +6,7 @@
 #ifndef _CCID_INTERNAL_H
 #define _CCID_INTERNAL_H
 
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #include <ccid-spec.h>
 
 #define trace(cci, fmt, x...) \

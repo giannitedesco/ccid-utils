@@ -27,8 +27,25 @@ if python-config --prefix > /dev/null; then
 	CFLAGS="${CFLAGS} `python-config --cflags`"
 	echo "checking for python LDFLAGS... `python-config --ldflags`"
 	PYTHON_LDADD="`python-config --ldflags`"
+	AC_SUBST(PYTHON_LDADD)
+else
+	echo "*** ERROR: python-dev required"
+	exit 1
 fi
-AC_SUBST(PYTHON_LDADD)
+dnl
+LIBUSB_LDADD=""
+usbmod="libusb-1.0"
+if pkg-config $usbmod --modversion > /dev/null; then
+	echo "checking for libusb CFLAGS... `pkg-config $usbmod --cflags`"
+	CFLAGS="${CFLAGS} `pkg-config --cflags $usbmod`"
+	echo "checking for python LDFLAGS... `pkg-config $usbmod --libs`"
+	LIBUSB_LDADD="`pkg-config --libs $usbmod`"
+	AC_SUBST(LIBUSB_LDADD)
+else
+	echo "*** ERROR: $usbmod required"
+	exit 1
+fi
+dnl
 AC_OUTPUT([
 Makefile
 src/Makefile

@@ -20,7 +20,7 @@ libccid_la_SOURCES = \
 ccid_la_LIBADD = -lusb-1.0 libccid.la
 ccid_la_SOURCES = py_ccid.c
 ccid_la_LDFLAGS = -avoid-version -export-dynamic -module \
-			@PYTHON_LDADD@
+			@PYTHON_LDADD@ @LIBUSB_LDADD@
 
 libemv_la_LIBADD = libccid.la -lcrypto
 libemv_la_SOURCES = 	gang.c \
