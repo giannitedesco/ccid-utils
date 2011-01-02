@@ -748,12 +748,6 @@ class EMVShell(ui.App):
 
 		self.set_contents(vs)
 
-def acquire_card(tracefile=None):
-	cci = ccid.cci(tracefile)
-	slot = cci[0]
-	slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
-	return slot
-
 def err_destroy(self):
 	gtk.main_quit()
 def err_destroy2(self, b):
@@ -774,7 +768,7 @@ if __name__ == '__main__':
 	wins = []
 	for dev in ccid.devlist():
 		try:
-			cci = ccid.cci(dev)
+			cci = ccid.cci(dev, 'gemv.trace')
 			slot = cci[0]
 			slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
 			w = EMVShell(slot)
