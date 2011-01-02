@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+__copyright__ = "Copyright (c) 2009 Gianni Tedesco"
+__licence__ = "GPLv3"
+
 import gobject, gtk
 import gnome
 from gnome import ui
