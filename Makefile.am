@@ -2,7 +2,7 @@
 
 SUBDIRS = src
 
-dist_pkgdata_DATA = ins.db sw.db
+dist_pkgdata_DATA = usb-ccid-devices ins.db sw.db
 
 EXTRA_DIST = \
 	python_stuff \

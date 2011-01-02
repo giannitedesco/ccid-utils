@@ -5,14 +5,196 @@
 */
 
 #include <ccid.h>
+#include <ctype.h>
+#include <errno.h>
 
 #include "ccid-internal.h"
 
 static libusb_context *ctx;
+
+struct devid {
+	uint16_t idVendor;
+	uint16_t idProduct;
+	char *name;
+};
+
+#define DEVID_ALLOC_CHUNK (1<<5)
+#define DEVID_ALLOC_MASK  (DEVID_ALLOC_CHUNK - 1)
+static struct devid *devid;
+static unsigned int num_devid;
+
+/* Easy string tokeniser */
+static int easy_explode(char *str, char split,
+			char **toks, int max_toks)
+{
+	char *tmp;
+	int tok;
+	int state;
+
+	for(tmp=str,state=tok=0; *tmp && tok <= max_toks; tmp++) {
+		if ( state == 0 ) {
+			if ( *tmp == split && (tok < max_toks)) {
+				toks[tok++] = NULL;
+			}else if ( !isspace(*tmp) ) {
+				state = 1;
+				toks[tok++] = tmp;
+			}
+		}else if ( state == 1 ) {
+			if ( tok < max_toks ) {
+				if ( *tmp == split || isspace(*tmp) ) {
+					*tmp = '\0';
+					state = 0;
+				}
+			}else if ( *tmp == '\n' )
+				*tmp = '\0';
+		}
+	}
+
+	return tok;
+}
+
+static int strtou16(const char *s, uint16_t *v)
+{
+	unsigned long int ret;
+	char *end = NULL;
+
+	ret=strtoul(s, &end, 0);
+
+	if ( end == s )
+		return -1;
+
+	if ( ret == ULONG_MAX && errno == ERANGE )
+		return -1;
+
+	if ( ret > UINT_MAX )
+		return -1;
+	if ( ret & ~0xffff )
+		return 0;
+
+	*v = ret;
+	if ( *end == '\0' )
+		return 0;
+
+	return end - s;
+}
+
+static int devid_assure(struct devid **d, unsigned int cnt)
+{
+	static void *new;
+
+	if ( cnt & DEVID_ALLOC_MASK )
+		return 1;
+
+	new = realloc(*d, sizeof(**d) * (cnt + DEVID_ALLOC_CHUNK));
+	if ( new == NULL )
+		return 0;
+
+	*d = new;
+	return 1;
+}
+
+static int append_devid(struct devid **d, unsigned int *cnt,
+			uint16_t idProduct, uint16_t idVendor, const char *str)
+{
+	char *tmp = strdup(str);
+
+	if ( NULL == tmp )
+		return 0;
+
+	if ( !devid_assure(d, *cnt) ) {
+		free(tmp);
+		return 0;
+	}
+
+	(*d)[*cnt].idProduct = idProduct;
+	(*d)[*cnt].idVendor = idVendor;
+	(*d)[*cnt].name = tmp;
+	(*cnt)++;
+	return 1;
+}
+
+static struct devid *load_device_types(unsigned int *pcnt)
+{
+	static const char * const fn =
+			CCID_UTILS_DATADIR "/" PACKAGE "/usb-ccid-devices";
+	FILE *f;
+	char buf[512];
+	char *tok[3];
+	unsigned int cnt, line;
+	struct devid *ret;
+
+	f = fopen(fn, "r");
+	if ( NULL == f ) {
+		fprintf(stderr, "%s: open: %s\n", fn, strerror(errno));
+		return NULL;
+	}
+	
+	for(line = 1, cnt = 0, ret = NULL; fgets(buf, sizeof(buf), f); line++) {
+		uint16_t idVendor, idProduct;
+		int num_toks;
+		char *lf;
+
+		if ( buf[0] == '#' || buf[0] == '\r' || buf[0] == '\n' )
+			continue;
+
+		lf = strchr(buf, '\n');
+		if ( NULL == lf ) {
+			fprintf(stderr,
+				"%s:%u: line exceeded max line length (%u)",
+				fn, line, sizeof(buf));
+			break;
+		}
+
+		*lf = '\0';
+
+		num_toks = easy_explode(buf, ':',
+					tok, sizeof(tok)/sizeof(*tok));
+		if ( num_toks < 2 ) {
+			fprintf(stderr, "%s:%u: badly formed line", fn, line);
+			continue;
+		}
+
+		if ( strtou16(tok[0], &idVendor) ||
+			strtou16(tok[1], &idProduct ) ) {
+			fprintf(stderr, "%s:%u: bad ID number", fn, line);
+			continue;
+		}
+		//printf("0x%.4x 0x%.4x '%s'\n", idProduct, idVendor, tok[2]);
+		append_devid(&ret, &cnt, idProduct, idVendor, tok[2]);
+	}
+
+	fclose(f);
+	*pcnt = cnt;
+	return ret;
+}
+
+static void zap_device_types(struct devid *d, unsigned int num)
+{
+	unsigned int i;
+	for(i = 0; i < num; i++)
+		free(d[i].name);
+	free(d);
+}
+
+static void reload_device_types(void)
+{
+	struct devid *tmp;
+	unsigned int count;
+
+	tmp = load_device_types(&count);
+	if ( NULL == tmp )
+		return;
+
+	zap_device_types(devid, num_devid);
+	devid = tmp;
+	num_devid = count;
+}
+
 static void do_init(void)
 {
 	if ( NULL == ctx )
 		libusb_init(&ctx);
+	reload_device_types();
 }
 
 static int check_interface(struct libusb_device *dev, int c, int i, int generic)
@@ -54,8 +236,14 @@ out:
 
 static int check_vendor_dev_list(uint16_t idVendor, uint16_t idProduct)
 {
-	if ( idVendor == 0x4e6 && idProduct == 0xe003 ) {
-		return 1;
+	unsigned int i;
+
+	for(i = 0; i < num_devid; i++) {
+		if ( devid[i].idVendor == idVendor &&
+			devid[i].idProduct == idProduct ) {
+			printf("Found %s\n", devid[i].name);
+			return 1;
+		}
 	}
 
 	return 0;
