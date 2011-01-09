@@ -446,7 +446,7 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 
 	trace(cci, " o got %u/%u byte desc of type 0x%.2x\n",
 		len, sizeof(cci->cci_desc), cci->cci_desc.bDescriptorType);
-	trace(cci, " o CCID version %u.%u device with %u/%u slots in parallel\n",
+	trace(cci, " o CCID v%u.%u device with %u/%u slots in parallel\n",
 			bcd_hi(cci->cci_desc.bcdCCID),
 			bcd_lo(cci->cci_desc.bcdCCID),
 			cci->cci_max_slots, cci->cci_num_slots);
@@ -468,16 +468,24 @@ static int fill_ccid_desc(struct _cci *cci, const uint8_t *ptr, size_t len)
 		trace(cci, " T=1");
 	trace(cci, "\n");
 
-	trace(cci, " o Default Clock Freq.: %uKHz\n", cci->cci_desc.dwDefaultClock);
-	trace(cci, " o Max. Clock Freq.: %uKHz\n", cci->cci_desc.dwMaximumClock);
-	//trace(cci, "   .bNumClocks = %u\n", cci->cci_desc.bNumClockSupported);
-	trace(cci, " o Default Data Rate: %ubps\n", cci->cci_desc.dwDataRate);
-	trace(cci, " o Max. Data Rate: %ubps\n", cci->cci_desc.dwMaxDataRate);
-	//trace(cci, "   .bNumDataRates = %u\n", cci->cci_desc.bNumDataRatesSupported);
-	trace(cci, " o T=1 Max. IFSD = %u\n", cci->cci_desc.dwMaxIFSD);
-	//trace(cci, "   .dwSynchProtocols = 0x%.8x\n",
-	//	cci->cci_desc.dwSynchProtocols);
-	//trace(cci, "   .dwMechanical = 0x%.8x\n", cci->cci_desc.dwMechanical);
+	trace(cci, " o Default Clock Freq.: %uKHz\n",
+			cci->cci_desc.dwDefaultClock);
+	trace(cci, " o Max. Clock Freq.: %uKHz\n",
+			cci->cci_desc.dwMaximumClock);
+	trace(cci, "   .bNumClocks = %u\n",
+			cci->cci_desc.bNumClockSupported);
+	trace(cci, " o Default Data Rate: %ubps\n",	
+			cci->cci_desc.dwDataRate);
+	trace(cci, " o Max. Data Rate: %ubps\n",
+			cci->cci_desc.dwMaxDataRate);
+	trace(cci, "   .bNumDataRates = %u\n",
+			cci->cci_desc.bNumDataRatesSupported);
+	trace(cci, " o T=1 Max. IFSD = %u\n",
+			cci->cci_desc.dwMaxIFSD);
+	trace(cci, "   .dwSynchProtocols = 0x%.8x\n",
+			cci->cci_desc.dwSynchProtocols);
+	trace(cci, "   .dwMechanical = 0x%.8x\n",
+			cci->cci_desc.dwMechanical);
 	
 	if ( cci->cci_desc.dwFeatures & CCID_ATR_CONFIG )
 		trace(cci, " o Paramaters configured from ATR\n");
