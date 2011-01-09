@@ -15,6 +15,7 @@ static libusb_context *ctx;
 struct devid {
 	uint16_t idVendor;
 	uint16_t idProduct;
+	unsigned int flags;
 	char *name;
 };
 
@@ -94,7 +95,8 @@ static int devid_assure(struct devid **d, unsigned int cnt)
 }
 
 static int append_devid(struct devid **d, unsigned int *cnt,
-			uint16_t idProduct, uint16_t idVendor, const char *str)
+			uint16_t idProduct, uint16_t idVendor,
+			unsigned int flags, const char *str)
 {
 	char *tmp = strdup(str);
 
@@ -108,9 +110,33 @@ static int append_devid(struct devid **d, unsigned int *cnt,
 
 	(*d)[*cnt].idProduct = idProduct;
 	(*d)[*cnt].idVendor = idVendor;
+	(*d)[*cnt].flags = flags;
 	(*d)[*cnt].name = tmp;
 	(*cnt)++;
 	return 1;
+}
+
+static unsigned int parse_flags(const char *fn, unsigned int line,
+				char *buf)
+{
+	unsigned int ret;
+	char *tok[32];
+	int ntok, i;
+
+	ntok = easy_explode(buf, '|', tok, sizeof(tok)/sizeof(*tok));
+	if ( ntok < 1 )
+		return 0;
+	
+	for(ret = i = 0; i < ntok; i++) {
+		if ( !strcmp(tok[i], "RFID_OMNI") ) {
+			ret |= INTF_RFID_OMNI;
+		}else{
+			fprintf(stderr, "%s:%u: '%s' unknown device flag\n",
+				fn, line, tok[i]);
+		}
+	}
+
+	return ret;
 }
 
 static struct devid *load_device_types(unsigned int *pcnt)
@@ -119,7 +145,7 @@ static struct devid *load_device_types(unsigned int *pcnt)
 			CCID_UTILS_DATADIR "/" PACKAGE "/usb-ccid-devices";
 	FILE *f;
 	char buf[512];
-	char *tok[3];
+	char *tok[4];
 	unsigned int cnt, line;
 	struct devid *ret;
 
@@ -131,6 +157,7 @@ static struct devid *load_device_types(unsigned int *pcnt)
 	
 	for(line = 1, cnt = 0, ret = NULL; fgets(buf, sizeof(buf), f); line++) {
 		uint16_t idVendor, idProduct;
+		unsigned int flags = 0;
 		int num_toks;
 		char *lf;
 
@@ -149,9 +176,18 @@ static struct devid *load_device_types(unsigned int *pcnt)
 
 		num_toks = easy_explode(buf, ':',
 					tok, sizeof(tok)/sizeof(*tok));
-		if ( num_toks < 2 ) {
+		switch(num_toks) {
+		case 0:
+		case 1:
+		default:
 			fprintf(stderr, "%s:%u: badly formed line", fn, line);
 			continue;
+		case 2:
+			tok[2] = NULL;
+		case 3:
+			tok[3] = NULL;
+		case 4:
+			break;
 		}
 
 		if ( strtou16(tok[0], &idVendor) ||
@@ -159,8 +195,9 @@ static struct devid *load_device_types(unsigned int *pcnt)
 			fprintf(stderr, "%s:%u: bad ID number", fn, line);
 			continue;
 		}
-		//printf("0x%.4x 0x%.4x '%s'\n", idProduct, idVendor, tok[2]);
-		append_devid(&ret, &cnt, idProduct, idVendor, tok[2]);
+		if ( tok[2] && strlen(tok[2]) )
+			flags = parse_flags(fn, line, tok[2]);
+		append_devid(&ret, &cnt, idProduct, idVendor, flags, tok[3]);
 	}
 
 	fclose(f);
@@ -290,6 +327,7 @@ success:
 		intf->c = c;
 		intf->i = i;
 		intf->a = a;
+		intf->flags = id->flags;
 		intf->name = id->name;
 	}
 	return 1;

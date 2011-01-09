@@ -58,10 +58,11 @@ struct _xfr {
 	uint8_t 	*x_rxbuf;
 };
 
+#define INTF_RFID_OMNI	(1<<0)
 struct _cci_interface {
-
 	int c, i, a;
 	const char *name;
+	unsigned int flags;
 };
 
 _private int _probe_descriptors(struct libusb_device *dev,

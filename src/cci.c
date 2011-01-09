@@ -656,6 +656,8 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 		libusb_get_device_address(dev), intf.c, intf.i, intf.a);
 	if ( intf.name )
 		trace(cci, "Recognised as: %s\n", intf.name);
+	if ( intf.flags & INTF_RFID_OMNI )
+		trace(cci, "Prox interface detected\n");
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
