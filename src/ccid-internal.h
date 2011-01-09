@@ -58,8 +58,14 @@ struct _xfr {
 	uint8_t 	*x_rxbuf;
 };
 
+struct _cci_interface {
+
+	int c, i, a;
+	const char *name;
+};
+
 _private int _probe_descriptors(struct libusb_device *dev,
-				int *cp, int *ip, int *ap);
+				struct _cci_interface *intf);
 
 _private int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
 _private unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);

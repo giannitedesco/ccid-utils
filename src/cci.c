@@ -629,11 +629,11 @@ static int probe_descriptors(struct _cci *cci)
  */
 cci_t cci_probe(ccidev_t dev, const char *tracefile)
 {
+	struct _cci_interface intf;
 	struct _cci *cci = NULL;
 	unsigned int x;
-	int c, i, a;
 
-	if ( !_probe_descriptors(dev, &c, &i, &a) ) {
+	if ( !_probe_descriptors(dev, &intf) ) {
 		goto out;
 	}
 
@@ -653,7 +653,9 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 
 	trace(cci, "Probe CCI on dev %u:%u %d/%d/%d\n",
 		libusb_get_bus_number(dev),
-		libusb_get_device_address(dev), c, i, a);
+		libusb_get_device_address(dev), intf.c, intf.i, intf.a);
+	if ( intf.name )
+		trace(cci, "Recognised as: %s\n", intf.name);
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
@@ -669,17 +671,17 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	libusb_reset_device(cci->cci_dev);
 #endif
 
-	if ( libusb_set_configuration(cci->cci_dev, c) ) {
+	if ( libusb_set_configuration(cci->cci_dev, intf.c) ) {
 		trace(cci, "error setting configuration\n");
 		goto out_close;
 	}
 
-	if ( libusb_claim_interface(cci->cci_dev, i) ) {
+	if ( libusb_claim_interface(cci->cci_dev, intf.i) ) {
 		trace(cci, "error claiming interface\n");
 		goto out_close;
 	}
 
-	if ( libusb_set_interface_alt_setting(cci->cci_dev, i, a) ) {
+	if ( libusb_set_interface_alt_setting(cci->cci_dev, intf.i, intf.a) ) {
 		trace(cci, "error setting alternate settings\n");
 		goto out_close;
 	}

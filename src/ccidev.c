@@ -234,47 +234,46 @@ out:
 	return -1;
 }
 
-static int check_vendor_dev_list(uint16_t idVendor, uint16_t idProduct)
+static struct devid *check_vendor_dev_list(uint16_t idVendor,
+						uint16_t idProduct)
 {
 	unsigned int i;
 
 	for(i = 0; i < num_devid; i++) {
 		if ( devid[i].idVendor == idVendor &&
 			devid[i].idProduct == idProduct ) {
-			printf("Found %s\n", devid[i].name);
-			return 1;
+			return devid + i;
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 /** Probe a USB device for a CCID interface.
  * @param dev \ref ccidev_t representing a physical device.
- * @param cp Pointer to an integer to retrieve configuration number.
- * @param ip Pointer to an integer to retrieve interface number.
- * @param ap Pointer to an integer to retrieve alternate setting number.
+ * @param intf struct containting interface parameters
  *
  * @return zero indicates failure.
  */
-int _probe_descriptors(struct libusb_device *dev, int *cp, int *ip, int *ap)
+int _probe_descriptors(struct libusb_device *dev, struct _cci_interface *intf)
 {
 	struct libusb_device_descriptor d;
-	int c, i, a, supported;
+	struct devid *id;
+	int c, i, a;
 
 	c = i = a = 0;
 
 	if ( libusb_get_device_descriptor(dev, &d) )
 		return 0;
 
-	supported = check_vendor_dev_list(d.idVendor, d.idProduct);
+	id = check_vendor_dev_list(d.idVendor, d.idProduct);
 
 	for(c = 0; c < d.bNumConfigurations; c++) {
 		struct libusb_config_descriptor *conf;
 		if ( libusb_get_config_descriptor(dev, c, &conf) )
 			return 0;
 		for(i = 0; i < conf->bNumInterfaces; i++) {
-			a = check_interface(dev, c, i, !supported);
+			a = check_interface(dev, c, i, id == NULL);
 			if ( a < 0 )
 				continue;
 
@@ -287,12 +286,12 @@ int _probe_descriptors(struct libusb_device *dev, int *cp, int *ip, int *ap)
 success:
 	c++;
 
-	if ( cp )
-		*cp = c;
-	if ( ip )
-		*ip = i;
-	if ( ap )
-		*ap = a;
+	if ( intf ) {
+		intf->c = c;
+		intf->i = i;
+		intf->a = a;
+		intf->name = id->name;
+	}
 	return 1;
 }
 
@@ -317,7 +316,7 @@ ccidev_t *ccid_get_device_list(size_t *nmemb)
 
 	ccilist = calloc(numdev + 1, sizeof(*ccilist));
 	for(i = n = 0; i < numdev; i++) {
-		if ( !_probe_descriptors(devlist[i], NULL, NULL, NULL) )
+		if ( !_probe_descriptors(devlist[i], NULL) )
 			continue;
 		libusb_ref_device(devlist[i]);
 		ccilist[n++] = devlist[i];
@@ -357,7 +356,7 @@ ccidev_t ccid_device(uint8_t bus, uint8_t addr)
 			continue;
 		if ( libusb_get_device_address(devlist[i]) != addr )
 			continue;
-		if ( _probe_descriptors(devlist[i], NULL, NULL, NULL) ) {
+		if ( _probe_descriptors(devlist[i], NULL) ) {
 			ret = devlist[i];
 			libusb_ref_device(ret);
 		}
