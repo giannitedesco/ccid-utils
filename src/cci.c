@@ -190,12 +190,12 @@ static int do_recv(struct _cci *cci, struct _xfr *xfr)
 		return 0;
 	}
 
-	if ( sizeof(*xfr->x_rxhdr) + sys_le32(xfr->x_rxhdr->dwLength) > len ) {
+	if ( sizeof(*xfr->x_rxhdr) + le32toh(xfr->x_rxhdr->dwLength) > len ) {
 		fprintf(stderr, "*** error: bad dwLength in CCI msg\n");
 		return 0;
 	}
 
-	xfr->x_rxlen = sys_le32(xfr->x_rxhdr->dwLength);
+	xfr->x_rxlen = le32toh(xfr->x_rxhdr->dwLength);
 
 	return 1;
 }
@@ -262,7 +262,7 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 
 	assert(slot < cci->cci_num_slots);
 
-	xfr->x_txhdr->dwLength = sys_le32(xfr->x_txlen);
+	xfr->x_txhdr->dwLength = le32toh(xfr->x_txlen);
 	xfr->x_txhdr->bSlot = slot;
 	xfr->x_txhdr->bSeq = cci->cci_seq++;
 
@@ -363,18 +363,18 @@ int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
 static void byteswap_desc(struct ccid_desc *desc)
 {
 #define _SWAP(field, func) desc->field = func (desc->field)
-	_SWAP(bcdCCID, sys_le16);
-	_SWAP(dwProtocols, sys_le32);
-	_SWAP(dwDefaultClock, sys_le32);
-	_SWAP(dwMaximumClock, sys_le32);
-	_SWAP(dwDataRate, sys_le32);
-	_SWAP(dwMaxDataRate, sys_le32);
-	_SWAP(dwMaxIFSD, sys_le32);
-	_SWAP(dwSynchProtocols, sys_le32);
-	_SWAP(dwMechanical, sys_le32);
-	_SWAP(dwFeatures, sys_le32);
-	_SWAP(dwMaxCCIDMessageLength, sys_le32);
-	_SWAP(wLcdLayout, sys_le16);
+	_SWAP(bcdCCID, le16toh);
+	_SWAP(dwProtocols, le32toh);
+	_SWAP(dwDefaultClock, le32toh);
+	_SWAP(dwMaximumClock, le32toh);
+	_SWAP(dwDataRate, le32toh);
+	_SWAP(dwMaxDataRate, le32toh);
+	_SWAP(dwMaxIFSD, le32toh);
+	_SWAP(dwSynchProtocols, le32toh);
+	_SWAP(dwMechanical, le32toh);
+	_SWAP(dwFeatures, le32toh);
+	_SWAP(dwMaxCCIDMessageLength, le32toh);
+	_SWAP(wLcdLayout, le16toh);
 #undef _SWAP
 }
 
@@ -404,13 +404,13 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 			(ep->bEndpointAddress &  LIBUSB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
 			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
-			sys_le16(ep->wMaxPacketSize));
+			le16toh(ep->wMaxPacketSize));
 		if ( ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) {
 			cci->cci_inp = ep->bEndpointAddress;
-			cci->cci_max_in = sys_le16(ep->wMaxPacketSize);
+			cci->cci_max_in = le16toh(ep->wMaxPacketSize);
 		}else{
 			cci->cci_outp = ep->bEndpointAddress;
-			cci->cci_max_out = sys_le16(ep->wMaxPacketSize);
+			cci->cci_max_out = le16toh(ep->wMaxPacketSize);
 		}
 		break;
 	case LIBUSB_TRANSFER_TYPE_INTERRUPT:
@@ -418,9 +418,9 @@ static int get_endpoint(struct _cci *cci, const uint8_t *ptr, size_t len)
 			(ep->bEndpointAddress &  LIBUSB_ENDPOINT_DIR_MASK) ?
 				"IN" : "OUT",
 			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
-			sys_le16(ep->wMaxPacketSize));
+			le16toh(ep->wMaxPacketSize));
 		cci->cci_intrp = ep->bEndpointAddress;
-		cci->cci_max_intr = sys_le16(ep->wMaxPacketSize);
+		cci->cci_max_intr = le16toh(ep->wMaxPacketSize);
 		break;
 	default:
 		return 0;

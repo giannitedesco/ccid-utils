@@ -6,7 +6,6 @@
 
 #include <ccid.h>
 #include "sim-internal.h"
-#include "bytesex.h"
 
 static int do_select(struct _sim * s, uint16_t id)
 {

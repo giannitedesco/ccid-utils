@@ -15,9 +15,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#if HAVE_ENDIAN_H
+#include <endian.h>
+#endif
 
 #include "compiler.h"
-#include "bytesex.h"
 
 /** \mainpage Chip Card Interface Device (CCID) Utilities.
   * \section intro Introduction.

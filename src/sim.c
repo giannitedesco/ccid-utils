@@ -34,8 +34,8 @@ static int set_df_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 	fci += sizeof(s->s_df_fci);
 	fci_len -= sizeof(s->s_df_fci);
 
-	s->s_df_fci.d_free = sys_be16(s->s_df_fci.d_free);
-	s->s_df_fci.d_id = sys_be16(s->s_df_fci.d_id);
+	s->s_df_fci.d_free = be16toh(s->s_df_fci.d_free);
+	s->s_df_fci.d_id = be16toh(s->s_df_fci.d_id);
 	dprintf("sim_apdu: DF 0x%.4x selected\n", s->s_df);
 
 	dprintf(" df: %u bytes free\n", s->s_df_fci.d_free);
@@ -107,8 +107,8 @@ static int set_ef_fci(struct _sim *s, const uint8_t *fci, size_t fci_len)
 	fci += sizeof(s->s_ef_fci);
 	fci_len -= sizeof(s->s_ef_fci);
 
-	s->s_ef_fci.e_size = sys_be16(s->s_ef_fci.e_size);
-	s->s_ef_fci.e_id = sys_be16(s->s_ef_fci.e_id);
+	s->s_ef_fci.e_size = be16toh(s->s_ef_fci.e_size);
+	s->s_ef_fci.e_id = be16toh(s->s_ef_fci.e_id);
 	dprintf("sim_apdu: EF 0x%.4x selected (parent DF = 0x%.4x)\n",
 		s->s_ef, s->s_df);
 
@@ -165,7 +165,7 @@ static int set_fci(struct _sim *s, uint16_t id)
 		return 0;
 
 	memcpy(&f, fci, sizeof(f));
-	f.f_id = sys_be16(f.f_id);
+	f.f_id = be16toh(f.f_id);
 
 	switch(f.f_id & SIM_TYPE_MASK) {
 	case SIM_TYPE_DF:
