@@ -11,6 +11,7 @@ libccid_la_LIBADD = -lusb-1.0
 libccid_la_LDFLAGS =  -version-info 3:0:0
 libccid_la_SOURCES = \
 	ccid-internal.h \
+	omnikey.c \
 	util.c \
 	ber.c \
 	xfr.c \

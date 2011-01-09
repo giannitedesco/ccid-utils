@@ -260,7 +260,13 @@ static int _PC_to_RDR(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	int ret;
 	size_t len;
 
-	assert(slot < cci->cci_num_slots);
+	/* Escape functions may use bad slots as part of their
+	 * interface. For example this is useful in detecting the
+	 * presence or absense of specific vendor extensions
+	 */
+	if ( xfr->x_txhdr->bMessageType != PC_to_RDR_Escape ) {
+		assert(slot < cci->cci_num_slots);
+	}
 
 	xfr->x_txhdr->dwLength = le32toh(xfr->x_txlen);
 	xfr->x_txhdr->bSlot = slot;
@@ -670,8 +676,6 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 		libusb_get_device_address(dev), intf.c, intf.i, intf.a);
 	if ( intf.name )
 		trace(cci, "Recognised as: %s\n", intf.name);
-	if ( intf.flags & INTF_RFID_OMNI )
-		trace(cci, "Prox interface detected\n");
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
 		cci->cci_slot[x].cc_parent = cci;
@@ -711,7 +715,12 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 	if ( NULL == cci->cci_xfr )
 		goto out_close;
 
-	/* Fourth, setup each slot */
+	/* Fourth, Initialise any proprietary interfaces */
+	if ( intf.flags & INTF_RFID_OMNI )
+		_omnikey_init_prox(cci);
+
+	/* Fifth, setup each slot */
+	trace(cci, "Setting up %u contact card slots\n", cci->cci_num_slots);
 	for(x = 0; x < cci->cci_num_slots; x++) {
 		if ( !_PC_to_RDR_GetSlotStatus(cci, x, cci->cci_xfr) )
 			goto out_freebuf;
@@ -719,6 +728,11 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 			goto out_freebuf;
 		if ( !_RDR_to_PC_SlotStatus(cci, cci->cci_xfr) )
 			goto out_freebuf;
+	}
+
+	/* Finally, setup RF fields */
+	trace(cci, "Setting up %u proximity card RF fields\n", cci->cci_num_rf);
+	for(x = 0; x < cci->cci_num_rf; x++) {
 	}
 
 	goto out;

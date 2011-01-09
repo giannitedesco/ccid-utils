@@ -24,6 +24,8 @@ struct _chipcard {
 	uint8_t cc_status;
 };
 
+#define RFID_MAX_FIELDS 1
+
 struct _cci {
 	libusb_device_handle *cci_dev;
 
@@ -31,6 +33,7 @@ struct _cci {
 
 	FILE		*cci_tf;
 
+	/* USB interfacee */
 	int 		cci_inp;
 	int 		cci_outp;
 	int 		cci_intrp;
@@ -42,10 +45,16 @@ struct _cci {
 	uint8_t 	cci_seq;
 	uint8_t		_pad0;
 
+	/* chipcard slots */
 	unsigned int 	cci_num_slots;
 	unsigned int 	cci_max_slots;
 	struct _chipcard cci_slot[CCID_MAX_SLOTS];
 
+	/* RF fields */
+	unsigned int	cci_num_rf;
+	struct _chipcard cci_rf[RFID_MAX_FIELDS];
+
+	/* CCID USB descriptor */
 	struct ccid_desc cci_desc;
 };
 
@@ -64,6 +73,8 @@ struct _cci_interface {
 	const char *name;
 	unsigned int flags;
 };
+
+_private void _omnikey_init_prox(struct _cci *cci);
 
 _private int _probe_descriptors(struct libusb_device *dev,
 				struct _cci_interface *intf);
