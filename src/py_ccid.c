@@ -296,7 +296,7 @@ static PyObject *cp_chipcard_status(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
-	return PyInt_FromLong(chipcard_status(self->slot));
+	return PyInt_FromLong(chipcard_slot_status(self->slot));
 }
 
 static PyObject *cp_chipcard_clock(struct cp_chipcard *self, PyObject *args)
@@ -308,7 +308,7 @@ static PyObject *cp_chipcard_clock(struct cp_chipcard *self, PyObject *args)
 		return NULL;
 	}
 
-	ret = chipcard_slot_status(self->slot);
+	ret = chipcard_clock_status(self->slot);
 	if ( ret == CHIPCARD_CLOCK_ERR ) {
 		PyErr_SetString(PyExc_IOError, "Transaction error");
 		return NULL;

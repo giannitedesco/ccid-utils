@@ -226,7 +226,7 @@ emv_t emv_init(chipcard_t cc)
 {
 	struct _emv *e;
 
-	if ( chipcard_status(cc) != CHIPCARD_ACTIVE )
+	if ( chipcard_slot_status(cc) != CHIPCARD_ACTIVE )
 		return NULL;
 
 	e = calloc(1, sizeof(*e));

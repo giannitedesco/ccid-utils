@@ -109,7 +109,7 @@ _public int chipcard_wait_for_card(chipcard_t cc);
  * Chip card is not present in the slot.
 */
 #define CHIPCARD_NOT_PRESENT	0x2
-_public unsigned int chipcard_status(chipcard_t cc);
+_public unsigned int chipcard_slot_status(chipcard_t cc);
 
 /** \ingroup g_chipcard
  * There was an error while retrieving clock status.
@@ -131,7 +131,7 @@ _public unsigned int chipcard_status(chipcard_t cc);
  * Clock is stopped in unknown state.
 */
 #define CHIPCARD_CLOCK_STOP	0x4
-_public unsigned int chipcard_slot_status(chipcard_t cc);
+_public unsigned int chipcard_clock_status(chipcard_t cc);
 
 /** \ingroup g_chipcard
  * Automatically select chip card voltage.

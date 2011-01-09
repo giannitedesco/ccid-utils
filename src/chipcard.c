@@ -20,7 +20,7 @@
  *
  * @return one of CHIPCARD_(ACTIVE|PRESENT|NOT_PRESENT).
  */
-unsigned int chipcard_status(chipcard_t cc)
+unsigned int chipcard_slot_status(chipcard_t cc)
 {
 	return cc->cc_status;
 }
@@ -34,7 +34,7 @@ unsigned int chipcard_status(chipcard_t cc)
  *
  * @return one of CHIPCARD_CLOCK_(START|STOP|STOP_L|STOP_H).
  */
-unsigned int chipcard_slot_status(chipcard_t cc)
+unsigned int chipcard_clock_status(chipcard_t cc)
 {
 	struct _cci *cci = cc->cc_parent;
 
