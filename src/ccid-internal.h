@@ -18,10 +18,24 @@
 			} \
 		}while(0);
 
+struct _cmrc632_ops {
+	int (*fifo_read)(struct _cci *cci, unsigned int field,
+			 char *buf, size_t *len);
+	int (*fifo_write)(struct _cci *cci, unsigned int field,
+			  const char *buf, size_t len);
+	int (*reg_read)(struct _cci *cci, unsigned int field,
+			unsigned int reg, uint8_t *val);
+	int (*reg_write)(struct _cci *cci, unsigned int field,
+			 unsigned int reg, uint8_t val);
+};
+
 struct _chipcard {
 	struct _cci *cc_parent;
 	uint8_t cc_idx;
 	uint8_t cc_status;
+
+	/* Fields related to proprietary interfaces */
+	const struct _cmrc632_ops *cc_cmrc632;
 };
 
 #define RFID_MAX_FIELDS 1
