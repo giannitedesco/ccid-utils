@@ -81,6 +81,8 @@ _private int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
 _private int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr);
+_private int _PC_to_RDR_Escape(struct _cci *cci, unsigned int slot,
+				struct _xfr *xfr);
 
 _private int _cci_wait_for_interrupt(struct _cci *cci);
 

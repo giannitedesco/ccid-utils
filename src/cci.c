@@ -298,6 +298,20 @@ int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
 	return ret;
 }
 
+int _PC_to_RDR_Escape(struct _cci *cci, unsigned int slot, struct _xfr *xfr)
+{
+	int ret;
+
+	memset(xfr->x_txhdr, 0, sizeof(*xfr->x_txhdr));
+	xfr->x_txhdr->bMessageType = PC_to_RDR_Escape;
+	ret = _PC_to_RDR(cci, slot, xfr);
+	if ( ret ) {
+		trace(cci, " Xmit: PC_to_RDR_Escape(%u)\n", slot);
+		_hex_dumpf(cci->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
+	}
+	return ret;
+}
+
 int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
 				struct _xfr *xfr)
 {
