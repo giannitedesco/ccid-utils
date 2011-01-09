@@ -682,6 +682,10 @@ cci_t cci_probe(ccidev_t dev, const char *tracefile)
 		cci->cci_slot[x].cc_idx = x;
 	}
 
+	for(x = 0; x < RFID_MAX_FIELDS; x++) {
+		cci->cci_rf[x].cc_parent = cci;
+	}
+
 	/* Second, open USB device and get it ready */
 	if ( libusb_open(dev, &cci->cci_dev) ) {
 		goto out_free;

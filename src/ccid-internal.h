@@ -18,7 +18,7 @@
 			} \
 		}while(0);
 
-struct _cmrc632_ops {
+struct _clrc632_ops {
 	int (*fifo_read)(struct _cci *cci, unsigned int field,
 			 char *buf, size_t *len);
 	int (*fifo_write)(struct _cci *cci, unsigned int field,
@@ -35,7 +35,7 @@ struct _chipcard {
 	uint8_t cc_status;
 
 	/* Fields related to proprietary interfaces */
-	const struct _cmrc632_ops *cc_cmrc632;
+	const struct _clrc632_ops *cc_rc632;
 };
 
 #define RFID_MAX_FIELDS 1
@@ -89,6 +89,7 @@ struct _cci_interface {
 };
 
 _private void _omnikey_init_prox(struct _cci *cci);
+_private int _clrc632_init(struct _chipcard *cc);
 
 _private int _probe_descriptors(struct libusb_device *dev,
 				struct _cci_interface *intf);
