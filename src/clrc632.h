@@ -8,7 +8,11 @@
 
 /* CL RC632 register set */
 
-#define RC632_REG_TX_CONTROL	0x9
+#define RC632_REG_PAGE		0x00
+#define RC632_REG_CONTROL	0x09
 #define  RC632_CONTROL_POWERDOWN	(1<<4)
+#define RC632_REG_TX_CONTROL	0x11
+#define  RC632_TXCTRL_TX1_RF_EN		(1<<0)
+#define  RC632_TXCTRL_TX2_RF_EN		(1<<1)
 
 #endif /* _CLRC632_H */

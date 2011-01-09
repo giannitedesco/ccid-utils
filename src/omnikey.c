@@ -46,7 +46,7 @@ static int reg_read(struct _cci *cci, unsigned int field,
 	if ( xfr->x_rxlen != 2 )
 		return 0;
 
-	trace(cci, "reading reg %u and got 0x%.2x (%.2x)\n",
+	trace(cci, "reading reg 0x%x and got 0x%.2x (%.2x)\n",
 		reg, xfr->x_rxbuf[1], xfr->x_rxbuf[0]);
 
 	*val = xfr->x_rxbuf[1];
@@ -58,7 +58,7 @@ static int reg_write(struct _cci *cci, unsigned int field,
 {
 	struct _xfr *xfr = cci->cci_xfr;
 
-	trace(cci, "writing reg %u with 0x%.2x\n", reg, val);
+	trace(cci, "writing reg 0x%x with 0x%.2x\n", reg, val);
 	xfr_reset(xfr);
 	xfr_tx_byte(xfr, 0x20);
 	xfr_tx_byte(xfr, 0x00);
@@ -94,7 +94,6 @@ static int enable_clrc632(struct _cci *cci)
 		return 0;
 	if ( !_RDR_to_PC(cci, RFID_SLOT, xfr) )
 		return 0;
-	trace(cci, " o CMRC632 RF interface ASIC enabled\n");
 	return 1;
 }
 
@@ -108,4 +107,5 @@ void _omnikey_init_prox(struct _cci *cci)
 	cci->cci_rf[cci->cci_num_rf].cc_idx = RFID_SLOT;
 	_clrc632_init(cci->cci_rf + cci->cci_num_rf);
 	cci->cci_num_rf++;
+	trace(cci, " o CMRC632 ASIC RF interface enabled\n");
 }
