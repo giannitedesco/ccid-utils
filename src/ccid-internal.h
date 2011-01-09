@@ -20,9 +20,9 @@
 
 struct _clrc632_ops {
 	int (*fifo_read)(struct _cci *cci, unsigned int field,
-			 char *buf, size_t *len);
+			 uint8_t *buf, size_t len);
 	int (*fifo_write)(struct _cci *cci, unsigned int field,
-			  const char *buf, size_t len);
+			  const uint8_t *buf, size_t len);
 	int (*reg_read)(struct _cci *cci, unsigned int field,
 			unsigned int reg, uint8_t *val);
 	int (*reg_write)(struct _cci *cci, unsigned int field,

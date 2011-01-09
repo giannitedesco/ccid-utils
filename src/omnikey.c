@@ -13,15 +13,54 @@
 #define RFID_SLOT 0
 
 static int fifo_read(struct _cci *cci, unsigned int field,
-			char *buf, size_t *len)
+			uint8_t *buf, size_t len)
 {
-	return 0;
+	struct _xfr *xfr = cci->cci_xfr;
+
+	assert(len < 0x100);
+
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x20);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, len);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, 0x02);
+	xfr_tx_buf(xfr, buf, len);
+	if ( !_PC_to_RDR_Escape(cci, RFID_SLOT, xfr) )
+		return 0;
+
+	if ( !_RDR_to_PC(cci, RFID_SLOT, xfr) )
+		return 0;
+
+	memcpy(buf, xfr->x_rxbuf, len);
+	return 1;
 }
 
 static int fifo_write(struct _cci *cci, unsigned int field,
-			const char *buf, size_t len)
+			const uint8_t *buf, size_t len)
 {
-	return 0;
+	struct _xfr *xfr = cci->cci_xfr;
+
+	assert(len < 0x100);
+
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0x20);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, len);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, 0x00);
+	xfr_tx_byte(xfr, 0x03);
+	xfr_tx_byte(xfr, 0x02);
+	xfr_tx_buf(xfr, buf, len);
+	if ( !_PC_to_RDR_Escape(cci, RFID_SLOT, xfr) )
+		return 0;
+
+	if ( !_RDR_to_PC(cci, RFID_SLOT, xfr) )
+		return 0;
+
+	return 1;
 }
 
 static int reg_read(struct _cci *cci, unsigned int field,
