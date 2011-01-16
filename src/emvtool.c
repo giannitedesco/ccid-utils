@@ -202,14 +202,14 @@ end:	/* Step 6. terminate processing */
 static int found_cci(ccidev_t dev)
 {
 	chipcard_t cc;
-	cci_t cci;
+	ccid_t ccid;
 	int ret = 0;
 
-	cci = cci_probe(dev, "./emvtool.log");
-	if ( NULL == cci )
+	ccid = ccid_probe(dev, "./emvtool.log");
+	if ( NULL == ccid )
 		goto out;
 	
-	cc = cci_get_slot(cci, 0);
+	cc = ccid_get_slot(ccid, 0);
 	if ( NULL == cc ) {
 		fprintf(stderr, "ccid: error: no slots on CCI\n");
 		goto out_close;
@@ -228,7 +228,7 @@ static int found_cci(ccidev_t dev)
 
 	chipcard_slot_off(cc);
 out_close:
-	cci_close(cci);
+	ccid_close(ccid);
 out:
 	return ret;
 }

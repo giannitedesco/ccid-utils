@@ -1,5 +1,5 @@
 /*
- * This file is part of cci-utils
+ * This file is part of ccid-utils
  * Copyright (c) 2008 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
 */
@@ -21,13 +21,13 @@ static ccidev_t get_dev(struct cp_dev *dev)
 static PyObject *cp_dev_bus(struct cp_dev *self, PyObject *args)
 {
 	ccidev_t dev = get_dev(self);
-	return PyInt_FromLong(ccid_device_bus(dev));
+	return PyInt_FromLong(libccid_device_bus(dev));
 }
 
 static PyObject *cp_dev_addr(struct cp_dev *self, PyObject *args)
 {
 	ccidev_t dev = get_dev(self);
-	return PyInt_FromLong(ccid_device_addr(dev));
+	return PyInt_FromLong(libccid_device_addr(dev));
 }
 
 static int cp_dev_init(struct cp_dev *self, PyObject *args, PyObject *kwds)
@@ -38,7 +38,7 @@ static int cp_dev_init(struct cp_dev *self, PyObject *args, PyObject *kwds)
 	if ( !PyArg_ParseTuple(args, "ii", &bus, &addr) )
 		return -1;
 	
-	dev = ccid_device(bus, addr);
+	dev = libccid_device_by_addr(bus, addr);
 	if ( NULL == dev ) {
 		PyErr_SetString(PyExc_IOError, "Not a valid CCID device");
 		return -1;
@@ -81,13 +81,13 @@ static PyTypeObject dev_pytype = {
 static int cp_devlist_init(struct cp_devlist *self, PyObject *args,
 				PyObject *kwds)
 {
-	self->list = ccid_get_device_list(&self->nmemb);
+	self->list = libccid_get_device_list(&self->nmemb);
 	return 0;
 }
 
 static void cp_devlist_dealloc(struct cp_devlist *self)
 {
-	ccid_free_device_list(self->list);
+	libccid_free_device_list(self->list);
 	self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -415,7 +415,7 @@ static PyObject *cci_get(struct cp_cci *self, Py_ssize_t i)
 	}
 
 	cc->owner = (PyObject *)self;
-	cc->slot = cci_get_slot(self->dev, i);
+	cc->slot = ccid_get_slot(self->dev, i);
 	if ( NULL == cc->slot) {
 		_PyObject_Del(cc);
 		PyErr_SetString(PyExc_ValueError, "Bad slot number\n");
@@ -436,15 +436,15 @@ static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 		return -1;
 
 	if ( cpd->ob_type != &dev_pytype ) {
-		PyErr_SetString(PyExc_TypeError, "Expected valid cci.dev");
+		PyErr_SetString(PyExc_TypeError, "Expected valid ccid.dev");
 		return -1;
 	}
 
 	dev = get_dev(cpd);
 
-	self->dev = cci_probe(dev, trace);
+	self->dev = ccid_probe(dev, trace);
 	if ( NULL == self->dev ) {
-		PyErr_SetString(PyExc_IOError, "cci_probe() failed");
+		PyErr_SetString(PyExc_IOError, "ccid_probe() failed");
 		return -1;
 	}
 
@@ -453,13 +453,13 @@ static int cp_cci_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 
 static void cp_cci_dealloc(struct cp_cci *self)
 {
-	cci_close(self->dev);
+	ccid_close(self->dev);
 	self->ob_type->tp_free((PyObject*)self);
 }
 
 static Py_ssize_t cci_len(struct cp_cci *self)
 {
-	return cci_slots(self->dev);
+	return ccid_slots(self->dev);
 }
 
 static PyObject *cp_log(struct cp_cci *self, PyObject *args)
@@ -469,7 +469,7 @@ static PyObject *cp_log(struct cp_cci *self, PyObject *args)
 	if ( !PyArg_ParseTuple(args, "s", &str) )
 		return NULL;
 	
-	cci_log(self->dev, "%s", str);
+	ccid_log(self->dev, "%s", str);
 
 	Py_INCREF(Py_None);
 	return Py_None;
@@ -477,7 +477,7 @@ static PyObject *cp_log(struct cp_cci *self, PyObject *args)
 
 static PyMethodDef cp_cci_methods[] = {
 	{"log",(PyCFunction)cp_log, METH_VARARGS,
-		"cci.log(string) - Log some text to the tracefile"},
+		"ccid.log(string) - Log some text to the tracefile"},
 	{NULL, }
 };
 
@@ -488,7 +488,7 @@ static PySequenceMethods cci_seq = {
 
 static PyTypeObject cci_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.cci",
+	.tp_name = "ccid.ccid",
 	.tp_basicsize = sizeof(struct cp_cci),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
@@ -570,7 +570,7 @@ PyMODINIT_FUNC initccid(void)
 	PyModule_AddObject(m, "slot", (PyObject *)&chipcard_pytype);
 
 	Py_INCREF(&cci_pytype);
-	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
+	PyModule_AddObject(m, "ccid", (PyObject *)&cci_pytype);
 
 	Py_INCREF(&dev_pytype);
 	PyModule_AddObject(m, "dev", (PyObject *)&dev_pytype);

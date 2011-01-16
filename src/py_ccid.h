@@ -30,7 +30,7 @@ struct cp_chipcard {
 
 struct cp_cci {
 	PyObject_HEAD;
-	cci_t dev;
+	ccid_t dev;
 };
 
 struct cp_xfr {

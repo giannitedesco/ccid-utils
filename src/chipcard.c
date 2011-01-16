@@ -1,5 +1,5 @@
 /*
- * This file is part of cci-utils
+ * This file is part of ccid-utils
  * Copyright (c) 2008 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
  *
@@ -36,15 +36,15 @@ unsigned int chipcard_slot_status(chipcard_t cc)
  */
 unsigned int chipcard_clock_status(chipcard_t cc)
 {
-	struct _cci *cci = cc->cc_parent;
+	struct _ccid *ccid = cc->cc_parent;
 
-	if ( !_PC_to_RDR_GetSlotStatus(cci, cc->cc_idx, cci->cci_xfr) )
+	if ( !_PC_to_RDR_GetSlotStatus(ccid, cc->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	return _RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
+	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
 }
 
 /** Power on a chip card slot.
@@ -59,18 +59,18 @@ unsigned int chipcard_clock_status(chipcard_t cc)
 const uint8_t *chipcard_slot_on(chipcard_t cc, unsigned int voltage,
 				size_t *atr_len)
 {
-	struct _cci *cci = cc->cc_parent;
+	struct _ccid *ccid = cc->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOn(cci, cc->cc_idx, cci->cci_xfr, voltage) )
+	if ( !_PC_to_RDR_IccPowerOn(ccid, cc->cc_idx, ccid->cci_xfr, voltage) )
 		return 0;
 
-	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
 		return 0;
 	
-	_RDR_to_PC_DataBlock(cci, cci->cci_xfr);
+	_RDR_to_PC_DataBlock(ccid, ccid->cci_xfr);
 	if ( atr_len )
-		*atr_len = cci->cci_xfr->x_rxlen;
-	return cci->cci_xfr->x_rxbuf;
+		*atr_len = ccid->cci_xfr->x_rxlen;
+	return ccid->cci_xfr->x_rxbuf;
 }
 
 /** Perform a chip card transaction.
@@ -85,15 +85,15 @@ const uint8_t *chipcard_slot_on(chipcard_t cc, unsigned int voltage,
  */
 int chipcard_transact(chipcard_t cc, xfr_t xfr)
 {
-	struct _cci *cci = cc->cc_parent;
+	struct _ccid *ccid = cc->cc_parent;
 
-	if ( !_PC_to_RDR_XfrBlock(cci, cc->cc_idx, xfr) )
+	if ( !_PC_to_RDR_XfrBlock(ccid, cc->cc_idx, xfr) )
 		return 0;
 
-	if ( !_RDR_to_PC(cci, cc->cc_idx, xfr) )
+	if ( !_RDR_to_PC(ccid, cc->cc_idx, xfr) )
 		return 0;
 
-	_RDR_to_PC_DataBlock(cci, xfr);
+	_RDR_to_PC_DataBlock(ccid, xfr);
 	return 1;
 }
 
@@ -106,15 +106,15 @@ int chipcard_transact(chipcard_t cc, xfr_t xfr)
  */
 int chipcard_slot_off(chipcard_t cc)
 {
-	struct _cci *cci = cc->cc_parent;
+	struct _ccid *ccid = cc->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOff(cci, cc->cc_idx, cci->cci_xfr) )
+	if ( !_PC_to_RDR_IccPowerOff(ccid, cc->cc_idx, ccid->cci_xfr) )
 		return 0;
 
-	if ( !_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
 		return 0;
 	
-	return _RDR_to_PC_SlotStatus(cci, cci->cci_xfr);
+	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
 }
 
 /** Wait for insertion of a chip card in to the slot.
@@ -126,14 +126,14 @@ int chipcard_slot_off(chipcard_t cc)
  */
 int chipcard_wait_for_card(chipcard_t cc)
 {
-	struct _cci *cci = cc->cc_parent;
+	struct _ccid *ccid = cc->cc_parent;
 
 	do {
-		_PC_to_RDR_GetSlotStatus(cci, cc->cc_idx, cci->cci_xfr);
-		_RDR_to_PC(cci, cc->cc_idx, cci->cci_xfr);
+		_PC_to_RDR_GetSlotStatus(ccid, cc->cc_idx, ccid->cci_xfr);
+		_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr);
 		if ( cc->cc_status != CHIPCARD_NOT_PRESENT )
 			break;
-		_cci_wait_for_interrupt(cci);
+		_cci_wait_for_interrupt(ccid);
 	} while( cc->cc_status == CHIPCARD_NOT_PRESENT );
 	return 1;
 }
@@ -143,9 +143,9 @@ int chipcard_wait_for_card(chipcard_t cc)
  *
  * @param cc \ref chipcard_t to query.
  *
- * @return \ref cci_t representing the CCID which contains the slot cc.
+ * @return \ref ccid_t representing the CCID which contains the slot cc.
  */
-cci_t chipcard_cci(chipcard_t cc)
+ccid_t chipcard_cci(chipcard_t cc)
 {
 	return cc->cc_parent;
 }

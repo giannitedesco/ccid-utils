@@ -9,9 +9,9 @@
 #include <libusb.h>
 #include <ccid-spec.h>
 
-#define trace(cci, fmt, x...) \
+#define trace(ccid, fmt, x...) \
 		do { \
-			struct _cci *_CCI = cci; \
+			struct _ccid *_CCI = ccid; \
 			if ( _CCI->cci_tf ) { \
 				fprintf(_CCI->cci_tf, fmt , ##x); \
 				fflush(_CCI->cci_tf); \
@@ -19,18 +19,18 @@
 		}while(0);
 
 struct _clrc632_ops {
-	int (*fifo_read)(struct _cci *cci, unsigned int field,
+	int (*fifo_read)(struct _ccid *ccid, unsigned int field,
 			 uint8_t *buf, size_t len);
-	int (*fifo_write)(struct _cci *cci, unsigned int field,
+	int (*fifo_write)(struct _ccid *ccid, unsigned int field,
 			  const uint8_t *buf, size_t len);
-	int (*reg_read)(struct _cci *cci, unsigned int field,
+	int (*reg_read)(struct _ccid *ccid, unsigned int field,
 			unsigned int reg, uint8_t *val);
-	int (*reg_write)(struct _cci *cci, unsigned int field,
+	int (*reg_write)(struct _ccid *ccid, unsigned int field,
 			 unsigned int reg, uint8_t val);
 };
 
 struct _chipcard {
-	struct _cci *cc_parent;
+	struct _ccid *cc_parent;
 	uint8_t cc_idx;
 	uint8_t cc_status;
 
@@ -40,7 +40,7 @@ struct _chipcard {
 
 #define RFID_MAX_FIELDS 1
 
-struct _cci {
+struct _ccid {
 	libusb_device_handle *cci_dev;
 
 	struct _xfr	*cci_xfr;
@@ -88,29 +88,32 @@ struct _cci_interface {
 	unsigned int flags;
 };
 
-_private void _omnikey_init_prox(struct _cci *cci);
+_private void _omnikey_init_prox(struct _ccid *ccid);
 _private int _clrc632_init(struct _chipcard *cc);
 
 _private int _probe_descriptors(struct libusb_device *dev,
 				struct _cci_interface *intf);
 
-_private int _RDR_to_PC(struct _cci *cci, unsigned int slot, struct _xfr *xfr);
-_private unsigned int _RDR_to_PC_SlotStatus(struct _cci *cci, struct _xfr *xfr);
-_private unsigned int _RDR_to_PC_DataBlock(struct _cci *cci, struct _xfr *xfr);
+_private int _RDR_to_PC(struct _ccid *ccid, unsigned int slot,
+			struct _xfr *xfr);
+_private unsigned int _RDR_to_PC_SlotStatus(struct _ccid *ccid,
+						struct _xfr *xfr);
+_private unsigned int _RDR_to_PC_DataBlock(struct _ccid *ccid,
+						struct _xfr *xfr);
 
-_private int _PC_to_RDR_GetSlotStatus(struct _cci *cci, unsigned int slot,
-				struct _xfr *xfr);
-_private int _PC_to_RDR_IccPowerOn(struct _cci *cci, unsigned int slot,
-				struct _xfr *xfr,
-				unsigned int voltage);
-_private int _PC_to_RDR_IccPowerOff(struct _cci *cci, unsigned int slot,
-				struct _xfr *xfr);
-_private int _PC_to_RDR_XfrBlock(struct _cci *cci, unsigned int slot,
-				struct _xfr *xfr);
-_private int _PC_to_RDR_Escape(struct _cci *cci, unsigned int slot,
-				struct _xfr *xfr);
+_private int _PC_to_RDR_GetSlotStatus(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_IccPowerOn(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr,
+					unsigned int voltage);
+_private int _PC_to_RDR_IccPowerOff(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_XfrBlock(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_Escape(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
 
-_private int _cci_wait_for_interrupt(struct _cci *cci);
+_private int _cci_wait_for_interrupt(struct _ccid *ccid);
 
 _private struct _xfr *_xfr_do_alloc(size_t txbuf, size_t rxbuf);
 _private void _xfr_do_free(struct _xfr *xfr);

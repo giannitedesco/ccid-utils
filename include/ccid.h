@@ -54,7 +54,7 @@
 /** \ingroup g_cci
  * Chip Card Interface Device
 */
-typedef struct _cci *cci_t;
+typedef struct _ccid *ccid_t;
 
 /** \ingroup g_chipcard
  * Chip Card
@@ -79,11 +79,11 @@ _public ccidev_t libccid_device_by_address(uint8_t bus, uint8_t addr);
 _public uint8_t libccid_device_bus(ccidev_t dev);
 _public uint8_t libccid_device_addr(ccidev_t dev);
 
-_public cci_t cci_probe(ccidev_t dev, const char *tracefile);
-_public unsigned int cci_slots(cci_t cci);
-_public chipcard_t cci_get_slot(cci_t cci, unsigned int i);
-_public void cci_close(cci_t cci);
-_public void cci_log(cci_t cci, const char *fmt, ...) _printf(2, 3);
+_public ccid_t ccid_probe(ccidev_t dev, const char *tracefile);
+_public unsigned int ccid_slots(ccid_t cci);
+_public chipcard_t ccid_get_slot(ccid_t cci, unsigned int i);
+_public void ccid_close(ccid_t cci);
+_public void ccid_log(ccid_t cci, const char *fmt, ...) _printf(2, 3);
 
 _public xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf);
 _public void xfr_reset(xfr_t xfr);
@@ -96,7 +96,7 @@ _public const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 
 _public void xfr_free(xfr_t xfr);
 
-_public cci_t chipcard_cci(chipcard_t cc);
+_public ccid_t chipcard_cci(chipcard_t cc);
 _public int chipcard_wait_for_card(chipcard_t cc);
 
 /** \ingroup g_chipcard
