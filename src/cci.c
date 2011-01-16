@@ -200,7 +200,7 @@ static int do_recv(struct _ccid *ccid, struct _xfr *xfr)
 	return 1;
 }
 
-static void _chipcard_set_status(struct _chipcard *cc, unsigned int status)
+static void _chipcard_set_status(struct _cci *cc, unsigned int status)
 {
 	switch( status & CCID_SLOT_STATUS_MASK ) {
 	case CCID_STATUS_ICC_ACTIVE:
@@ -784,9 +784,9 @@ unsigned int ccid_slots(ccid_t ccid)
  * \ingroup g_cci
  * @param ccid The \ref ccid_t containing the required slot.
  * @param num The slot number to retrieve (zero-based).
- * @return \ref chipcard_t rerpesenting the required slot.
+ * @return \ref cci_t rerpesenting the required slot.
  */
-chipcard_t ccid_get_slot(ccid_t ccid, unsigned int num)
+cci_t ccid_get_slot(ccid_t ccid, unsigned int num)
 {
 	if ( num < ccid->cci_num_slots ) {
 		return ccid->cci_slot + num;

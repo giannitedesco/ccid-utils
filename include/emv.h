@@ -46,7 +46,7 @@ typedef const uint8_t *(*emv_exp_cb_t)(void *priv, unsigned int index,
 typedef int (*emv_dol_cb_t)(uint16_t tag, uint8_t *ptr, size_t len, void *priv);
 
 /* Setup/teardown */
-_public emv_t emv_init(chipcard_t cc);
+_public emv_t emv_init(cci_t cc);
 _public void emv_fini(emv_t e);
 
 /* error handling */

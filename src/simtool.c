@@ -9,7 +9,7 @@
 
 static int found_cci(ccidev_t dev)
 {
-	chipcard_t cc;
+	cci_t cc;
 	ccid_t ccid;
 	sim_t sim;
 	int ret = 0;
@@ -27,7 +27,7 @@ static int found_cci(ccidev_t dev)
 	}
 
 	printf("\nsimtool: wait for chipcard...\n");
-	if ( !chipcard_wait_for_card(cc) )
+	if ( !cci_wait_for_card(cc) )
 		goto out_close;
 
 	printf("\nsimtool: SIM attached\n");

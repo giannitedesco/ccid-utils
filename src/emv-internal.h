@@ -74,7 +74,7 @@ struct _emv_app {
 
 struct _emv {
 	/* hardware */
-	chipcard_t e_dev;
+	cci_t e_dev;
 	xfr_t e_xfr;
 
 	mpool_t e_data;

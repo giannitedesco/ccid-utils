@@ -12,17 +12,17 @@
 #include "ccid-internal.h"
 #include "clrc632.h"
 
-static int reg_read(struct _chipcard *cc, unsigned int reg, uint8_t *val)
+static int reg_read(struct _cci *cc, unsigned int reg, uint8_t *val)
 {
 	return (*cc->cc_rc632->reg_read)(cc->cc_parent, cc->cc_idx, reg, val);
 }
 
-static int reg_write(struct _chipcard *cc, unsigned int reg, uint8_t val)
+static int reg_write(struct _cci *cc, unsigned int reg, uint8_t val)
 {
 	return (*cc->cc_rc632->reg_write)(cc->cc_parent, cc->cc_idx, reg, val);
 }
 
-static int asic_clear_bits(struct _chipcard *cc, unsigned int reg, uint8_t bits)
+static int asic_clear_bits(struct _cci *cc, unsigned int reg, uint8_t bits)
 {
 	uint8_t val;
 
@@ -35,7 +35,7 @@ static int asic_clear_bits(struct _chipcard *cc, unsigned int reg, uint8_t bits)
 	return reg_write(cc, reg, val & ~bits);
 }
 
-static int asic_set_bits(struct _chipcard *cc, unsigned int reg, uint8_t bits)
+static int asic_set_bits(struct _cci *cc, unsigned int reg, uint8_t bits)
 {
 	uint8_t val;
 
@@ -48,7 +48,7 @@ static int asic_set_bits(struct _chipcard *cc, unsigned int reg, uint8_t bits)
 	return reg_write(cc, reg, val | bits);
 }
 
-static int asic_power(struct _chipcard *cc, unsigned int on)
+static int asic_power(struct _cci *cc, unsigned int on)
 {
 	if ( on ) {
 		return asic_clear_bits(cc, RC632_REG_CONTROL,
@@ -59,7 +59,7 @@ static int asic_power(struct _chipcard *cc, unsigned int on)
 	}
 }
 
-static int asic_rf_power(struct _chipcard *cc, unsigned int on)
+static int asic_rf_power(struct _cci *cc, unsigned int on)
 {
 	if ( on ) {
 		return asic_clear_bits(cc, RC632_REG_TX_CONTROL,
@@ -70,7 +70,7 @@ static int asic_rf_power(struct _chipcard *cc, unsigned int on)
 	}
 }
 
-int _clrc632_init(struct _chipcard *cc)
+int _clrc632_init(struct _cci *cc)
 {
 	if ( !asic_power(cc, 0) )
 		return 0;

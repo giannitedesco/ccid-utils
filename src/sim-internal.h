@@ -137,7 +137,7 @@ struct _sms {
 };
 
 struct _sim {
-	chipcard_t	s_cc;
+	cci_t	s_cc;
 	xfr_t		s_xfr;
 	uint16_t	s_df;
 	uint16_t	s_ef;

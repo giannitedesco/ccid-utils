@@ -222,11 +222,11 @@ emv_app_t emv_current_app(emv_t e)
 	return e->e_app;
 }
 
-emv_t emv_init(chipcard_t cc)
+emv_t emv_init(cci_t cc)
 {
 	struct _emv *e;
 
-	if ( chipcard_slot_status(cc) != CHIPCARD_ACTIVE )
+	if ( cci_slot_status(cc) != CHIPCARD_ACTIVE )
 		return NULL;
 
 	e = calloc(1, sizeof(*e));

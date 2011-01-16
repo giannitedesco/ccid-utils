@@ -29,7 +29,7 @@ struct _clrc632_ops {
 			 unsigned int reg, uint8_t val);
 };
 
-struct _chipcard {
+struct _cci {
 	struct _ccid *cc_parent;
 	uint8_t cc_idx;
 	uint8_t cc_status;
@@ -59,14 +59,14 @@ struct _ccid {
 	uint8_t 	cci_seq;
 	uint8_t		_pad0;
 
-	/* chipcard slots */
+	/* cci slots */
 	unsigned int 	cci_num_slots;
 	unsigned int 	cci_max_slots;
-	struct _chipcard cci_slot[CCID_MAX_SLOTS];
+	struct _cci cci_slot[CCID_MAX_SLOTS];
 
 	/* RF fields */
 	unsigned int	cci_num_rf;
-	struct _chipcard cci_rf[RFID_MAX_FIELDS];
+	struct _cci cci_rf[RFID_MAX_FIELDS];
 
 	/* CCID USB descriptor */
 	struct ccid_desc cci_desc;
@@ -89,7 +89,7 @@ struct _cci_interface {
 };
 
 _private void _omnikey_init_prox(struct _ccid *ccid);
-_private int _clrc632_init(struct _chipcard *cc);
+_private int _clrc632_init(struct _cci *cc);
 
 _private int _probe_descriptors(struct libusb_device *dev,
 				struct _cci_interface *intf);

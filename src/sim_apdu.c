@@ -17,7 +17,7 @@ static int do_select(struct _sim * s, uint16_t id)
 	xfr_tx_byte(s->s_xfr, 2); /* lc */
 	xfr_tx_byte(s->s_xfr, (id >> 8));
 	xfr_tx_byte(s->s_xfr, (id & 0xff));
-	return chipcard_transact(s->s_cc, s->s_xfr);
+	return cci_transact(s->s_cc, s->s_xfr);
 }
 
 static int do_get_response(struct _sim * s, uint8_t le)
@@ -28,7 +28,7 @@ static int do_get_response(struct _sim * s, uint8_t le)
 	xfr_tx_byte(s->s_xfr, 0); /* p1 */
 	xfr_tx_byte(s->s_xfr, 0); /* p2 */
 	xfr_tx_byte(s->s_xfr, le);
-	return chipcard_transact(s->s_cc, s->s_xfr);
+	return cci_transact(s->s_cc, s->s_xfr);
 }
 
 int _apdu_select(struct _sim *s, uint16_t id)
@@ -61,7 +61,7 @@ int _apdu_read_binary(struct _sim *s, uint16_t ofs, uint8_t len)
 	xfr_tx_byte(s->s_xfr, ofs >> 8); /* p1 */
 	xfr_tx_byte(s->s_xfr, ofs & 0xff); /* p2 */
 	xfr_tx_byte(s->s_xfr, len);
-	if ( !chipcard_transact(s->s_cc, s->s_xfr) )
+	if ( !cci_transact(s->s_cc, s->s_xfr) )
 		return 0;
 	return ( xfr_rx_sw1(s->s_xfr) == 0x90 );
 }
@@ -74,7 +74,7 @@ int _apdu_read_record(struct _sim *s, uint8_t rec, uint8_t len)
 	xfr_tx_byte(s->s_xfr, rec);
 	xfr_tx_byte(s->s_xfr, 0x4);
 	xfr_tx_byte(s->s_xfr, len);
-	if ( !chipcard_transact(s->s_cc, s->s_xfr) )
+	if ( !cci_transact(s->s_cc, s->s_xfr) )
 		return 0;
 	return ( xfr_rx_sw1(s->s_xfr) == 0x90 );
 }

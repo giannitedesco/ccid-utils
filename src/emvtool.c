@@ -146,7 +146,7 @@ static int trm(emv_t e)
 	return 1;
 }
 
-static int do_emv_stuff(chipcard_t cc)
+static int do_emv_stuff(cci_t cc)
 {
 	emv_t e;
 
@@ -201,7 +201,7 @@ end:	/* Step 6. terminate processing */
 
 static int found_cci(ccidev_t dev)
 {
-	chipcard_t cc;
+	cci_t cc;
 	ccid_t ccid;
 	int ret = 0;
 
@@ -215,10 +215,10 @@ static int found_cci(ccidev_t dev)
 		goto out_close;
 	}
 
-	if ( !chipcard_wait_for_card(cc) )
+	if ( !cci_wait_for_card(cc) )
 		goto out_close;
 
-	if ( !chipcard_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
+	if ( !cci_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
 	if ( !do_emv_stuff(cc) )
@@ -226,7 +226,7 @@ static int found_cci(ccidev_t dev)
 
 	ret = 1;
 
-	chipcard_slot_off(cc);
+	cci_slot_off(cc);
 out_close:
 	ccid_close(ccid);
 out:

@@ -25,7 +25,7 @@ struct cp_dev {
 struct cp_chipcard {
 	PyObject_HEAD;
 	PyObject *owner;
-	chipcard_t slot;
+	cci_t slot;
 };
 
 struct cp_cci {

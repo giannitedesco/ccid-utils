@@ -47,7 +47,7 @@
  *  -# An interface for constructing requests.
  *  -# An interface for retreiving status words and retrieved data.
  *
- * \defgroup g_chipcard Chip Card
+ * \defgroup g_cci Chip Card
  * Represents a slot in a chip card device and chip card (if one is inserted).
  */
 
@@ -56,10 +56,10 @@
 */
 typedef struct _ccid *ccid_t;
 
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Chip Card
 */
-typedef struct _chipcard *chipcard_t;
+typedef struct _cci *cci_t;
 
 /** \ingroup g_xfr
  * Transaction Buffer
@@ -81,7 +81,7 @@ _public uint8_t libccid_device_addr(ccidev_t dev);
 
 _public ccid_t ccid_probe(ccidev_t dev, const char *tracefile);
 _public unsigned int ccid_slots(ccid_t cci);
-_public chipcard_t ccid_get_slot(ccid_t cci, unsigned int i);
+_public cci_t ccid_get_slot(ccid_t cci, unsigned int i);
 _public void ccid_close(ccid_t cci);
 _public void ccid_log(ccid_t cci, const char *fmt, ...) _printf(2, 3);
 
@@ -96,66 +96,66 @@ _public const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 
 _public void xfr_free(xfr_t xfr);
 
-_public ccid_t chipcard_cci(chipcard_t cc);
-_public int chipcard_wait_for_card(chipcard_t cc);
+_public ccid_t cci_cci(cci_t cc);
+_public int cci_wait_for_card(cci_t cc);
 
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Chip card is present in the slot, powered and clocked.
 */
 #define CHIPCARD_ACTIVE		0x0
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Chip card is present in the slot but not powered or clocked.
 */
 #define CHIPCARD_PRESENT	0x1
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Chip card is not present in the slot.
 */
 #define CHIPCARD_NOT_PRESENT	0x2
-_public unsigned int chipcard_slot_status(chipcard_t cc);
+_public unsigned int cci_slot_status(cci_t cc);
 
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * There was an error while retrieving clock status.
 */
 #define CHIPCARD_CLOCK_ERR	0x0
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Clock is started.
 */
 #define CHIPCARD_CLOCK_START	0x1
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Clock signal is stopped low.
 */
 #define CHIPCARD_CLOCK_STOP_L	0x2
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Clock is stopped high.
 */
 #define CHIPCARD_CLOCK_STOP_H	0x3
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Clock is stopped in unknown state.
 */
 #define CHIPCARD_CLOCK_STOP	0x4
-_public unsigned int chipcard_clock_status(chipcard_t cc);
+_public unsigned int cci_clock_status(cci_t cc);
 
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * Automatically select chip card voltage.
 */
 #define CHIPCARD_AUTO_VOLTAGE	0x0
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * 5 Volts.
 */
 #define CHIPCARD_5V		0x1
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * 3 Volts.
 */
 #define CHIPCARD_3V		0x2
-/** \ingroup g_chipcard
+/** \ingroup g_cci
  * 1.8 Volts.
 */
 #define CHIPCARD_1_8V		0x3
-_public const uint8_t *chipcard_slot_on(chipcard_t cc, unsigned int voltage,
+_public const uint8_t *cci_slot_on(cci_t cc, unsigned int voltage,
 				size_t *atr_len);
-_public int chipcard_slot_off(chipcard_t cc);
+_public int cci_slot_off(cci_t cc);
 
-_public int chipcard_transact(chipcard_t cc, xfr_t xfr);
+_public int cci_transact(cci_t cc, xfr_t xfr);
 
 /* -- Utility functions */
 _public void hex_dump(const uint8_t *ptr, size_t len, size_t llen);

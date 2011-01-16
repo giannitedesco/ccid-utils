@@ -24,7 +24,7 @@ static int do_sel(emv_t e, uint8_t p1, uint8_t p2,
 	xfr_tx_byte(e->e_xfr, nlen);		/* Lc: name length */
 	xfr_tx_buf(e->e_xfr, name, nlen);	/* DATA: name */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -42,7 +42,7 @@ static int do_sel(emv_t e, uint8_t p1, uint8_t p2,
 	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -78,7 +78,7 @@ int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	xfr_tx_byte(e->e_xfr, p2);		/* P2 */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le: 0 this time around */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -96,7 +96,7 @@ int _emv_read_record(emv_t e, uint8_t sfi, uint8_t record)
 	xfr_tx_byte(e->e_xfr, p2); 		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le: got it now */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -119,7 +119,7 @@ int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2)
 	xfr_tx_byte(e->e_xfr, p2);		/* P2 */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le: 0 this time around */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -137,7 +137,7 @@ int _emv_get_data(emv_t e, uint8_t p1, uint8_t p2)
 	xfr_tx_byte(e->e_xfr, p2); 		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le: got it now */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -160,7 +160,7 @@ int _emv_verify(emv_t e, uint8_t fmt, const uint8_t *pin, uint8_t plen)
 	xfr_tx_byte(e->e_xfr, plen);		/* P2 */
 	xfr_tx_buf(e->e_xfr, pin, plen);
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -186,7 +186,7 @@ int _emv_get_proc_opts(emv_t e, const uint8_t *dol, uint8_t len)
 	xfr_tx_buf(e->e_xfr, dol, len);		/* Data: PDOL */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -204,7 +204,7 @@ int _emv_get_proc_opts(emv_t e, const uint8_t *dol, uint8_t len)
 	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -231,7 +231,7 @@ int _emv_generate_ac(emv_t e, uint8_t ref,
 	xfr_tx_buf(e->e_xfr, data, len);	/* Data: */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -249,7 +249,7 @@ int _emv_generate_ac(emv_t e, uint8_t ref,
 	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -275,7 +275,7 @@ _private int _emv_int_authenticate(emv_t e, const uint8_t *data, uint8_t len)
 	xfr_tx_buf(e->e_xfr, data, len);	/* Data: */
 	xfr_tx_byte(e->e_xfr, 0);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}
@@ -293,7 +293,7 @@ _private int _emv_int_authenticate(emv_t e, const uint8_t *data, uint8_t len)
 	xfr_tx_byte(e->e_xfr, 0);		/* P2 */
 	xfr_tx_byte(e->e_xfr, sw2);		/* Le */
 
-	if ( !chipcard_transact(e->e_dev, e->e_xfr) ) {
+	if ( !cci_transact(e->e_dev, e->e_xfr) ) {
 		_emv_ccid_error(e);
 		return 0;
 	}

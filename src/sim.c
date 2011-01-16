@@ -305,7 +305,7 @@ int sim_sms_restore(sim_t s, const char *fn)
 	return 1;
 }
 
-sim_t sim_new(chipcard_t cc)
+sim_t sim_new(cci_t cc)
 {
 	struct _sim *s;
 	const uint8_t *atr;
@@ -321,7 +321,7 @@ sim_t sim_new(chipcard_t cc)
 	if ( NULL == s->s_xfr )
 		goto err_free;
 
-	atr = chipcard_slot_on(s->s_cc, CHIPCARD_AUTO_VOLTAGE, &atr_len);
+	atr = cci_slot_on(s->s_cc, CHIPCARD_AUTO_VOLTAGE, &atr_len);
 	if ( NULL == atr )
 		goto err_free_xfr;
 
@@ -350,7 +350,7 @@ void sim_free(sim_t s)
 		if ( s->s_xfr )
 			xfr_free(s->s_xfr);
 		if ( s->s_cc )
-			chipcard_slot_off(s->s_cc);
+			cci_slot_off(s->s_cc);
 	}
 	free(s);
 }
