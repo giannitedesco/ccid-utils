@@ -12,7 +12,7 @@ python_uninstall_data = uninstall-data
 python_build_dir = python-build
 
 .PHONY: python_stuff
-python_stuff:
+python_stuff: all
 	python setup.py build -b $(python_build_dir)
 
 clean-local:
