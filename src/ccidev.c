@@ -338,7 +338,7 @@ success:
  *
  * @return Handle for the first device. Actually a libusb libusb_device pointer.
  */
-ccidev_t *ccid_get_device_list(size_t *nmemb)
+ccidev_t *libccid_get_device_list(size_t *nmemb)
 {
 	libusb_device **devlist;
 	ccidev_t *ccilist;
@@ -367,7 +367,7 @@ ccidev_t *ccid_get_device_list(size_t *nmemb)
 	return ccilist;
 }
 
-void ccid_free_device_list(ccidev_t *list)
+void libccid_free_device_list(ccidev_t *list)
 {
 	if ( list ) {
 		ccidev_t *ptr;
@@ -377,7 +377,7 @@ void ccid_free_device_list(ccidev_t *list)
 	}
 }
 
-ccidev_t ccid_device(uint8_t bus, uint8_t addr)
+ccidev_t libccid_device_by_address(uint8_t bus, uint8_t addr)
 {
 	libusb_device **devlist;
 	ssize_t numdev, i;
@@ -406,12 +406,12 @@ ccidev_t ccid_device(uint8_t bus, uint8_t addr)
 	return ret;
 }
 
-uint8_t ccid_device_bus(ccidev_t dev)
+uint8_t libccid_device_bus(ccidev_t dev)
 {
 	return libusb_get_bus_number(dev);
 }
 
-uint8_t ccid_device_addr(ccidev_t dev)
+uint8_t libccid_device_addr(ccidev_t dev)
 {
 	return libusb_get_device_address(dev);
 }

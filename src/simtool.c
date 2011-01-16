@@ -54,14 +54,14 @@ int main(int argc, char **argv)
 	ccidev_t *dev;
 	size_t num_dev, i;
 
-	dev = ccid_get_device_list(&num_dev);
+	dev = libccid_get_device_list(&num_dev);
 	if ( NULL == dev )
 		return EXIT_FAILURE;
 
 	for(i = 0; i < num_dev; i++)
 		found_cci(dev[i]);
 
-	ccid_free_device_list(dev);
+	libccid_free_device_list(dev);
 
 	return EXIT_SUCCESS;
 }

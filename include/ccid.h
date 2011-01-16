@@ -73,11 +73,11 @@ typedef struct _xfr *xfr_t;
 */
 typedef struct libusb_device *ccidev_t;
 
-_public ccidev_t *ccid_get_device_list(size_t *nmemb);
-_public void ccid_free_device_list(ccidev_t *list);
-_public ccidev_t ccid_device(uint8_t bus, uint8_t addr);
-_public uint8_t ccid_device_bus(ccidev_t dev);
-_public uint8_t ccid_device_addr(ccidev_t dev);
+_public ccidev_t *libccid_get_device_list(size_t *nmemb);
+_public void libccid_free_device_list(ccidev_t *list);
+_public ccidev_t libccid_device_by_address(uint8_t bus, uint8_t addr);
+_public uint8_t libccid_device_bus(ccidev_t dev);
+_public uint8_t libccid_device_addr(ccidev_t dev);
 
 _public cci_t cci_probe(ccidev_t dev, const char *tracefile);
 _public unsigned int cci_slots(cci_t cci);
