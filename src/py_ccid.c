@@ -4,9 +4,9 @@
  * Released under the terms of the GNU GPL version 3
 */
 
+#include <Python.h>
 #include <ccid.h>
 #include <ccid-spec.h>
-#include <Python.h>
 #include <structmember.h>
 #include "py_ccid.h"
 
@@ -402,6 +402,7 @@ static PyTypeObject cci_pytype = {
 	.tp_dealloc = (destructor)cp_cci_dealloc,
 	.tp_doc = "Chip Card Interface",
 };
+
 
 /* ---[ CCI wrapper */
 static PyObject *cci_get(struct cp_ccid *self, Py_ssize_t i)

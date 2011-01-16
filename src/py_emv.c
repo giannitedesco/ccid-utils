@@ -4,9 +4,9 @@
  * Released under the terms of the GNU GPL version 3
 */
 
+#include <Python.h>
 #include <ccid.h>
 #include <emv.h>
-#include <Python.h>
 #include <structmember.h>
 #include "py_ccid.h"
 
@@ -342,12 +342,24 @@ static PyTypeObject app_pytype = {
 	.tp_doc = "EMV application",
 };
 
+static PyTypeObject *ccid_cci_type;
+
+static int PyCCI_Check(PyObject *obj)
+{
+	return (ccid_cci_type == obj->ob_type);
+}
+
 static int cp_emv_init(struct cp_emv *self, PyObject *args, PyObject *kwds)
 {
 	struct cp_cci *cc;
 
 	if ( !PyArg_ParseTuple(args, "O", &cc) )
 		return -1;
+
+	if ( !PyCCI_Check((PyObject *)cc) ) {
+		PyErr_SetString(PyExc_TypeError, "Expected ccid.cci object");
+		return -1;
+	}
 
 	self->emv = emv_init(cc->slot);
 	if ( NULL == self->emv ) {
@@ -891,7 +903,19 @@ static PyMethodDef methods[] = {
 #define  _INT_CONST(m, c) PyModule_AddIntConstant(m, #c, EMV_ ## c)
 PyMODINIT_FUNC initemv(void)
 {
-	PyObject *m;
+	PyObject *m, *ccid;
+
+	ccid = PyImport_ImportModule("ccid");
+	if ( NULL == ccid )
+		return;
+
+	ccid_cci_type = (PyTypeObject *)PyObject_GetAttrString(ccid, "cci");
+	if ( NULL == ccid_cci_type )
+		return;
+	if ( !PyType_Check(ccid_cci_type) ) {
+		return;
+	}
+	Py_INCREF(ccid_cci_type);
 
 	if ( PyType_Ready(&emv_pytype) < 0 )
 		return;
