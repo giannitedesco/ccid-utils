@@ -145,7 +145,7 @@ int cci_wait_for_card(cci_t cc)
  *
  * @return \ref ccid_t representing the CCID which contains the slot cc.
  */
-ccid_t cci_cci(cci_t cc)
+ccid_t cci_ccid(cci_t cc)
 {
 	return cc->cc_parent;
 }

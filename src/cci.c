@@ -636,7 +636,7 @@ static int probe_descriptors(struct _ccid *ccid)
 }
 
 /** Connect to a physical chipcard device.
- * \ingroup g_cci
+ * \ingroup g_ccid
  * @param dev \ref ccidev_t representing a physical device.
  * @param tracefile filename to open for trace logging (or NULL).
  *
@@ -754,7 +754,7 @@ out:
 }
 
 /** Close connection to a chip card device.
- * \ingroup g_cci
+ * \ingroup g_ccid
  * @param ccid The \ref ccid_t to close.
  * Closes connection to physical defice and frees the \ref ccid_t. Note that
  * any transaction buffers will have to be destroyed seperately. All references
@@ -771,7 +771,7 @@ void ccid_close(ccid_t ccid)
 }
 
 /** Retrieve the number of slots in the CCID.
- * \ingroup g_cci
+ * \ingroup g_ccid
  * @param ccid The \ref ccid_t to return number of slots for.
  * @return The number of slots.
  */
@@ -781,7 +781,7 @@ unsigned int ccid_slots(ccid_t ccid)
 }
 
 /** Retrieve a handle to a CCID slot.
- * \ingroup g_cci
+ * \ingroup g_ccid
  * @param ccid The \ref ccid_t containing the required slot.
  * @param num The slot number to retrieve (zero-based).
  * @return \ref cci_t rerpesenting the required slot.
@@ -796,7 +796,7 @@ cci_t ccid_get_slot(ccid_t ccid, unsigned int num)
 }
 
 /** Print a message in the trace log
- * \ingroup g_cci
+ * \ingroup g_ccid
  * @param ccid The \ref ccid_t to which the log message is pertinent.
  * @param fmt Format string as per printf().
  *

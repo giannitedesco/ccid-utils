@@ -334,7 +334,7 @@ success:
 }
 
 /** Find first physical CCI device on the system.
- * \ingroup g_ccid
+ * \ingroup g_libccid
  *
  * @return Handle for the first device. Actually a libusb libusb_device pointer.
  */

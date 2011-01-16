@@ -34,11 +34,12 @@
   */
 
 /**
- * \defgroup g_ccid CCID Library
+ * \defgroup g_libccid CCID Library
  * Generic top level functions of libccid.
  *
- * \defgroup g_cci Chip Card Interface Device (CCID).
- * Represents a connection to a chip card device.
+ * \defgroup g_ccid Chip Card Interface Device (CCID).
+ * Represents a connection to a chip card device. Contains one or more
+ * chipcard interfaces (slots or RF fields).
  *
  * \defgroup g_xfr CCID Transaction Buffer
  * Provides:
@@ -47,11 +48,12 @@
  *  -# An interface for constructing requests.
  *  -# An interface for retreiving status words and retrieved data.
  *
- * \defgroup g_cci Chip Card
- * Represents a slot in a chip card device and chip card (if one is inserted).
+ * \defgroup g_cci Chip Card Interface
+ * Represents a slot or RF field in a chip card device and chip card (if one is
+ * present).
  */
 
-/** \ingroup g_cci
+/** \ingroup g_ccid
  * Chip Card Interface Device
 */
 typedef struct _ccid *ccid_t;
@@ -96,7 +98,7 @@ _public const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 
 _public void xfr_free(xfr_t xfr);
 
-_public ccid_t cci_cci(cci_t cc);
+_public ccid_t cci_ccid(cci_t cc);
 _public int cci_wait_for_card(cci_t cc);
 
 /** \ingroup g_cci
