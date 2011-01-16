@@ -149,6 +149,7 @@ static int trm(emv_t e)
 static int do_emv_stuff(cci_t cc)
 {
 	emv_t e;
+	emv_aip_t aip;
 
 	e = emv_init(cc);
 	if ( NULL == e ) {
@@ -173,12 +174,21 @@ static int do_emv_stuff(cci_t cc)
 	printf("emvtool: application data retrieved\n");
 
 	/* Step 3. Authenticate card */
-	//if ( !emv_authenticate_static_data(e, get_mod, get_exp, NULL) )
-	//	goto end;
-	if ( !emv_authenticate_dynamic(e, get_mod, get_exp, NULL) )
+	if ( !emv_app_aip(e, aip) )
 		goto end;
 
-	printf("emvtool: card data authenticated\n");
+	if ( aip[0] & EMV_AIP_SDA ) {
+		if ( !emv_authenticate_static_data(e, get_mod, get_exp, NULL) )
+			goto end;
+		printf("emvtool: SDA: card data authenticated\n");
+
+	}
+
+	if ( aip[0] & EMV_AIP_DDA ) {
+		if ( !emv_authenticate_dynamic(e, get_mod, get_exp, NULL) )
+			goto end;
+		printf("emvtool: DDA: card data authenticated\n");
+	}
 
 	/* Step 4. Authenticate cardholder */
 #if 0
