@@ -344,7 +344,7 @@ static PyTypeObject app_pytype = {
 
 static int cp_emv_init(struct cp_emv *self, PyObject *args, PyObject *kwds)
 {
-	struct cp_chipcard *cc;
+	struct cp_cci *cc;
 
 	if ( !PyArg_ParseTuple(args, "O", &cc) )
 		return -1;

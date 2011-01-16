@@ -16,8 +16,8 @@ libccid_la_SOURCES = \
 	util.c \
 	ber.c \
 	xfr.c \
-	chipcard.c \
 	ccidev.c \
+	ccid.c \
 	cci.c
 
 libemv_la_LIBADD = libccid.la -lcrypto
