@@ -771,7 +771,7 @@ if __name__ == '__main__':
 	wins = []
 	for dev in ccid.devlist():
 		try:
-			cci = ccid.cci(dev, 'gemv.trace')
+			cci = ccid.ccid(dev, 'gemv.trace')
 			slot = cci[0]
 			slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
 			w = EMVShell(slot)

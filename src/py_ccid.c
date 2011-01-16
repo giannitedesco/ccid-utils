@@ -251,7 +251,7 @@ static PyTypeObject xfr_pytype = {
 };
 
 /* ---[ chipcard wrapper */
-static PyObject *cp_cci_transact(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_transact(struct cp_cci *self, PyObject *args)
 {
 	struct cp_xfr *xfr;
 
@@ -276,7 +276,7 @@ static PyObject *cp_cci_transact(struct cp_chipcard *self, PyObject *args)
 	return PyInt_FromLong(xfr_rx_sw1(xfr->xfr));
 }
 
-static PyObject *cp_cci_wait(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_wait(struct cp_cci *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad slot");
@@ -289,7 +289,7 @@ static PyObject *cp_cci_wait(struct cp_chipcard *self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject *cp_cci_status(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_status(struct cp_cci *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad slot");
@@ -299,7 +299,7 @@ static PyObject *cp_cci_status(struct cp_chipcard *self, PyObject *args)
 	return PyInt_FromLong(cci_slot_status(self->slot));
 }
 
-static PyObject *cp_cci_clock(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_clock(struct cp_cci *self, PyObject *args)
 {
 	long ret;
 
@@ -317,7 +317,7 @@ static PyObject *cp_cci_clock(struct cp_chipcard *self, PyObject *args)
 	return PyInt_FromLong(ret);
 }
 
-static PyObject *cp_cci_on(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_on(struct cp_cci *self, PyObject *args)
 {
 	int voltage = CHIPCARD_AUTO_VOLTAGE;
 	const uint8_t *ptr;
@@ -345,7 +345,7 @@ static PyObject *cp_cci_on(struct cp_chipcard *self, PyObject *args)
 	return Py_BuildValue("s#", ptr, (int)atr_len);
 }
 
-static PyObject *cp_cci_off(struct cp_chipcard *self, PyObject *args)
+static PyObject *cp_cci_off(struct cp_cci *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad slot");
@@ -363,27 +363,27 @@ static PyObject *cp_cci_off(struct cp_chipcard *self, PyObject *args)
 
 static PyMethodDef cp_cci_methods[] = {
 	{"wait_for_card", (PyCFunction)cp_cci_wait, METH_NOARGS,	
-		"slot.wait_for_card()\n"
+		"cci.wait_for_card()\n"
 		"Sleep until the end of time, or until a card is inserted."
 		"whichever comes soonest."},
-	{"status", (PyCFunction)cp_cci_status, METH_NOARGS,	
-		"slot.status()\n"
+	{"slot_status", (PyCFunction)cp_cci_status, METH_NOARGS,	
+		"cci.slot_status()\n"
 		"Get status of the slot."},
 	{"clock_status", (PyCFunction)cp_cci_clock, METH_NOARGS,	
-		"slot.status()\n"
+		"cci.clock_status()\n"
 		"Get chip card clock status."},
 	{"on", (PyCFunction)cp_cci_on, METH_VARARGS,	
 		"slotchipcard.on(voltage=CHIPCARD_AUTO_VOLTAGE)\n"
 		"Power on card and retrieve ATR."},
 	{"off", (PyCFunction)cp_cci_off, METH_NOARGS,	
-		"slot.off()\n"
+		"cci.off()\n"
 		"Power off card."},
 	{"transact", (PyCFunction)cp_cci_transact, METH_VARARGS,	
-		"slot.transact(xfr) - chipcard transaction."},
+		"cci.transact(xfr) - chipcard transaction."},
 	{NULL, }
 };
 
-static void cp_cci_dealloc(struct cp_chipcard *self)
+static void cp_cci_dealloc(struct cp_cci *self)
 {
 	if ( self->owner ) {
 		Py_DECREF(self->owner);
@@ -395,7 +395,7 @@ static void cp_cci_dealloc(struct cp_chipcard *self)
 static PyTypeObject cci_pytype = {
 	PyObject_HEAD_INIT(NULL)
 	.tp_name = "ccid.cci",
-	.tp_basicsize = sizeof(struct cp_chipcard),
+	.tp_basicsize = sizeof(struct cp_cci),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
 	.tp_methods = cp_cci_methods,
@@ -404,11 +404,11 @@ static PyTypeObject cci_pytype = {
 };
 
 /* ---[ CCI wrapper */
-static PyObject *cci_get(struct cp_cci *self, Py_ssize_t i)
+static PyObject *cci_get(struct cp_ccid *self, Py_ssize_t i)
 {
-	struct cp_chipcard *cc;
+	struct cp_cci *cc;
 
-	cc = (struct cp_chipcard*)_PyObject_New(&cci_pytype);
+	cc = (struct cp_cci *)_PyObject_New(&cci_pytype);
 	if ( NULL == cc ) {
 		PyErr_SetString(PyExc_MemoryError, "Allocating chipcard");
 		return NULL;
@@ -426,7 +426,7 @@ static PyObject *cci_get(struct cp_cci *self, Py_ssize_t i)
 	return (PyObject *)cc;
 }
 
-static int cp_ccid_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
+static int cp_ccid_init(struct cp_ccid *self, PyObject *args, PyObject *kwds)
 {
 	const char *trace = NULL;
 	struct cp_dev *cpd;
@@ -451,18 +451,18 @@ static int cp_ccid_init(struct cp_cci *self, PyObject *args, PyObject *kwds)
 	return 0;
 }
 
-static void cp_ccid_dealloc(struct cp_cci *self)
+static void cp_ccid_dealloc(struct cp_ccid *self)
 {
 	ccid_close(self->dev);
 	self->ob_type->tp_free((PyObject*)self);
 }
 
-static Py_ssize_t cci_len(struct cp_cci *self)
+static Py_ssize_t cci_len(struct cp_ccid *self)
 {
 	return ccid_slots(self->dev);
 }
 
-static PyObject *cp_log(struct cp_cci *self, PyObject *args)
+static PyObject *cp_log(struct cp_ccid *self, PyObject *args)
 {
 	const char *str;
 
@@ -489,7 +489,7 @@ static PySequenceMethods cci_seq = {
 static PyTypeObject ccid_pytype = {
 	PyObject_HEAD_INIT(NULL)
 	.tp_name = "ccid.ccid",
-	.tp_basicsize = sizeof(struct cp_cci),
+	.tp_basicsize = sizeof(struct cp_ccid),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)cp_ccid_init,
@@ -567,10 +567,10 @@ PyMODINIT_FUNC initccid(void)
 	PyModule_AddObject(m, "xfr", (PyObject *)&xfr_pytype);
 
 	Py_INCREF(&cci_pytype);
-	PyModule_AddObject(m, "slot", (PyObject *)&cci_pytype);
+	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
 
 	Py_INCREF(&cci_pytype);
-	PyModule_AddObject(m, "ccid", (PyObject *)&cci_pytype);
+	PyModule_AddObject(m, "ccid", (PyObject *)&ccid_pytype);
 
 	Py_INCREF(&dev_pytype);
 	PyModule_AddObject(m, "dev", (PyObject *)&dev_pytype);

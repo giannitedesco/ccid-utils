@@ -22,13 +22,13 @@ struct cp_dev {
 /* chipcard is the only dodgy part, this type can only be created via
  * a call to cci.get_slot()
  */
-struct cp_chipcard {
+struct cp_cci {
 	PyObject_HEAD;
 	PyObject *owner;
 	cci_t slot;
 };
 
-struct cp_cci {
+struct cp_ccid {
 	PyObject_HEAD;
 	ccid_t dev;
 };

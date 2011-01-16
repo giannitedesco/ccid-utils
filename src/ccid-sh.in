@@ -31,7 +31,7 @@ class scsh:
 	def cmd_dev(self, str, *arg):
 		"Select a device by bus number and USB address."
 		dev = ccid.dev(int(arg[0]), int(arg[1]))
-		cci = ccid.cci(dev)
+		cci = ccid.ccid(dev)
 		self.__cci = cci
 		self.__slot = cci[0]
 
@@ -257,7 +257,7 @@ class scsh:
 
 		# clock first because it updates status
 		c = self.__slot.clock_status()
-		s = self.__slot.status()
+		s = self.__slot.slot_status()
 
 		cstr = {
 			ccid.CHIPCARD_ACTIVE: "ACTIVE",
@@ -523,7 +523,7 @@ class scsh:
 		devs = ccid.devlist()
 		for dev in devs:
 			try:
-				self.__cci = ccid.cci(dev)
+				self.__cci = ccid.ccid(dev)
 				self.__slot = self.__cci[0]
 			except:
 				pass
@@ -568,7 +568,7 @@ class scsh:
 		}
 
 	def prompt(self):
-		status = self.__slot.status()
+		status = self.__slot.clock_status()
 		if status == ccid.CHIPCARD_NOT_PRESENT:
 			return "ccid-$ "
 		else:
@@ -595,7 +595,8 @@ class scsh:
 		except ValueError, e:
 			self.out("Command failed: %s: %s"%(arg[0], e.args[0]))
 		except IOError, e:
-			if self.__slot.status() == ccid.CHIPCARD_NOT_PRESENT:
+			if self.__slot.clock_status() == \
+					ccid.CHIPCARD_NOT_PRESENT:
 				self.out("Card not present!!")
 			else:
 				self.out("Command failed: %s: %s"%(arg[0],
