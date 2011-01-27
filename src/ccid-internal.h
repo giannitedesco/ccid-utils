@@ -59,7 +59,7 @@ struct _ccid {
 
 	FILE		*cci_tf;
 
-	/* USB interfacee */
+	/* USB interface */
 	int 		cci_inp;
 	int 		cci_outp;
 	int 		cci_intrp;

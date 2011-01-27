@@ -685,6 +685,7 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 
 	for(x = 0; x < RFID_MAX_FIELDS; x++) {
 		ccid->cci_rf[x].cc_parent = ccid;
+		/* idx and ops set by proprietary initialisation routines */
 	}
 
 	/* Second, open USB device and get it ready */
@@ -736,7 +737,8 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	}
 
 	/* Finally, setup RF fields */
-	trace(ccid, "Setting up %u proximity card RF fields\n", ccid->cci_num_rf);
+	trace(ccid, "Setting up %u proximity card RF fields\n",
+		ccid->cci_num_rf);
 	for(x = 0; x < ccid->cci_num_rf; x++) {
 	}
 
