@@ -29,10 +29,22 @@ struct _clrc632_ops {
 			 unsigned int reg, uint8_t val);
 };
 
+struct _cci_ops {
+	unsigned (*clock_status)(struct _cci *cci);
+	const uint8_t *(*slot_on)(struct _cci *cci,
+					unsigned int v,
+					size_t *atr_len);
+	int (*slot_off)(struct _cci *cci);
+	int (*transact)(struct _cci *cc, struct _xfr *xfr);
+	int (*wait_for_card)(struct _cci *cc);
+};
+_hidden extern const struct _cci_ops _contact_ops;
+
 struct _cci {
 	struct _ccid *cc_parent;
 	uint8_t cc_idx;
 	uint8_t cc_status;
+	const struct _cci_ops *cc_ops;
 
 	/* Fields related to proprietary interfaces */
 	const struct _clrc632_ops *cc_rc632;

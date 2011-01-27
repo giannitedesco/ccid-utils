@@ -11,14 +11,15 @@ libccid_la_LIBADD = -lusb-1.0
 libccid_la_LDFLAGS =  -version-info 4:0:0
 libccid_la_SOURCES = \
 	ccid-internal.h \
+	cc_contact.c \
 	clrc632.c \
 	omnikey.c \
-	util.c \
-	ber.c \
-	xfr.c \
 	ccidev.c \
 	ccid.c \
-	cci.c
+	cci.c \
+	util.c \
+	ber.c \
+	xfr.c
 
 libemv_la_LIBADD = libccid.la -lcrypto
 libemv_la_LDFLAGS =  -version-info 4:0:0
