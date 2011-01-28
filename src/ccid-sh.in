@@ -31,7 +31,7 @@ class scsh:
 	def cmd_dev(self, str, *arg):
 		"Select a device by bus number and USB address."
 		dev = ccid.dev(int(arg[0]), int(arg[1]))
-		cci = ccid.ccid(dev)
+		cci = ccid.ccid(dev, self.__tf)
 		self.__cci = cci
 		self.__slot = cci[0]
 
@@ -523,12 +523,13 @@ class scsh:
 		devs = ccid.devlist()
 		for dev in devs:
 			try:
-				self.__cci = ccid.ccid(dev)
+				self.__cci = ccid.ccid(dev, self.__tf)
 				self.__slot = self.__cci[0]
 			except:
 				pass
 
-	def __init__(self, tracefile=None):
+	def __init__(self, tracefile = None):
+		self.__tf = tracefile
 		self.__cci = None
 		self.__slot = None
 		self.__grab_first_dev_and_slot()

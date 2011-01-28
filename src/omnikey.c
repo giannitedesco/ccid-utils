@@ -64,7 +64,7 @@ static int fifo_write(struct _ccid *ccid, unsigned int field,
 }
 
 static int reg_read(struct _ccid *ccid, unsigned int field,
-			unsigned int reg, uint8_t *val)
+			uint8_t reg, uint8_t *val)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
@@ -93,7 +93,7 @@ static int reg_read(struct _ccid *ccid, unsigned int field,
 }
 
 static int reg_write(struct _ccid *ccid, unsigned int field,
-			unsigned int reg, uint8_t val)
+			uint8_t reg, uint8_t val)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
@@ -144,7 +144,14 @@ void _omnikey_init_prox(struct _ccid *ccid)
 
 	ccid->cci_rf[ccid->cci_num_rf].cc_rc632 = &asic_ops;
 	ccid->cci_rf[ccid->cci_num_rf].cc_idx = RFID_SLOT;
-	_clrc632_init(ccid->cci_rf + ccid->cci_num_rf);
+
+	if ( !_clrc632_init(ccid->cci_rf + ccid->cci_num_rf) )
+		return;
+
+	if ( !_clrc632_14443a_init(ccid->cci_rf + ccid->cci_num_rf) )
+		return;
+
 	ccid->cci_num_rf++;
 	trace(ccid, " o CMRC632 ASIC RF interface enabled\n");
+	return;
 }
