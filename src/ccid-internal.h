@@ -24,9 +24,9 @@ struct _clrc632_ops {
 	int (*fifo_write)(struct _ccid *ccid, unsigned int field,
 			  const uint8_t *buf, size_t len);
 	int (*reg_read)(struct _ccid *ccid, unsigned int field,
-			unsigned int reg, uint8_t *val);
+			uint8_t reg, uint8_t *val);
 	int (*reg_write)(struct _ccid *ccid, unsigned int field,
-			 unsigned int reg, uint8_t val);
+			 uint8_t reg, uint8_t val);
 };
 
 struct _cci_ops {

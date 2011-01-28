@@ -3,7 +3,7 @@
  * Copyright (c) 2010 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
  *
- * Chip card transaction buffer management.
+ * CLRC632 RFID ASIC driver
 */
 
 #include <ccid.h>
@@ -12,17 +12,17 @@
 #include "ccid-internal.h"
 #include "clrc632.h"
 
-static int reg_read(struct _cci *cc, unsigned int reg, uint8_t *val)
+static int reg_read(struct _cci *cc, uint8_t reg, uint8_t *val)
 {
 	return (*cc->cc_rc632->reg_read)(cc->cc_parent, cc->cc_idx, reg, val);
 }
 
-static int reg_write(struct _cci *cc, unsigned int reg, uint8_t val)
+static int reg_write(struct _cci *cc, uint8_t reg, uint8_t val)
 {
 	return (*cc->cc_rc632->reg_write)(cc->cc_parent, cc->cc_idx, reg, val);
 }
 
-static int asic_clear_bits(struct _cci *cc, unsigned int reg, uint8_t bits)
+static int asic_clear_bits(struct _cci *cc, uint8_t reg, uint8_t bits)
 {
 	uint8_t val;
 
@@ -35,7 +35,7 @@ static int asic_clear_bits(struct _cci *cc, unsigned int reg, uint8_t bits)
 	return reg_write(cc, reg, val & ~bits);
 }
 
-static int asic_set_bits(struct _cci *cc, unsigned int reg, uint8_t bits)
+static int asic_set_bits(struct _cci *cc, uint8_t reg, uint8_t bits)
 {
 	uint8_t val;
 
