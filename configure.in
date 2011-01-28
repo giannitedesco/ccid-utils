@@ -78,3 +78,4 @@ src/Makefile
 src/gemv
 src/ccid-sh
 ])
+chmod 755 src/ccid-sh src/gemv || true
