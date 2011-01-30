@@ -164,6 +164,8 @@ int emv_appsel_pse(emv_t e)
 
 emv_app_t emv_appsel_pse_first(emv_t e)
 {
+	if ( list_empty(&e->e_apps) )
+		return NULL;
 	return list_entry(e->e_apps.next, struct _emv_app, a_list);
 }
 
