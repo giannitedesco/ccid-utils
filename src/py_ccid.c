@@ -460,7 +460,7 @@ static void cp_ccid_dealloc(struct cp_ccid *self)
 
 static Py_ssize_t cci_len(struct cp_ccid *self)
 {
-	return ccid_slots(self->dev);
+	return ccid_num_slots(self->dev);
 }
 
 static PyObject *cp_log(struct cp_ccid *self, PyObject *args)

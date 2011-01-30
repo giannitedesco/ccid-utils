@@ -778,7 +778,7 @@ void ccid_close(ccid_t ccid)
  * @param ccid The \ref ccid_t to return number of slots for.
  * @return The number of slots.
  */
-unsigned int ccid_slots(ccid_t ccid)
+unsigned int ccid_num_slots(ccid_t ccid)
 {
 	return ccid->cci_num_slots;
 }

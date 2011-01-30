@@ -82,7 +82,7 @@ _public uint8_t libccid_device_bus(ccidev_t dev);
 _public uint8_t libccid_device_addr(ccidev_t dev);
 
 _public ccid_t ccid_probe(ccidev_t dev, const char *tracefile);
-_public unsigned int ccid_slots(ccid_t cci);
+_public unsigned int ccid_num_slots(ccid_t cci);
 _public cci_t ccid_get_slot(ccid_t cci, unsigned int i);
 _public void ccid_close(ccid_t cci);
 _public void ccid_log(ccid_t cci, const char *fmt, ...) _printf(2, 3);
