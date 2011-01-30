@@ -615,7 +615,7 @@ static int probe_descriptors(struct _ccid *ccid)
 			get_endpoint(ccid, ptr, ptr[0]);
 			break;
 		case CCID_DT:
-			if ( fill_ccid_desc(ccid, dbuf + 18, ptr[0]) )
+			if ( fill_ccid_desc(ccid, ptr, ptr[0]) )
 				valid_ccid = 1;
 			break;
 		default:
