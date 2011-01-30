@@ -11,7 +11,7 @@ libccid_la_LIBADD = -lusb-1.0
 libccid_la_LDFLAGS =  -version-info 4:0:0
 libccid_la_SOURCES = \
 	ccid-internal.h \
-	cc_contact.c \
+	cci_contact.c \
 	clrc632.c \
 	omnikey.c \
 	ccidev.c \

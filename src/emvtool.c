@@ -228,7 +228,7 @@ static int found_cci(ccidev_t dev)
 	if ( !cci_wait_for_card(cc) )
 		goto out_close;
 
-	if ( !cci_slot_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
+	if ( !cci_power_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;
 
 	if ( !do_emv_stuff(cc) )
@@ -236,7 +236,7 @@ static int found_cci(ccidev_t dev)
 
 	ret = 1;
 
-	cci_slot_off(cc);
+	cci_power_off(cc);
 out_close:
 	ccid_close(ccid);
 out:

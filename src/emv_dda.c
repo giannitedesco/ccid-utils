@@ -27,8 +27,6 @@ struct dda_req {
 	size_t icc_exp_len;
 	const uint8_t *ddol;
 	size_t ddol_len;
-	const uint8_t *ssa_data;
-	size_t ssa_data_len;
 	uint8_t pan[10];
 };
 
