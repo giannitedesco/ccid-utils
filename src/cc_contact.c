@@ -23,7 +23,7 @@ static unsigned contact_clock_status(struct _cci *cc)
 	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
 }
 
-static const uint8_t *contact_slot_on(struct _cci *cc, unsigned int voltage,
+static const uint8_t *contact_power_on(struct _cci *cc, unsigned int voltage,
 				size_t *atr_len)
 {
 	struct _ccid *ccid = cc->cc_parent;
@@ -40,7 +40,7 @@ static const uint8_t *contact_slot_on(struct _cci *cc, unsigned int voltage,
 	return ccid->cci_xfr->x_rxbuf;
 }
 
-static int contact_slot_off(struct _cci *cc)
+static int contact_power_off(struct _cci *cc)
 {
 	struct _ccid *ccid = cc->cc_parent;
 
@@ -83,8 +83,8 @@ static int contact_wait_for_card(struct _cci *cc)
 
 _hidden const struct _cci_ops _contact_ops = {
 	.clock_status = contact_clock_status,
-	.slot_on = contact_slot_on,
-	.slot_off = contact_slot_off,
+	.power_on = contact_power_on,
+	.power_off = contact_power_off,
 	.transact = contact_transact,
 	.wait_for_card = contact_wait_for_card,
 };

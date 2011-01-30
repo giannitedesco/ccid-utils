@@ -336,7 +336,7 @@ static PyObject *cp_cci_on(struct cp_cci *self, PyObject *args)
 		return NULL;
 	}
 
-	ptr = cci_slot_on(self->slot, voltage, &atr_len);
+	ptr = cci_power_on(self->slot, voltage, &atr_len);
 	if ( NULL == ptr ) {
 		PyErr_SetString(PyExc_IOError, "Transaction error");
 		return NULL;
@@ -352,7 +352,7 @@ static PyObject *cp_cci_off(struct cp_cci *self, PyObject *args)
 		return NULL;
 	}
 
-	if ( !cci_slot_off(self->slot) ) {
+	if ( !cci_power_off(self->slot) ) {
 		PyErr_SetString(PyExc_IOError, "Transaction error");
 		return NULL;
 	}

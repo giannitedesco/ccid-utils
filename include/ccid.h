@@ -153,9 +153,9 @@ _public unsigned int cci_clock_status(cci_t cc);
  * 1.8 Volts.
 */
 #define CHIPCARD_1_8V		0x3
-_public const uint8_t *cci_slot_on(cci_t cc, unsigned int voltage,
+_public const uint8_t *cci_power_on(cci_t cc, unsigned int voltage,
 				size_t *atr_len);
-_public int cci_slot_off(cci_t cc);
+_public int cci_power_off(cci_t cc);
 
 _public int cci_transact(cci_t cc, xfr_t xfr);
 

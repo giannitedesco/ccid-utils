@@ -61,10 +61,10 @@ unsigned int cci_clock_status(cci_t cci)
  *
  * @return NULL for failure, pointer to ATR message otherwise.
  */
-const uint8_t *cci_slot_on(cci_t cci, unsigned int voltage,
+const uint8_t *cci_power_on(cci_t cci, unsigned int voltage,
 				size_t *atr_len)
 {
-	return (*cci->cc_ops->slot_on)(cci, voltage, atr_len);
+	return (*cci->cc_ops->power_on)(cci, voltage, atr_len);
 }
 
 /** Perform a chip card transaction.
@@ -89,9 +89,9 @@ int cci_transact(cci_t cci, xfr_t xfr)
  *
  * @return zero on failure.
  */
-int cci_slot_off(cci_t cci)
+int cci_power_off(cci_t cci)
 {
-	return (*cci->cc_ops->slot_off)(cci);
+	return (*cci->cc_ops->power_off)(cci);
 }
 
 /** Wait for insertion of a chip card in to the slot.
