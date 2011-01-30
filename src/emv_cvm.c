@@ -13,7 +13,7 @@
 static int bop_ptc(const uint8_t *ptr, size_t len, void *priv)
 {
 	int *ctr = priv;
-	assert(1 == len);
+	printf("%zu\n", len);
 	*ctr = *ptr;
 	return 1;
 }
@@ -27,13 +27,21 @@ static int ptc(struct _emv *e)
 	size_t len;
 	int ctr = -1;
 
-	if ( !_emv_get_data(e, 0x9f, 0x17) )
+	if ( !_emv_get_data(e, 0x9f, 0x17) ) {
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return -1;
+	}
 	ptr = xfr_rx_data(e->e_xfr, &len);
-	if ( NULL == ptr )
+	if ( NULL == ptr ) {
+		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
 		return -1;
+	}
 	if ( !ber_decode(tags, sizeof(tags)/sizeof(*tags), ptr, len, &ctr) ) {
 		_emv_error(e, EMV_ERR_DATA_ELEMENT_NOT_FOUND);
+		return -1;
+	}
+	if ( ctr < 0 ) {
+		_emv_error(e, EMV_ERR_BER_DECODE);
 		return -1;
 	}
 	return ctr;
