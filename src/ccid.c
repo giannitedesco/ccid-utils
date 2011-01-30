@@ -722,10 +722,8 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 		goto out_close;
 
 	/* Fourth, Initialise any proprietary interfaces */
-#if 0
 	if ( intf.flags & INTF_RFID_OMNI )
 		_omnikey_init_prox(ccid);
-#endif
 
 	/* Fifth, setup each slot */
 	trace(ccid, "Setting up %u contact card slots\n", ccid->cci_num_slots);
