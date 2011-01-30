@@ -652,6 +652,7 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	struct _cci_interface intf;
 	struct _ccid *ccid = NULL;
 	unsigned int x;
+	int c;
 
 	if ( !_probe_descriptors(dev, &intf) ) {
 		goto out;
@@ -697,7 +698,12 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	libusb_reset_device(ccid->cci_dev);
 #endif
 
-	if ( libusb_set_configuration(ccid->cci_dev, intf.c) ) {
+	if ( libusb_get_configuration(ccid->cci_dev, &c) ) {
+		trace(ccid, "error getting configuration\n");
+		goto out_close;
+	}
+
+	if ( intf.c != c && libusb_set_configuration(ccid->cci_dev, intf.c) ) {
 		trace(ccid, "error setting configuration\n");
 		goto out_close;
 	}
