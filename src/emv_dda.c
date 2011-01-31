@@ -409,22 +409,38 @@ static RSA *get_icc_pk(struct _emv *e, struct dda_req *req,
 
 static int dol_cb(uint16_t tag, uint8_t *ptr, size_t len, void *priv)
 {
-	//printf("DDOL tag: 0x%x\n", tag);
+	unsigned int i;
 	switch(tag) {
 	case EMV_TAG_UNPREDICTABLE_NUMBER:
-#if 0
-		unsigned int i;
 		for(i = 0; i < len; i++)
 			i = rand() & 0xff;
 		return 1;
-#else
-		memset(ptr, 0, len);
-#endif
-		return 1;
 	default:
+		printf("Unsupported DDOL tag: 0x%x\n", tag);
 		return 0;
 		break;
 	}
+}
+
+static int decode_da_sig(const uint8_t **pptr, size_t *psz)
+{
+	const uint8_t *ptr = *pptr;
+	size_t sz = *psz;
+
+	/* FIXME: Support non-BER encoding */
+	if ( sz < 2 || ptr[0] != 0x80 )
+		return 0;
+
+	sz--;
+	ptr++;
+
+	sz = ber_decode_len(&ptr, ptr + sz);
+	if ( ptr == *pptr + 1 )
+		return 0;
+
+	*pptr = ptr;
+	*psz = sz;
+	return 1;
 }
 
 static int verify_dynamic_sig(emv_t e, size_t icc_pk_len,
@@ -453,14 +469,17 @@ static int verify_dynamic_sig(emv_t e, size_t icc_pk_len,
 	if ( NULL == sig )
 		goto out;
 	
-	if ( sig_len != icc_pk_len + 2 || icc_pk_len < 24 ||
-			sig[0] != 0x80 || sig[1] != icc_pk_len ) {
-		printf("Signed dynamic application data is corrupt\n");
+	if ( !decode_da_sig(&sig, &sig_len) ) {
 		_emv_error(e, EMV_ERR_BER_DECODE);
 		goto out;
 	}
 
-	memcpy(da, sig + 2, icc_pk_len);
+	if ( sig_len != icc_pk_len || icc_pk_len < 24 ) {
+		_emv_error(e, EMV_ERR_CERTIFICATE);
+		goto out;
+	}
+
+	memcpy(da, sig, icc_pk_len);
 	if ( !recover(da, icc_pk_len, e->e_icc_pk) ) {
 		_emv_error(e, EMV_ERR_CERTIFICATE);
 		goto out;
