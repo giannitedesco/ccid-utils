@@ -802,6 +802,31 @@ cci_t ccid_get_slot(ccid_t ccid, unsigned int num)
 	}
 }
 
+/** Retrieve the number of RF fields in the CCID.
+ * \ingroup g_ccid
+ * @param ccid The \ref ccid_t to return number of fields for.
+ * @return The number of fields.
+ */
+unsigned int ccid_num_fields(ccid_t ccid)
+{
+	return ccid->cci_num_rf;
+}
+
+/** Retrieve a handle to a RFID field.
+ * \ingroup g_ccid
+ * @param ccid The \ref ccid_t containing the required field.
+ * @param num The field number to retrieve (zero-based).
+ * @return \ref cci_t rerpesenting the required field.
+ */
+cci_t ccid_get_field(ccid_t ccid, unsigned int num)
+{
+	if ( num < ccid->cci_num_rf ) {
+		return ccid->cci_rf + num;
+	}else{
+		return NULL;
+	}
+}
+
 /** Print a message in the trace log
  * \ingroup g_ccid
  * @param ccid The \ref ccid_t to which the log message is pertinent.

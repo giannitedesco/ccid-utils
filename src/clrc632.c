@@ -79,7 +79,7 @@ static int asic_power(struct _cci *cci, unsigned int on)
 	}
 }
 
-static int asic_rf_power(struct _cci *cci, unsigned int on)
+int _clrc632_rf_power(struct _cci *cci, unsigned int on)
 {
 	if ( on ) {
 		return asic_clear_bits(cci, RC632_REG_TX_CONTROL,
@@ -165,10 +165,10 @@ int _clrc632_init(struct _cci *cci)
 	if ( !asic_set_bits(cci, RC632_REG_TX_CONTROL, 0x5b) )
 		return 0;
 
-	if ( !asic_rf_power(cci, 0) )
+	if ( !_clrc632_rf_power(cci, 0) )
 		return 0;
 	usleep(1000);
-	if ( !asic_rf_power(cci, 1) )
+	if ( !_clrc632_rf_power(cci, 1) )
 		return 0;
 
 	return 1;

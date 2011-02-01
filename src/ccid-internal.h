@@ -39,6 +39,7 @@ struct _cci_ops {
 	int (*wait_for_card)(struct _cci *cc);
 };
 _hidden extern const struct _cci_ops _contact_ops;
+_hidden extern const struct _cci_ops _rfid_ops;
 
 struct _cci {
 	struct _ccid *cc_parent;
@@ -102,6 +103,7 @@ struct _cci_interface {
 
 _private void _omnikey_init_prox(struct _ccid *ccid);
 _private int _clrc632_init(struct _cci *cc);
+_private int _clrc632_rf_power(struct _cci *cci, unsigned int on);
 _private int _clrc632_14443a_init(struct _cci *cci);
 
 _private int _probe_descriptors(struct libusb_device *dev,

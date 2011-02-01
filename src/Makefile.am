@@ -12,6 +12,7 @@ libccid_la_LDFLAGS =  -version-info 4:0:0
 libccid_la_SOURCES = \
 	ccid-internal.h \
 	cci_contact.c \
+	cci_rfid.c \
 	clrc632.c \
 	omnikey.c \
 	ccidev.c \

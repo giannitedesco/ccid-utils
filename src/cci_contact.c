@@ -10,28 +10,28 @@
 
 #include "ccid-internal.h"
 
-static unsigned contact_clock_status(struct _cci *cc)
+static unsigned contact_clock_status(struct _cci *cci)
 {
-	struct _ccid *ccid = cc->cc_parent;
+	struct _ccid *ccid = cci->cc_parent;
 
-	if ( !_PC_to_RDR_GetSlotStatus(ccid, cc->cc_idx, ccid->cci_xfr) )
+	if ( !_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
 	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
 }
 
-static const uint8_t *contact_power_on(struct _cci *cc, unsigned int voltage,
+static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
 				size_t *atr_len)
 {
-	struct _ccid *ccid = cc->cc_parent;
+	struct _ccid *ccid = cci->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOn(ccid, cc->cc_idx, ccid->cci_xfr, voltage) )
+	if ( !_PC_to_RDR_IccPowerOn(ccid, cci->cc_idx, ccid->cci_xfr, voltage) )
 		return 0;
 
-	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return 0;
 	
 	_RDR_to_PC_DataBlock(ccid, ccid->cci_xfr);
@@ -40,44 +40,44 @@ static const uint8_t *contact_power_on(struct _cci *cc, unsigned int voltage,
 	return ccid->cci_xfr->x_rxbuf;
 }
 
-static int contact_power_off(struct _cci *cc)
+static int contact_power_off(struct _cci *cci)
 {
-	struct _ccid *ccid = cc->cc_parent;
+	struct _ccid *ccid = cci->cc_parent;
 
-	if ( !_PC_to_RDR_IccPowerOff(ccid, cc->cc_idx, ccid->cci_xfr) )
+	if ( !_PC_to_RDR_IccPowerOff(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return 0;
 
-	if ( !_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return 0;
 	
 	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
 }
 
-static int contact_transact(struct _cci *cc, struct _xfr *xfr)
+static int contact_transact(struct _cci *cci, struct _xfr *xfr)
 {
-	struct _ccid *ccid = cc->cc_parent;
+	struct _ccid *ccid = cci->cc_parent;
 
-	if ( !_PC_to_RDR_XfrBlock(ccid, cc->cc_idx, xfr) )
+	if ( !_PC_to_RDR_XfrBlock(ccid, cci->cc_idx, xfr) )
 		return 0;
 
-	if ( !_RDR_to_PC(ccid, cc->cc_idx, xfr) )
+	if ( !_RDR_to_PC(ccid, cci->cc_idx, xfr) )
 		return 0;
 
 	_RDR_to_PC_DataBlock(ccid, xfr);
 	return 1;
 }
 
-static int contact_wait_for_card(struct _cci *cc)
+static int contact_wait_for_card(struct _cci *cci)
 {
-	struct _ccid *ccid = cc->cc_parent;
+	struct _ccid *ccid = cci->cc_parent;
 
 	do {
-		_PC_to_RDR_GetSlotStatus(ccid, cc->cc_idx, ccid->cci_xfr);
-		_RDR_to_PC(ccid, cc->cc_idx, ccid->cci_xfr);
-		if ( cc->cc_status != CHIPCARD_NOT_PRESENT )
+		_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr);
+		_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr);
+		if ( cci->cc_status != CHIPCARD_NOT_PRESENT )
 			break;
 		_cci_wait_for_interrupt(ccid);
-	} while( cc->cc_status == CHIPCARD_NOT_PRESENT );
+	} while( cci->cc_status == CHIPCARD_NOT_PRESENT );
 	return 1;
 }
 

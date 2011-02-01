@@ -148,7 +148,7 @@ void _omnikey_init_prox(struct _ccid *ccid)
 	if ( !_clrc632_init(ccid->cci_rf + ccid->cci_num_rf) )
 		return;
 
-	if ( !_clrc632_14443a_init(ccid->cci_rf + ccid->cci_num_rf) )
+	if ( !_clrc632_rf_power(ccid->cci_rf + ccid->cci_num_rf, 0) )
 		return;
 
 	ccid->cci_num_rf++;
