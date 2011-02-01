@@ -13,7 +13,6 @@
 static int bop_ptc(const uint8_t *ptr, size_t len, void *priv)
 {
 	int *ctr = priv;
-	printf("%zu\n", len);
 	*ctr = *ptr;
 	return 1;
 }

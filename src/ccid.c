@@ -456,7 +456,6 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 		return 0;
 	}
 
-	/* FIXME: scan for CCID descriptor */
 	memcpy(&ccid->cci_desc, ptr, sizeof(ccid->cci_desc));
 
 	byteswap_desc(&ccid->cci_desc);
@@ -488,9 +487,9 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 		trace(ccid, " T=1");
 	trace(ccid, "\n");
 
-	trace(ccid, " o Default Clock Freq.: %uKHz\n",
+	trace(ccid, " o Default Clock Freq.: %uHz\n",
 			ccid->cci_desc.dwDefaultClock);
-	trace(ccid, " o Max. Clock Freq.: %uKHz\n",
+	trace(ccid, " o Max. Clock Freq.: %uHz\n",
 			ccid->cci_desc.dwMaximumClock);
 	trace(ccid, "   .bNumClocks = %u\n",
 			ccid->cci_desc.bNumClockSupported);
@@ -581,7 +580,6 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 		break;
 	}
 
-	_hex_dumpf(ccid->cci_tf, ptr, len, 16);
 	return 1;
 }
 
