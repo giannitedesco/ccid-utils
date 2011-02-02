@@ -196,6 +196,8 @@ static int do_emv_stuff(cci_t cc)
 	}
 
 	/* Step 4. Authenticate cardholder */
+	if ( !emv_cvm(e) )
+		goto end;
 #if 0
 	if ( !emv_cvm_pin(e, "1337") )
 		goto end;
