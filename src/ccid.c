@@ -772,6 +772,8 @@ void ccid_close(ccid_t ccid)
 	if ( ccid ) {
 		if ( ccid->cci_dev )
 			libusb_close(ccid->cci_dev);
+		if ( ccid->cci_tf )
+			fclose(ccid->cci_tf);
 		_xfr_do_free(ccid->cci_xfr);
 	}
 	free(ccid);
