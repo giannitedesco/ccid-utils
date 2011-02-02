@@ -115,6 +115,9 @@ _private uint8_t _emv_sw1(emv_t e);
 _private uint8_t _emv_sw2(emv_t e);
 _private int _emv_pin2pb(const char *pin, uint8_t *pb);
 
+/* Internal state functions */
+_private void _emv_auth_reset(emv_t e);
+
 /* Application selection */
 _private void _emv_free_applist(emv_t e);
 _private void _emv_init_applist(emv_t e);

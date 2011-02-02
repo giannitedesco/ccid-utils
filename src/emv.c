@@ -195,11 +195,24 @@ const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
 	return xfr_rx_data(e->e_xfr, rlen);
 }
 
+/* Reset authentication related state */
+void _emv_auth_reset(emv_t e)
+{
+	e->e_sda_ok = 0;
+	e->e_dda_ok = 0;
+	e->e_cda_ok = 0;
+	RSA_free(e->e_ca_pk);
+	RSA_free(e->e_iss_pk);
+	RSA_free(e->e_icc_pk);
+	e->e_ca_pk = NULL;
+	e->e_iss_pk = NULL;
+	e->e_icc_pk = NULL;
+}
+
 static void do_emv_fini(emv_t e)
 {
 	if ( e ) {
-		RSA_free(e->e_ca_pk);
-		RSA_free(e->e_iss_pk);
+		_emv_auth_reset(e);
 
 		_emv_free_applist(e);
 

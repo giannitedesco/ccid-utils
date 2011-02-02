@@ -214,6 +214,8 @@ static int set_app(emv_t e)
 	const uint8_t *fci;
 	size_t len;
 
+	_emv_auth_reset(e);
+
 	fci = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == fci )
 		return 0;
