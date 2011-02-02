@@ -250,6 +250,7 @@ static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 		const struct libusb_interface_descriptor *id =
 							&iface->altsetting[a];
 		if ( id->bInterfaceClass == 0x0b ) {
+			libusb_free_config_descriptor(conf);
 			return a;
 		}
 	}
@@ -264,10 +265,12 @@ static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 		const struct libusb_interface_descriptor *id =
 							&iface->altsetting[a];
 		if ( id->bInterfaceClass == 0xff ) {
+			libusb_free_config_descriptor(conf);
 			return a;
 		}
 	}
 out:
+	libusb_free_config_descriptor(conf);
 	return -1;
 }
 
@@ -314,8 +317,10 @@ int _probe_descriptors(struct libusb_device *dev, struct _cci_interface *intf)
 			if ( a < 0 )
 				continue;
 
+			libusb_free_config_descriptor(conf);
 			goto success;
 		}
+		libusb_free_config_descriptor(conf);
 	}
 
 	return 0;
