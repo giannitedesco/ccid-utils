@@ -152,7 +152,7 @@ static const struct _emv_data *find_data(struct _emv_data **db,
 					unsigned int num, uint16_t id)
 {
 	struct _emv_data **d = db;
-	unsigned int n = num_tags;
+	unsigned int n = num;
 
 	while ( n ) {
 		unsigned int i;
@@ -595,7 +595,7 @@ int emv_read_app_data(struct _emv *e)
 	}
 	qsort(db->db_elem, db->db_nmemb, sizeof(*db->db_elem), cmp);
 
-	//&dump_records(db->db_rec, db->db_numrec, 1);
+	//dump_records(db->db_rec, db->db_numrec, 1);
 	//for(i = 0; i < db->db_nmemb; i++)
 	//	printf("%u. %s\n", i, label(db->db_elem[i]));
 	_emv_success(e);

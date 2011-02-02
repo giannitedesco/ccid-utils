@@ -9,7 +9,7 @@
 typedef struct _mpool *mpool_t;
 
 #define MPOOL_POISON 		1
-#define MPOOL_POISON_PATTERN 	0xa5
+#define MPOOL_POISON_PATTERN 	0x5a
 
 _private mpool_t mpool_new(size_t obj_size, unsigned slab_size);
 _private void mpool_free(mpool_t m);
