@@ -490,8 +490,15 @@ class EMVAppDialog(gtk.Dialog):
 
 
 		c.add(gtk.Label("Applications Supported by Terminal"))
-		for (label,aid) in [ ("LINK", "\xa0\x00\x00\x00\x29"),
-				("VISA DEBIT", "\xa0\x00\x00\x00\x03") ]:
+		for (label,aid) in [
+				("VISA DEBIT", "\xa0\x00\x00\x00\x03"),
+				("MasterCard", "\xa0\x00\x00\x00\x04"),
+				("SWITCH", "\xa0\x00\x00\x00\x05"),
+				("American Express", "\xa0\x00\x00\x00\x25"),
+				("LINK", "\xa0\x00\x00\x00\x29"),
+				("ZKA", "\xa0\x00\x00\x03\x59"),
+				("Consorzio BANCOMAT", "\xa0\x00\x00\x01\x41"),
+				]:
 			rb = gtk.RadioButton(rb, label)
 			rb.emv_app = None
 			rb.emv_aid = aid

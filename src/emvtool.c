@@ -19,7 +19,12 @@ struct t_app {
 
 static const struct t_app apps[] = {
 	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x03", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x04", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x05", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x25", .aid_len = 5, .asi = 1},
 	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x29", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x03\x59", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xa0\x00\x00\x01\x41", .aid_len = 5, .asi = 1},
 };
 
 static int app_cmp(emv_app_t a, const struct t_app *b)
