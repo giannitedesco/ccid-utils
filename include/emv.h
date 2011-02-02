@@ -168,6 +168,7 @@ _public const uint8_t *emv_generate_ac(emv_t e, uint8_t ref,
 #define EMV_TAG_IAC_ONLINE		0x9f0f
 #define EMV_TAG_MAGSTRIP_TRACK1		0x9f1f
 #define EMV_TAG_ISS_PK_EXP		0x9f32
+#define EMV_TAG_CURRENCY_CODE		0x9f42
 #define EMV_TAG_CURRENCY_EXP		0x9f44
 #define EMV_TAG_ICC_PK_CERT		0x9f46
 #define EMV_TAG_ICC_PK_EXP		0x9f47
