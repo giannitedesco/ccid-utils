@@ -73,7 +73,7 @@ int emv_cvm_pin(emv_t e, const char *pin)
 
 int emv_cvm(emv_t e)
 {
-	struct _emv_data *d;
+	const struct _emv_data *d;
 	const uint8_t *ptr;
 	size_t len;
 
