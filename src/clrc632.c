@@ -11,6 +11,7 @@
 
 #include "ccid-internal.h"
 #include "clrc632.h"
+#include "iso14443a.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
@@ -148,6 +149,11 @@ int _clrc632_14443a_init(struct _cci *cci)
 		return 0;
 	return reg_write_batch(cci, rf_14443a_init,
 				ARRAY_SIZE(rf_14443a_init));
+}
+
+int _clrc632_select(struct _cci *cci)
+{
+	return _iso14443a_select(cci, 0);
 }
 
 int _clrc632_init(struct _cci *cci)

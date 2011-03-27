@@ -6,6 +6,11 @@
 #ifndef _CLRC632_H
 #define _CLRC632_H
 
+_private int _clrc632_init(struct _cci *cc);
+_private int _clrc632_rf_power(struct _cci *cci, unsigned int on);
+_private int _clrc632_14443a_init(struct _cci *cci);
+_private int _clrc632_select(struct _cci *cci);
+
 /* CL RC632 register set */
 
 #define RC632_REG_PAGE0			0x00

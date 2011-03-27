@@ -9,10 +9,22 @@
 #include <ccid.h>
 
 #include "ccid-internal.h"
+#include "clrc632.h"
+
+/* TODO: Need tag selection API whereby we do collision detection, allow
+ * caller to determine which tag they want to talk to and then returns
+ * it's status and type. Would be stubbed out with a 'contact' type in the
+ * regular smart-card case
+*/
+static int select_tag(struct _cci *cci)
+{
+	_clrc632_select(cci);
+	return CHIPCARD_CLOCK_ERR;
+}
 
 static unsigned rfid_clock_status(struct _cci *cci)
 {
-	return CHIPCARD_CLOCK_ERR;
+	return select_tag(cci);
 }
 
 static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
@@ -37,6 +49,7 @@ static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 
 static int rfid_wait_for_card(struct _cci *cci)
 {
+	select_tag(cci);
 	return 1;
 }
 
