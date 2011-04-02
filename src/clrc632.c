@@ -4,6 +4,9 @@
  * Released under the terms of the GNU GPL version 3
  *
  * CLRC632 RFID ASIC driver
+ *
+ * Much logic liberally copied from librfid
+ * (C) 2005-2008 Harald Welte <laforge@gnumonks.org>
 */
 
 #include <ccid.h>
@@ -96,6 +99,65 @@ static int flush_fifo(struct _cci *cci)
 	return reg_write(cci, RC632_REG_CONTROL, RC632_CONTROL_FIFO_FLUSH);
 }
 
+static int clear_irqs(struct _cci *cci, uint16_t bits)
+{
+	return reg_write(cci, RC632_REG_INTERRUPT_RQ,
+			(~RC632_INT_SET) & bits);
+}
+
+/* Wait until RC632 is idle or TIMER IRQ has happened */
+int _clrc632_wait_idle_timer(struct _cci *cci)
+{
+	int ret;
+	uint8_t stat, irq, cmd;
+
+	if ( !reg_read(cci, RC632_REG_INTERRUPT_EN, &irq) )
+		return 0;
+
+	if ( !reg_write(cci, RC632_REG_INTERRUPT_EN, RC632_IRQ_SET
+				| RC632_IRQ_TIMER
+				| RC632_IRQ_IDLE
+				| RC632_IRQ_RX ) )
+		return 0;
+
+	while (1) {
+		reg_read(cci, RC632_REG_PRIMARY_STATUS, &stat);
+		if (stat & RC632_STAT_ERR) {
+			uint8_t err;
+			if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &err) )
+				return ret;
+			if (err & (RC632_ERR_FLAG_COL_ERR |
+				   RC632_ERR_FLAG_PARITY_ERR |
+				   RC632_ERR_FLAG_FRAMING_ERR |
+				/* FIXME: why get we CRC errors in CL2 anticol
+				 * at iso14443a operation with mifare UL? */
+				/*   RC632_ERR_FLAG_CRC_ERR | */
+				   0))
+				return 0;
+		}
+		if (stat & RC632_STAT_IRQ) {
+			if ( !reg_read(cci, RC632_REG_INTERRUPT_RQ, &irq) )
+				return 0;
+
+			if (irq & RC632_IRQ_TIMER && !(irq & RC632_IRQ_RX)) {
+				clear_irqs(cci, RC632_IRQ_TIMER);
+				return 0;
+			}
+		}
+
+		if ( !reg_read(cci, RC632_REG_COMMAND, &cmd) )
+			return 0;
+
+		if (cmd == 0) {
+			clear_irqs(cci, RC632_IRQ_RX);
+			return 1;
+		}
+
+		/* poll every millisecond */
+		usleep(1000);
+	}
+}
+
 static const struct reg_file rf_14443a_init[] = {
 	{ .reg =	RC632_REG_TX_CONTROL,
 	  .val =	RC632_TXCTRL_MOD_SRC_INT |
@@ -153,7 +215,12 @@ int _clrc632_14443a_init(struct _cci *cci)
 
 int _clrc632_select(struct _cci *cci)
 {
-	return _iso14443a_select(cci, 0);
+	int ret;
+	printf("waiting\n");
+	ret = _clrc632_wait_idle_timer(cci);
+	printf("wait idle timer %d\n", ret);
+	if ( !_iso14443a_select(cci, 0) )
+		return 0;
 }
 
 int _clrc632_init(struct _cci *cci)

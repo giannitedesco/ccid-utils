@@ -34,7 +34,7 @@ static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 		return NULL;
 	if ( !_clrc632_14443a_init(cci) )
 		return NULL;
-	return NULL;
+	return "RFID";//NULL;
 }
 
 static int rfid_power_off(struct _cci *cci)
