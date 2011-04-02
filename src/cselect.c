@@ -20,11 +20,6 @@ static int do_stuff(cci_t cci)
 		return 0;
 	}
 
-	if ( !cci_clock_status(cci) ) {
-		printf(" - clock status failed\n");
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -65,7 +60,6 @@ static int found_ccid(ccidev_t dev)
 	ret = 1;
 
 	cci_power_off(cci);
-out_close:
 	ccid_close(ccid);
 out:
 	return ret;

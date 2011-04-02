@@ -11,6 +11,7 @@
 
 #include <ccid.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "ccid-internal.h"
 #include "clrc632.h"
@@ -27,12 +28,26 @@ struct reg_file {
 
 static int reg_read(struct _cci *cci, uint8_t reg, uint8_t *val)
 {
-	return (*cci->cc_rc632->reg_read)(cci->cc_parent, cci->cc_idx, reg, val);
+	return (*cci->cc_rc632->reg_read)
+		(cci->cc_parent, cci->cc_idx, reg, val);
 }
 
 static int reg_write(struct _cci *cci, uint8_t reg, uint8_t val)
 {
-	return (*cci->cc_rc632->reg_write)(cci->cc_parent, cci->cc_idx, reg, val);
+	return (*cci->cc_rc632->reg_write)
+		(cci->cc_parent, cci->cc_idx, reg, val);
+}
+
+static int fifo_read(struct _cci *cci, uint8_t *buf, size_t len)
+{
+	return (*cci->cc_rc632->fifo_read)
+		(cci->cc_parent, cci->cc_idx, buf, len);
+}
+
+static int fifo_write(struct _cci *cci, const uint8_t *buf, size_t len)
+{
+	return (*cci->cc_rc632->fifo_write)
+		(cci->cc_parent, cci->cc_idx, buf, len);
 }
 
 static int asic_clear_bits(struct _cci *cci, uint8_t reg, uint8_t bits)
@@ -106,9 +121,8 @@ static int clear_irqs(struct _cci *cci, uint16_t bits)
 }
 
 /* Wait until RC632 is idle or TIMER IRQ has happened */
-int _clrc632_wait_idle_timer(struct _cci *cci)
+static int wait_idle_timer(struct _cci *cci)
 {
-	int ret;
 	uint8_t stat, irq, cmd;
 
 	if ( !reg_read(cci, RC632_REG_INTERRUPT_EN, &irq) )
@@ -125,7 +139,7 @@ int _clrc632_wait_idle_timer(struct _cci *cci)
 		if (stat & RC632_STAT_ERR) {
 			uint8_t err;
 			if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &err) )
-				return ret;
+				return 0;
 			if (err & (RC632_ERR_FLAG_COL_ERR |
 				   RC632_ERR_FLAG_PARITY_ERR |
 				   RC632_ERR_FLAG_FRAMING_ERR |
@@ -140,6 +154,7 @@ int _clrc632_wait_idle_timer(struct _cci *cci)
 				return 0;
 
 			if (irq & RC632_IRQ_TIMER && !(irq & RC632_IRQ_RX)) {
+				/* timed out */
 				clear_irqs(cci, RC632_IRQ_TIMER);
 				return 0;
 			}
@@ -156,6 +171,161 @@ int _clrc632_wait_idle_timer(struct _cci *cci)
 		/* poll every millisecond */
 		usleep(1000);
 	}
+}
+
+/* calculate best 8bit prescaler and divisor for given usec timeout */
+static void best_prescaler(uint64_t timeout, uint8_t *prescaler,
+			  uint8_t *divisor)
+{
+	uint8_t best_prescaler, best_divisor, i;
+	int64_t smallest_diff;
+
+	smallest_diff = LLONG_MAX;
+	best_prescaler = 0;
+
+	for (i = 0; i < 21; i++) {
+		uint64_t clk, tmp_div, res;
+		int64_t diff;
+		clk = 13560000 / (1 << i);
+		tmp_div = (clk * timeout) / 1000000;
+		tmp_div++;
+
+		if ((tmp_div > 0xff) || (tmp_div > clk))
+			continue;
+
+		res = 1000000 / (clk / tmp_div);
+		diff = res - timeout;
+
+		if (diff < 0)
+			continue;
+
+		if (diff < smallest_diff) {
+			best_prescaler = i;
+			best_divisor = tmp_div;
+			smallest_diff = diff;
+		}
+	}
+
+	*prescaler = best_prescaler;
+	*divisor = best_divisor;
+
+	printf("timeout %"PRIu64" usec, prescaler = %u, divisor = %u\n",
+		timeout, best_prescaler, best_divisor);
+}
+
+#define TIMER_RELAX_FACTOR 10
+static int timer_set(struct _cci *cci, uint64_t timeout)
+{
+	uint8_t prescaler, divisor;
+
+	timeout *= TIMER_RELAX_FACTOR;
+
+	best_prescaler(timeout, &prescaler, &divisor);
+
+	if ( !reg_write(cci, RC632_REG_TIMER_CLOCK,
+			      prescaler & 0x1f) )
+		return 0;
+
+	if ( !reg_write(cci, RC632_REG_TIMER_CONTROL,
+			      RC632_TMR_START_TX_END|RC632_TMR_STOP_RX_BEGIN) )
+		return 0;
+
+	/* clear timer irq bit */
+	if ( !clear_irqs(cci, RC632_IRQ_TIMER) )
+		return 0;
+
+	/* enable timer IRQ */
+	if ( !reg_write(cci, RC632_REG_INTERRUPT_EN,
+			RC632_IRQ_SET | RC632_IRQ_TIMER) )
+		return 0;
+
+	if ( !reg_write(cci, RC632_REG_TIMER_RELOAD, divisor) )
+		return 0;
+
+	return 1;
+}
+
+int _clrc632_transceive(struct _cci *cci,
+		 const uint8_t *tx_buf,
+		 uint8_t tx_len,
+		 uint8_t *rx_buf,
+		 uint8_t *rx_len,
+		 uint64_t timer,
+		 unsigned int toggle)
+{
+	int cur_tx_len;
+	uint8_t rx_avail;
+	const uint8_t *cur_tx_buf = tx_buf;
+
+	printf("timeout=%"PRIu64", rx_len=%u, tx_len=%u\n",
+		timer, *rx_len, tx_len);
+
+	if (tx_len > 64)
+		cur_tx_len = 64;
+	else
+		cur_tx_len = tx_len;
+
+
+	if ( !reg_write(cci, RC632_REG_COMMAND, RC632_CMD_IDLE) )
+		return 0;
+	/* clear all interrupts */
+	if ( !reg_write(cci, RC632_REG_INTERRUPT_RQ, 0x7f) )
+		return 0;
+
+	if ( !timer_set(cci, timer) )
+		return 0;
+	
+	do {	
+		if ( !fifo_write(cci, cur_tx_buf, cur_tx_len) )
+			return 0;
+
+		if (cur_tx_buf == tx_buf) {
+			if ( !reg_write(cci, RC632_REG_COMMAND,
+					RC632_CMD_TRANSCEIVE) )
+				return 0;
+		}
+
+		cur_tx_buf += cur_tx_len;
+		if (cur_tx_buf < tx_buf + tx_len) {
+			uint8_t fifo_fill;
+			if ( !reg_read(cci, RC632_REG_FIFO_LENGTH,
+					&fifo_fill) )
+				return 0;
+
+			cur_tx_len = 64 - fifo_fill;
+		} else
+			cur_tx_len = 0;
+
+	} while (cur_tx_len);
+
+	//if (toggle == 1)
+	//	tcl_toggle_pcb(cci);
+
+	if ( !wait_idle_timer(cci) )
+		return 0;
+
+	if ( !reg_read(cci, RC632_REG_FIFO_LENGTH, &rx_avail) )
+		return 0;
+
+	if (rx_avail > *rx_len)
+		printf("rx_avail(%d) > rx_len(%d), JFYI\n", rx_avail, *rx_len);
+	else if (*rx_len > rx_avail)
+		*rx_len = rx_avail;
+
+	printf("rx_len == %d\n",*rx_len);
+
+	if (rx_avail == 0) {
+		uint8_t tmp;
+
+		//reg_read(cci, RC632_REG_PRIMARY_STATUS, &tmp);
+		//reg_read(cci, RC632_REG_ERROR_FLAG, &tmp);
+		reg_read(cci, RC632_REG_CHANNEL_REDUNDANCY, &tmp);
+
+		return 0; /* EIO */
+	}
+
+	return fifo_read(cci, rx_buf, *rx_len);
+	/* FIXME: discard addidional bytes in FIFO */
 }
 
 static const struct reg_file rf_14443a_init[] = {
@@ -217,10 +387,11 @@ int _clrc632_select(struct _cci *cci)
 {
 	int ret;
 	printf("waiting\n");
-	ret = _clrc632_wait_idle_timer(cci);
+	ret = wait_idle_timer(cci);
 	printf("wait idle timer %d\n", ret);
 	if ( !_iso14443a_select(cci, 0) )
 		return 0;
+	return 1;
 }
 
 int _clrc632_init(struct _cci *cci)

@@ -15,7 +15,11 @@ _private int _clrc632_select(struct _cci *cci);
 
 /* PAGE 0 */
 #define RC632_REG_PAGE0			0x00
+
 #define RC632_REG_COMMAND		0x01
+#define  RC632_CMD_IDLE			0
+#define  RC632_CMD_TRANSCEIVE		0x1e
+
 #define RC632_REG_FIFO_DATA		0x02
 
 #define RC632_REG_PRIMARY_STATUS	0x03
@@ -143,7 +147,13 @@ _private int _clrc632_select(struct _cci *cci);
 #define RC632_REG_PAGE5			0x28
 #define RC632_REG_FIFO_LEVEL		0x29
 #define RC632_REG_TIMER_CLOCK		0x2a
+
 #define RC632_REG_TIMER_CONTROL		0x2b
+#define  RC632_TMR_START_TX_BEGIN	(1<<0)
+#define  RC632_TMR_START_TX_END		(1<<1)
+#define  RC632_TMR_STOP_RX_BEGIN	(1<<2)
+#define  RC632_TMR_STOP_RX_END		(1<<3)
+
 #define RC632_REG_TIMER_RELOAD		0x2c
 #define RC632_REG_IRQ_PIN_CONFIG	0x2d
 #define RC632_REG_PRESET_2E		0x2e

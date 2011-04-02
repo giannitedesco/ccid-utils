@@ -16,15 +16,10 @@
  * it's status and type. Would be stubbed out with a 'contact' type in the
  * regular smart-card case
 */
-static int select_tag(struct _cci *cci)
-{
-	_clrc632_select(cci);
-	return CHIPCARD_CLOCK_ERR;
-}
 
 static unsigned rfid_clock_status(struct _cci *cci)
 {
-	return select_tag(cci);
+	return CHIPCARD_CLOCK_ERR;
 }
 
 static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
@@ -34,7 +29,9 @@ static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 		return NULL;
 	if ( !_clrc632_14443a_init(cci) )
 		return NULL;
-	return "RFID";//NULL;
+	if ( !_clrc632_select(cci) )
+		return NULL;
+	return NULL;
 }
 
 static int rfid_power_off(struct _cci *cci)
@@ -49,7 +46,6 @@ static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 
 static int rfid_wait_for_card(struct _cci *cci)
 {
-	select_tag(cci);
 	return 1;
 }
 
