@@ -5,7 +5,7 @@ INCLUDES = \
 
 lib_LTLIBRARIES = libccid.la libemv.la libsim.la
 dist_bin_SCRIPTS = ccid-sh gemv
-bin_PROGRAMS = emvtool simtool
+bin_PROGRAMS = emvtool simtool cselect
 
 libccid_la_LIBADD = -lusb-1.0
 libccid_la_LDFLAGS =  -version-info 4:0:0
@@ -47,3 +47,6 @@ libsim_la_SOURCES = sim.c sim_apdu.c sim_sms.c
 
 simtool_LDADD = libsim.la -lusb-1.0
 simtool_SOURCES = simtool.c
+
+cselect_LDADD = libccid.la
+cselect_SOURCES = cselect.c
