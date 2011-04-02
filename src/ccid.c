@@ -684,6 +684,7 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 
 	for(x = 0; x < RFID_MAX_FIELDS; x++) {
 		ccid->cci_rf[x].cc_parent = ccid;
+		ccid->cci_rf[x].cc_ops = &_rfid_ops;
 		/* idx and ops set by proprietary initialisation routines */
 	}
 
