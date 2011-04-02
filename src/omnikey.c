@@ -86,7 +86,7 @@ static int reg_read(struct _ccid *ccid, unsigned int field,
 	if ( xfr->x_rxlen != 2 )
 		return 0;
 
-	trace(ccid, "reading reg 0x%x and got 0x%.2x (%.2x)\n",
+	trace(ccid, "     : reading reg 0x%x and got 0x%.2x (%.2x)\n",
 		reg, xfr->x_rxbuf[1], xfr->x_rxbuf[0]);
 
 	*val = xfr->x_rxbuf[1];
@@ -98,7 +98,7 @@ static int reg_write(struct _ccid *ccid, unsigned int field,
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
-	trace(ccid, "writing reg 0x%x with 0x%.2x\n", reg, val);
+	trace(ccid, "     : writing reg 0x%x with 0x%.2x\n", reg, val);
 	xfr_reset(xfr);
 	xfr_tx_byte(xfr, 0x20);
 	xfr_tx_byte(xfr, 0x00);
