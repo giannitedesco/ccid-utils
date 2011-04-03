@@ -49,9 +49,6 @@ struct iso14443a_atqa {
 #endif
 } _packed;
 
-/* Section 6.1.2 values in usec, rounded up to next usec */
-#define ISO14443A_FDT_ANTICOL_LAST1     92      /* 1236 / fc = 91.15 usec */
-#define ISO14443A_FDT_ANTICOL_LAST0     87      /* 1172 / fc = 86.43 usec */
 _private int _iso14443a_select(struct _cci *cci, int wup);
 _private int _clrc632_iso14443a_transceive_sf(struct _cci *cci,
 						uint8_t cmd,

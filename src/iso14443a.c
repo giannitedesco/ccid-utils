@@ -5,6 +5,10 @@
 #include "clrc632.h"
 #include "iso14443a.h"
 
+/* Section 6.1.2 values in usec, rounded up to next usec */
+#define ISO14443A_FDT_ANTICOL_LAST1     92      /* 1236 / fc = 91.15 usec */
+#define ISO14443A_FDT_ANTICOL_LAST0     87      /* 1172 / fc = 86.43 usec */
+
 enum rfid_layer2_id {
 	RFID_LAYER2_NONE,
 	RFID_LAYER2_ISO14443A,
