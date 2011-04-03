@@ -249,7 +249,7 @@ static int timer_set(struct _cci *cci, uint64_t timeout)
 	return 1;
 }
 
-int _clrc632_transceive(struct _cci *cci,
+static int transceive(struct _cci *cci,
 		 const uint8_t *tx_buf,
 		 uint8_t tx_len,
 		 uint8_t *rx_buf,
@@ -349,7 +349,7 @@ int _clrc632_iso14443a_transceive_sf(struct _cci *cci,
 				RC632_CR_RX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE) )
 		return 0;
 
-	if ( !_clrc632_transceive(cci, tx_buf, sizeof(tx_buf),
+	if ( !transceive(cci, tx_buf, sizeof(tx_buf),
 				(uint8_t *)atqa, &rx_len,
 				ISO14443A_FDT_ANTICOL_LAST1, 0) ) {
 		printf("error during rc632_transceive()\n");
@@ -426,7 +426,7 @@ int _clrc632_iso14443ab_transceive(struct _cci *cci,
 	if ( !reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY, channel_red) )
 		return 0;
 
-	ret = _clrc632_transceive(cci, tx_buf, tx_len,
+	ret = transceive(cci, tx_buf, tx_len,
 					rx_buf, &rxl, timeout, 0);
 	*rx_len = rxl;
 	if (!ret)
@@ -480,7 +480,7 @@ int _clrc632_iso14443a_transceive_acf(struct _cci *cci,
 				(rx_align << 4) | (tx_last_bits)) )
 		return 0;
 
-	if ( !_clrc632_transceive(cci, (uint8_t *)acf, tx_bytes_total,
+	if ( !transceive(cci, (uint8_t *)acf, tx_bytes_total,
 				rx_buf, &rx_len, 0x32, 0) )
 		return 0;
 

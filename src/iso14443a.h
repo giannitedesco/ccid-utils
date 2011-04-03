@@ -61,13 +61,6 @@ _private int _clrc632_iso14443ab_transceive(struct _cci *cci,
 				   const uint8_t *tx_buf, unsigned int tx_len,
 				   uint8_t *rx_buf, unsigned int *rx_len,
 				   uint64_t timeout, unsigned int flags);
-_private int _clrc632_transceive(struct _cci *cci,
-				 const uint8_t *tx_buf,
-				 uint8_t tx_len,
-				 uint8_t *rx_buf,
-				 uint8_t *rx_len,
-				 uint64_t timer,
-				 unsigned int toggle);
 _private int _clrc632_iso14443a_transceive_acf(struct _cci *cci,
 					struct iso14443a_anticol_cmd *acf,
 					unsigned int *bit_of_col);
