@@ -9,7 +9,7 @@
 #include "sim-internal.h"
 
 #if DEBUG
-#define dprintf print
+#define dprintf printf
 #else
 #define dprintf(...) do {} while(0)
 #endif

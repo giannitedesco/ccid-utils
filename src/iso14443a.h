@@ -28,7 +28,6 @@ struct iso14443a_atqa {
 #define ISO14443A_FDT_ANTICOL_LAST1     92      /* 1236 / fc = 91.15 usec */
 #define ISO14443A_FDT_ANTICOL_LAST0     87      /* 1172 / fc = 86.43 usec */
 
-_private int _iso14443a_select(struct _cci *cci, int wup);
 _private int _iso14443a_transceive_sf(struct _cci *cci,
 						uint8_t cmd,
 						struct iso14443a_atqa *atqa);
@@ -40,6 +39,7 @@ _private int _iso14443ab_transceive(struct _cci *cci,
 _private int _iso14443a_transceive_acf(struct _cci *cci,
 					struct iso14443a_anticol_cmd *acf,
 					unsigned int *bit_of_col);
-_private int _iso14443a_select(struct _cci *cci, int wup);
+_private int _iso14443a_anticol(struct _cci *cci, int wup,
+				struct rfid_tag *tag);
 
 #endif /* ISO14443A_H */

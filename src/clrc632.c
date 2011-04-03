@@ -15,7 +15,7 @@
 
 #include "ccid-internal.h"
 #include "clrc632.h"
-#include "iso14443a.h"
+#include "rfid.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))

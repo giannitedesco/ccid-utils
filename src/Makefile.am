@@ -17,6 +17,7 @@ libccid_la_SOURCES = \
 	clrc632.c \
 	omnikey.c \
 	ccidev.c \
+	rfid.c \
 	ccid.c \
 	cci.c \
 	util.c \

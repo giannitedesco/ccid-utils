@@ -9,6 +9,7 @@
 #include <ccid.h>
 
 #include "ccid-internal.h"
+#include "rfid.h"
 
 #define RFID_SLOT 0
 

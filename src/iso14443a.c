@@ -2,7 +2,18 @@
 #include <unistd.h>
 
 #include "ccid-internal.h"
+#include "rfid.h"
 #include "iso14443a.h"
+
+#if 0
+#define dprintf printf
+#define dhex_dump hex_dump
+#else
+#define dprintf(...) do {} while(0)
+#define dhex_dump(a, b, c) do {} while(0)
+#endif
+
+#define TIMEOUT 1236
 
 /* ISO 14443-3, Chapter 6.3.1 */
 #define ISO14443A_SF_CMD_REQA 		0x26
@@ -20,21 +31,6 @@ enum rfid_frametype {
 	RFID_15693_FRAME_ICODE1,
 };
 
-enum rfid_layer2_id {
-	RFID_LAYER2_NONE,
-	RFID_LAYER2_ISO14443A,
-	RFID_LAYER2_ISO14443B,
-	RFID_LAYER2_ISO15693,
-	RFID_LAYER2_ICODE1,
-};
-
-enum iso14443a_level {
-	ISO14443A_LEVEL_NONE,
-	ISO14443A_LEVEL_CL1,
-	ISO14443A_LEVEL_CL2,
-	ISO14443A_LEVEL_CL3,
-};
-
 enum iso14443a_state {
 	ISO14443A_STATE_ERROR,
 	ISO14443A_STATE_NONE,
@@ -44,18 +40,6 @@ enum iso14443a_state {
 	ISO14443A_STATE_ANTICOL_RUNNING,
 	ISO14443A_STATE_SELECTED,
 };
-
-enum rfid_protocol_id {
-	RFID_PROTOCOL_UNKNOWN,
-	RFID_PROTOCOL_TCL,
-	RFID_PROTOCOL_MIFARE_UL,
-	RFID_PROTOCOL_MIFARE_CLASSIC,
-	RFID_PROTOCOL_ICODE_SLI,
-	RFID_PROTOCOL_TAGIT,
-	NUM_RFID_PROTOCOLS
-};
-
-#define TIMEOUT 1236
 
 /* transceive anti collission bitframe */
 int _iso14443a_transceive_acf(struct _cci *cci,
@@ -195,7 +179,7 @@ int _iso14443a_transceive_sf(struct _cci *cci,
 	if ( !_clrc632_transceive(cci, tx_buf, sizeof(tx_buf),
 				(uint8_t *)atqa, &rx_len,
 				ISO14443A_FDT_ANTICOL_LAST1, 0) ) {
-		printf("error during rc632_transceive()\n");
+		dprintf("error during rc632_transceive()\n");
 		return 0;
 	}
 
@@ -210,12 +194,12 @@ int _iso14443a_transceive_sf(struct _cci *cci,
 		if ( !_clrc632_get_coll_pos(cci, &boc) )
 			return 0;
 
-		printf("collision detected in xcv_sf: bit_of_col=%u\n", boc);
+		dprintf("collision detected in xcv_sf: bit_of_col=%u\n", boc);
 		/* FIXME: how to signal this up the stack */
 	}
 
 	if (rx_len != 2) {
-		printf("rx_len(%d) != 2\n", rx_len);
+		dprintf("rx_len(%d) != 2\n", rx_len);
 		return 0;
 	}
 
@@ -240,15 +224,16 @@ static int random_bit(void)
 }
 
 /* first bit is '1', second bit '2' */
-static void
-rnd_toggle_bit_in_field(unsigned char *bitfield, unsigned int size, unsigned int bit)
+static void rnd_toggle_bit_in_field(uint8_t *bitfield,
+					size_t size,
+					unsigned int bit)
 {
 	unsigned int byte,rnd;
 
 	if (bit && (bit <= (size*8))) {
 		rnd = random_bit();
 
-		printf("xor'ing bit %u with %u\n",bit,rnd);
+		dprintf("xor'ing bit %u with %u\n",bit,rnd);
 		bit--;
 		byte = bit/8;
 		bit = rnd << (bit % 8);
@@ -257,8 +242,7 @@ rnd_toggle_bit_in_field(unsigned char *bitfield, unsigned int size, unsigned int
 }
 
 
-static int
-iso14443a_code_nvb_bits(unsigned char *nvb, unsigned int bits)
+static int iso14443a_code_nvb_bits(unsigned char *nvb, unsigned int bits)
 {
 	unsigned int byte_count = bits / 8;
 	unsigned int bit_count = bits % 8;
@@ -271,7 +255,7 @@ iso14443a_code_nvb_bits(unsigned char *nvb, unsigned int bits)
 	return 0;
 }
 
-int _iso14443a_select(struct _cci *cci, int wup)
+int _iso14443a_anticol(struct _cci *cci, int wup, struct rfid_tag *tag)
 {
 	int ret;
 	unsigned int uid_size;
@@ -279,47 +263,40 @@ int _iso14443a_select(struct _cci *cci, int wup)
 	struct iso14443a_anticol_cmd acf;
 	unsigned int bit_of_col;
 	unsigned char sak[3];
-	uint8_t uid[10];
-	size_t uid_len;
 	unsigned int rx_len = sizeof(sak);
-	char *aqptr = (char *)&atqa;
-	unsigned int state, level, tcl_capable, proto_supported;
 
-	memset(uid, 0, sizeof(uid));
 	memset(sak, 0, sizeof(sak));
 	memset(&atqa, 0, sizeof(atqa));
 	memset(&acf, 0, sizeof(acf));
-	uid_len = 0;
-	tcl_capable = proto_supported = 0;
 
-	state = ISO14443A_STATE_NONE;
-	level = ISO14443A_LEVEL_NONE;
+	memset(tag, 0, sizeof(tag));
+	tag->state = ISO14443A_STATE_NONE;
+	tag->level = ISO14443A_LEVEL_NONE;
+
 
 	if (wup) {
-		printf("Sending WUPA\n");
+		dprintf("Sending WUPA\n");
 		ret = _iso14443a_transceive_sf(cci,
 					ISO14443A_SF_CMD_WUPA, &atqa);
 	}else{
-		printf("Sending REQA\n");
+		dprintf("Sending REQA\n");
 		ret = _iso14443a_transceive_sf(cci,
 					ISO14443A_SF_CMD_REQA, &atqa);
 	}
 
 	if (!ret) {
-		state = ISO14443A_STATE_REQA_SENT;
-		printf("error during transceive_sf: %d\n", ret);
+		tag->state = ISO14443A_STATE_REQA_SENT;
+		dprintf("error during transceive_sf: %d\n", ret);
 		return 0;
 	}
-	state = ISO14443A_STATE_ATQA_RCVD;
-
-	printf("ATQA: 0x%02x 0x%02x\n", *aqptr, *(aqptr+1));
+	tag->state = ISO14443A_STATE_ATQA_RCVD;
 
 	if (!atqa.bf_anticol) {
-		state = ISO14443A_STATE_NO_BITFRAME_ANTICOL;
-		printf("no bitframe anticollission bits set, aborting\n");
+		tag->state = ISO14443A_STATE_NO_BITFRAME_ANTICOL;
+		dprintf("no bitframe anticollission bits set, aborting\n");
 		return -1;
 	}
-	printf("ATQA anticol bits = %d\n", atqa.bf_anticol);
+	dprintf("ATQA anticol bits = %d\n", atqa.bf_anticol);
 
 	if (atqa.uid_size == 2 || atqa.uid_size == 3)
 		uid_size = 3;
@@ -328,38 +305,36 @@ int _iso14443a_select(struct _cci *cci, int wup)
 	else
 		uid_size = 1;
 
-	printf("uid_size = %u\n", uid_size);
+	dprintf("uid_size = %u\n", uid_size);
 	acf.sel_code = ISO14443A_AC_SEL_CODE_CL1;
 
-	state = ISO14443A_STATE_ANTICOL_RUNNING;
-	level = ISO14443A_LEVEL_CL1;
+	tag->state = ISO14443A_STATE_ANTICOL_RUNNING;
+	tag->level = ISO14443A_LEVEL_CL1;
 
 cascade:
 	rx_len = sizeof(sak);
 	iso14443a_code_nvb_bits(&acf.nvb, 16);
-	printf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
+	dprintf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
 
 	ret = _iso14443a_transceive_acf(cci, &acf, &bit_of_col);
-	printf("tran_acf->%d boc: %d\n",ret,bit_of_col);
+	dprintf("tran_acf->%d boc: %d\n",ret,bit_of_col);
 	if (!ret)
 		return 0;
 
 	while (bit_of_col != ISO14443A_BITOFCOL_NONE) {
-		printf("collision at pos %u\n", bit_of_col);
+		dprintf("collision at pos %u\n", bit_of_col);
 
 		iso14443a_code_nvb_bits(&acf.nvb, bit_of_col);
 		rnd_toggle_bit_in_field(acf.uid_bits, sizeof(acf.uid_bits), bit_of_col);
-		printf("acf: nvb=0x%02X uid_bits=...\n", acf.nvb);
-		hex_dump(acf.uid_bits, sizeof(acf.uid_bits), 16);
+		dprintf("acf: nvb=0x%02X uid_bits=...\n", acf.nvb);
+		dhex_dump(acf.uid_bits, sizeof(acf.uid_bits), 16);
 		if ( !_iso14443a_transceive_acf(cci, &acf, &bit_of_col) )
 			return 0;
 	}
 
 	iso14443a_code_nvb_bits(&acf.nvb, 7*8);
 
-	printf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
-	//hex_dump(acf.uid_bits, sizeof(acf.uid_bits), 16);
-	hex_dump((uint8_t *)&acf, sizeof(acf), 16);
+	dprintf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
 	if ( !_iso14443ab_transceive(cci, RFID_14443A_FRAME_REGULAR,
 				   (unsigned char *)&acf, sizeof(acf),
 				   (unsigned char *) &sak, &rx_len,
@@ -371,25 +346,25 @@ cascade:
 		switch (acf.sel_code) {
 		case ISO14443A_AC_SEL_CODE_CL1:
 			/* cascading from CL1 to CL2 */
-			printf("cascading from CL1 to CL2\n");
+			dprintf("cascading from CL1 to CL2\n");
 			if (acf.uid_bits[0] != 0x88) {
-				printf("Cascade bit set, but UID0 != 0x88\n");
+				dprintf("Cascade bit set, but UID0 != 0x88\n");
 				return 0;
 			}
-			memcpy(&uid[0], &acf.uid_bits[1], 3);
+			memcpy(&tag->uid[0], &acf.uid_bits[1], 3);
 			acf.sel_code = ISO14443A_AC_SEL_CODE_CL2;
-			level = ISO14443A_LEVEL_CL2;
+			tag->level = ISO14443A_LEVEL_CL2;
 			break;
 		case ISO14443A_AC_SEL_CODE_CL2:
 			/* cascading from CL2 to CL3 */
-			printf("cascading from CL2 to CL3\n");
-			memcpy(&uid[3], &acf.uid_bits[1], 3);
+			dprintf("cascading from CL2 to CL3\n");
+			memcpy(&tag->uid[3], &acf.uid_bits[1], 3);
 			acf.sel_code = ISO14443A_AC_SEL_CODE_CL3;
-			level = ISO14443A_LEVEL_CL3;
+			tag->level = ISO14443A_LEVEL_CL3;
 			break;
 		default:
-			printf("cannot cascade any further than CL3\n");
-			state = ISO14443A_STATE_ERROR;
+			dprintf("cannot cascade any further than CL3\n");
+			tag->state = ISO14443A_STATE_ERROR;
 			return 0;
 		}
 		goto cascade;
@@ -398,41 +373,38 @@ cascade:
 		switch (acf.sel_code) {
 		case ISO14443A_AC_SEL_CODE_CL1:
 			/* single size UID (4 bytes) */
-			memcpy(&uid[0], &acf.uid_bits[0], 4);
+			memcpy(&tag->uid[0], &acf.uid_bits[0], 4);
 			break;
 		case ISO14443A_AC_SEL_CODE_CL2:
 			/* double size UID (7 bytes) */
-			memcpy(&uid[3], &acf.uid_bits[0], 4);
+			memcpy(&tag->uid[3], &acf.uid_bits[0], 4);
 			break;
 		case ISO14443A_AC_SEL_CODE_CL3:
 			/* triple size UID (10 bytes) */
-			memcpy(&uid[6], &acf.uid_bits[0], 4);
+			memcpy(&tag->uid[6], &acf.uid_bits[0], 4);
 			break;
 		}
 	}
 
-	if (level == ISO14443A_LEVEL_CL1)
-		uid_len = 4;
-	else if (level == ISO14443A_LEVEL_CL2)
-		uid_len = 7;
+	if (tag->level == ISO14443A_LEVEL_CL1)
+		tag->uid_len = 4;
+	else if (tag->level == ISO14443A_LEVEL_CL2)
+		tag->uid_len = 7;
 	else
-		uid_len = 10;
+		tag->uid_len = 10;
 
-	printf("UID: ...\n");
-	hex_dump(uid, uid_len, 16);
-
-	level = ISO14443A_LEVEL_NONE;
-	state = ISO14443A_STATE_SELECTED;
+	tag->layer2 = RFID_LAYER2_ISO14443A;
+	tag->state = ISO14443A_STATE_SELECTED;
 
 	if (sak[0] & 0x20) {
 		printf("we have a T=CL compliant PICC\n");
-		proto_supported = 1 << RFID_PROTOCOL_TCL;
-		tcl_capable = 1;
+		tag->proto_supported = (1 << RFID_PROTOCOL_TCL);
+		tag->tcl_capable = 1;
 	} else {
 		printf("we have a T!=CL PICC\n");
-		proto_supported = (1 << RFID_PROTOCOL_MIFARE_UL)|
+		tag->proto_supported = (1 << RFID_PROTOCOL_MIFARE_UL)|
 					  (1 << RFID_PROTOCOL_MIFARE_CLASSIC);
-		tcl_capable = 0;
+		tag->tcl_capable = 0;
 	}
 
 	return 1;
