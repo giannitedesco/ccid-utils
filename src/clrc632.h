@@ -137,8 +137,8 @@ _private int _clrc632_select(struct _cci *cci);
 #define RC632_REG_RX_WAIT		0x21
 
 #define RC632_REG_CHANNEL_REDUNDANCY	0x22
-#define  RC632_CR_PARITY_EVEN		(0<<1)
 #define  RC632_CR_PARITY_ENABLE		(1<<0)
+#define  RC632_CR_PARITY_EVEN		(0<<1)
 #define  RC632_CR_PARITY_ODD		(1<<1)
 #define  RC632_CR_TX_CRC_ENABLE		(1<<2)
 #define  RC632_CR_RX_CRC_ENABLE		(1<<3)

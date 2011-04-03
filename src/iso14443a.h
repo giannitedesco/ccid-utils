@@ -35,11 +35,11 @@ enum rfid_frametype {
 //#define RFID_BIG_ENDIAN_BITFIELD
 struct iso14443a_atqa {
 #ifndef RFID_BIG_ENDIAN_BITFIELD
-	uint8_t proprietary:4,
-		 rfu2:4;
 	uint8_t bf_anticol:5,
 		 rfu1:1,
 		 uid_size:2;
+	uint8_t proprietary:4,
+		 rfu2:4;
 #else
 	uint8_t uid_size:2,
 		 rfu1:1,

@@ -135,7 +135,8 @@ static int wait_idle_timer(struct _cci *cci)
 		return 0;
 
 	while (1) {
-		reg_read(cci, RC632_REG_PRIMARY_STATUS, &stat);
+		if ( !reg_read(cci, RC632_REG_PRIMARY_STATUS, &stat) )
+			return 0;
 		if (stat & RC632_STAT_ERR) {
 			uint8_t err;
 			if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &err) )
@@ -146,8 +147,10 @@ static int wait_idle_timer(struct _cci *cci)
 				/* FIXME: why get we CRC errors in CL2 anticol
 				 * at iso14443a operation with mifare UL? */
 				/*   RC632_ERR_FLAG_CRC_ERR | */
-				   0))
+				   0)) {
+				printf("error during wait\n");
 				return 0;
+			}
 		}
 		if (stat & RC632_STAT_IRQ) {
 			if ( !reg_read(cci, RC632_REG_INTERRUPT_RQ, &irq) )
@@ -210,11 +213,11 @@ static void best_prescaler(uint64_t timeout, uint8_t *prescaler,
 	*prescaler = best_prescaler;
 	*divisor = best_divisor;
 
-	printf("timeout %"PRIu64" usec, prescaler = %u, divisor = %u\n",
-		timeout, best_prescaler, best_divisor);
+//	printf("%s: timeout %"PRIu64" usec, prescaler = %u, divisor = %u\n",
+//		__func__, timeout, best_prescaler, best_divisor);
 }
 
-#define TIMER_RELAX_FACTOR 100
+#define TIMER_RELAX_FACTOR 10
 static int timer_set(struct _cci *cci, uint64_t timeout)
 {
 	uint8_t prescaler, divisor;
@@ -258,8 +261,8 @@ int _clrc632_transceive(struct _cci *cci,
 	uint8_t rx_avail;
 	const uint8_t *cur_tx_buf = tx_buf;
 
-	printf("timeout=%"PRIu64", rx_len=%u, tx_len=%u\n",
-		timer, *rx_len, tx_len);
+//	printf("%s: timeout=%"PRIu64", rx_len=%u, tx_len=%u\n",
+//		__func__, timer, *rx_len, tx_len);
 
 	if (tx_len > 64)
 		cur_tx_len = 64;
@@ -295,14 +298,14 @@ int _clrc632_transceive(struct _cci *cci,
 			cur_tx_len = 64 - fifo_fill;
 		} else
 			cur_tx_len = 0;
-
 	} while (cur_tx_len);
 
 	//if (toggle == 1)
 	//	tcl_toggle_pcb(cci);
 
-	if ( !wait_idle_timer(cci) )
+	if ( !wait_idle_timer(cci) ) {
 		return 0;
+	}
 
 	if ( !reg_read(cci, RC632_REG_FIFO_LENGTH, &rx_avail) )
 		return 0;
@@ -312,20 +315,13 @@ int _clrc632_transceive(struct _cci *cci,
 	else if (*rx_len > rx_avail)
 		*rx_len = rx_avail;
 
-	printf("rx_len == %d\n",*rx_len);
-
 	if (rx_avail == 0) {
-		uint8_t tmp;
-
-		//reg_read(cci, RC632_REG_PRIMARY_STATUS, &tmp);
-		//reg_read(cci, RC632_REG_ERROR_FLAG, &tmp);
-		reg_read(cci, RC632_REG_CHANNEL_REDUNDANCY, &tmp);
-
-		return 0; /* EIO */
+		printf("RX: FIFO empty\n");
+		return 0;
 	}
 
-	return fifo_read(cci, rx_buf, *rx_len);
 	/* FIXME: discard addidional bytes in FIFO */
+	return fifo_read(cci, rx_buf, *rx_len);
 }
 
 /* issue a 14443-3 A PCD -> PICC command in a short frame, such as REQA, WUPA */
@@ -429,7 +425,7 @@ int _clrc632_iso14443ab_transceive(struct _cci *cci,
 	}
 	if ( !reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY, channel_red) )
 		return 0;
-	printf("tx_len=%u\n",tx_len);
+
 	ret = _clrc632_transceive(cci, tx_buf, tx_len,
 					rx_buf, &rxl, timeout, 0);
 	*rx_len = rxl;
@@ -580,7 +576,7 @@ int _clrc632_init(struct _cci *cci)
 	if ( !asic_power(cci, 0) )
 		return 0;
 
-	usleep(1000);
+	usleep(10000);
 
 	if ( !asic_power(cci, 1) )
 		return 0;
@@ -592,10 +588,9 @@ int _clrc632_init(struct _cci *cci)
 
 	if ( !_clrc632_rf_power(cci, 0) )
 		return 0;
-	usleep(1000);
+	usleep(100000);
 	if ( !_clrc632_rf_power(cci, 1) )
 		return 0;
-	usleep(1000);
 
 	return 1;
 }

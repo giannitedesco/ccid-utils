@@ -110,7 +110,10 @@ int _iso14443a_select(struct _cci *cci, int wup)
 	memset(&atqa, 0, sizeof(atqa));
 	memset(&acf, 0, sizeof(acf));
 	uid_len = 0;
-	state = level = tcl_capable = proto_supported = 0;
+	tcl_capable = proto_supported = 0;
+
+	state = ISO14443A_STATE_NONE;
+	level = ISO14443A_LEVEL_NONE;
 
 	if (wup) {
 		printf("Sending WUPA\n");
@@ -154,6 +157,7 @@ int _iso14443a_select(struct _cci *cci, int wup)
 cascade:
 	rx_len = sizeof(sak);
 	iso14443a_code_nvb_bits(&acf.nvb, 16);
+	printf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
 
 	ret = _clrc632_iso14443a_transceive_acf(cci, &acf, &bit_of_col);
 	printf("tran_acf->%d boc: %d\n",ret,bit_of_col);
@@ -173,14 +177,15 @@ cascade:
 
 	iso14443a_code_nvb_bits(&acf.nvb, 7*8);
 
-	printf(" === Doing regular frame\n");
+	printf("ANTICOL: sel_code=%.2x nvb=%.2x\n", acf.sel_code, acf.nvb);
+	//hex_dump(acf.uid_bits, sizeof(acf.uid_bits), 16);
+	hex_dump((uint8_t *)&acf, sizeof(acf), 16);
 	if ( !_clrc632_iso14443ab_transceive(cci, RFID_14443A_FRAME_REGULAR,
-				   (unsigned char *)&acf, 7,
+				   (unsigned char *)&acf, sizeof(acf),
 				   (unsigned char *) &sak, &rx_len,
 				   TIMEOUT, 0) )
 		return 0;
 
-	printf("=== yay ===\n");
 	if (sak[0] & 0x04) {
 		/* Cascade bit set, UID not complete */
 		switch (acf.sel_code) {
@@ -226,17 +231,15 @@ cascade:
 		}
 	}
 
-	{
-		if (level == ISO14443A_LEVEL_CL1)
-			uid_len = 4;
-		else if (level == ISO14443A_LEVEL_CL2)
-			uid_len = 7;
-		else
-			uid_len = 10;
+	if (level == ISO14443A_LEVEL_CL1)
+		uid_len = 4;
+	else if (level == ISO14443A_LEVEL_CL2)
+		uid_len = 7;
+	else
+		uid_len = 10;
 
-		printf("UID: ...\n");
-		hex_dump(uid, uid_len, 16);
-	}
+	printf("UID: ...\n");
+	hex_dump(uid, uid_len, 16);
 
 	level = ISO14443A_LEVEL_NONE;
 	state = ISO14443A_STATE_SELECTED;

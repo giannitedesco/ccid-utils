@@ -35,7 +35,7 @@ static int fifo_read(struct _ccid *ccid, unsigned int field,
 	if ( !_RDR_to_PC(ccid, RFID_SLOT, xfr) )
 		return 0;
 
-	memcpy(buf, xfr->x_rxbuf, len);
+	memcpy(buf, xfr->x_rxbuf + 1, len);
 	return 1;
 }
 
