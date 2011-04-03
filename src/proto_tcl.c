@@ -11,6 +11,7 @@
 #define TIMEOUT	(((uint64_t)1000000 * 65536 / ISO14443_FREQ_CARRIER))
 int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
 {
+	struct _ccid *ccid;
 	uint8_t ats[64];
 	uint8_t rats[2];
 	size_t ats_len;
@@ -25,7 +26,9 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
 				TIMEOUT) )
 		return 0;
 
-	printf("tcl: Got %zu bytes ATS...\n", ats_len);
-	hex_dump(ats, ats_len, 16);
-	return 0;
+	ccid = cci->cc_parent;
+
+	memcpy(ccid->cci_xfr->x_rxbuf, ats, ats_len);
+	ccid->cci_xfr->x_rxlen = ats_len;
+	return 1;
 }

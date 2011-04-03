@@ -17,9 +17,8 @@ int _rfid_select(struct _cci *cci)
 		tag.level);
 	hex_dump(tag.uid, tag.uid_len, 16);
 
-	if ( tag.tcl_capable && !_tcl_get_ats(cci, &tag) ) {
-		return 0;
-	}
+	if ( tag.tcl_capable )
+		return _tcl_get_ats(cci, &tag);
 
 	printf("Unsupported tag type\n");
 	return 0;

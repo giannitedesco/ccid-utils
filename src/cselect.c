@@ -10,17 +10,23 @@
 
 static int do_stuff(cci_t cci)
 {
+	const uint8_t *ats;
+	size_t ats_len;
+
 #if 0
 	if ( !cci_wait_for_card(cci) ) {
 		printf(" - wait failed\n");
 		return 0;
 	}
 #endif
-	if ( !cci_power_on(cci, CHIPCARD_AUTO_VOLTAGE, NULL) ) {
+	ats = cci_power_on(cci, CHIPCARD_AUTO_VOLTAGE, &ats_len);
+	if ( NULL == ats ) {
 		printf(" - power on failed\n");
 		return 0;
 	}
 
+	printf(" - Got %zu bytes ATS...\n", ats_len);
+	hex_dump(ats, ats_len, 16);
 	return 1;
 }
 

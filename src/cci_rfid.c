@@ -25,13 +25,16 @@ static unsigned rfid_clock_status(struct _cci *cci)
 static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 				size_t *atr_len)
 {
+	struct _ccid *ccid = cci->cc_parent;
 	if ( !_clrc632_rf_power(cci, 1) )
 		return NULL;
 	if ( !_clrc632_14443a_init(cci) )
 		return NULL;
 	if ( !_rfid_select(cci) )
 		return NULL;
-	return NULL;
+	if ( atr_len )
+		*atr_len = ccid->cci_xfr->x_rxlen;
+	return ccid->cci_xfr->x_rxbuf;
 }
 
 static int rfid_power_off(struct _cci *cci)
