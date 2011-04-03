@@ -15,8 +15,6 @@
 
 #include "ccid-internal.h"
 #include "clrc632.h"
-
-/* everything we need from here is a layering violation to be abolished */
 #include "iso14443a.h"
 
 #ifndef ARRAY_SIZE
