@@ -18,6 +18,37 @@
 			} \
 		}while(0);
 
+#define RF_PARITY_ENABLE	(1<<0)
+#define RF_PARITY_EVEN		(1<<1)
+#define RF_TX_CRC		(1<<2)
+#define RF_RX_CRC		(1<<3)
+#define RF_CRYPTO1		(1<<4)
+struct rf_mode {
+	uint8_t tx_last_bits;
+	uint8_t rx_last_bits;
+	uint8_t rx_align;
+	uint8_t flags;
+} _packed;
+
+#define RF_ERR_COLLISION	(1<<0)
+#define RF_ERR_CRC		(1<<1)
+#define RF_ERR_TIMEOUT		(1<<2)
+
+_private int _clrc632_init(struct _cci *cc);
+_private int _clrc632_rf_power(struct _cci *cci, unsigned int on);
+_private int _clrc632_14443a_init(struct _cci *cci);
+_private int _clrc632_set_rf_mode(struct _cci *cci, const struct rf_mode *rf);
+_private int _clrc632_get_rf_mode(struct _cci *cci, const struct rf_mode *rf);
+_private int _clrc632_get_error(struct _cci *cci, uint8_t *err);
+_private int _clrc632_get_coll_pos(struct _cci *cci, uint8_t *pos);
+_private int _clrc632_transceive(struct _cci *cci,
+				 const uint8_t *tx_buf,
+				 uint8_t tx_len,
+				 uint8_t *rx_buf,
+				 uint8_t *rx_len,
+				 uint64_t timer,
+				 unsigned int toggle);
+
 struct _clrc632_ops {
 	int (*fifo_read)(struct _ccid *ccid, unsigned int field,
 			 uint8_t *buf, size_t len);

@@ -9,7 +9,7 @@
 #include <ccid.h>
 
 #include "ccid-internal.h"
-#include "clrc632.h"
+#include "iso14443a.h"
 
 /* TODO: Need tag selection API whereby we do collision detection, allow
  * caller to determine which tag they want to talk to and then returns
@@ -29,7 +29,7 @@ static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 		return NULL;
 	if ( !_clrc632_14443a_init(cci) )
 		return NULL;
-	if ( !_clrc632_select(cci) )
+	if ( !_iso14443a_select(cci, 0) )
 		return NULL;
 	return NULL;
 }

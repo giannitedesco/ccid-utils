@@ -249,13 +249,62 @@ static int timer_set(struct _cci *cci, uint64_t timeout)
 	return 1;
 }
 
-static int transceive(struct _cci *cci,
-		 const uint8_t *tx_buf,
-		 uint8_t tx_len,
-		 uint8_t *rx_buf,
-		 uint8_t *rx_len,
-		 uint64_t timer,
-		 unsigned int toggle)
+int _clrc632_set_rf_mode(struct _cci *cci, const struct rf_mode *rf)
+{
+	uint8_t red;
+
+	if ( !reg_write(cci, RC632_REG_BIT_FRAMING,
+				(rf->rx_align << 4) | (rf->tx_last_bits)) )
+		return 0;
+
+	if ( rf->flags & RF_CRYPTO1 ) {
+		if ( !asic_clear_bits(cci, RC632_REG_CONTROL,
+					RC632_CONTROL_CRYPTO1_ON) )
+			return 0;
+	}else{
+		if ( !asic_set_bits(cci, RC632_REG_CONTROL,
+					RC632_CONTROL_CRYPTO1_ON) )
+			return 0;
+	}
+
+	red = 0;
+	if ( rf->flags & RF_TX_CRC )
+		red |= RC632_CR_TX_CRC_ENABLE;
+	if ( rf->flags & RF_RX_CRC )
+		red |= RC632_CR_RX_CRC_ENABLE;
+	if ( rf->flags & RF_PARITY_ENABLE )
+		red |= RC632_CR_PARITY_ENABLE;
+	if ( !(rf->flags & RF_PARITY_EVEN) )
+		red |= RC632_CR_PARITY_ODD;
+	
+	if ( !reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY, red) )
+		return 0;
+
+	return 1;
+}
+
+int _clrc632_get_rf_mode(struct _cci *cci, const struct rf_mode *rf)
+{
+	return 0;
+}
+
+int _clrc632_get_error(struct _cci *cci, uint8_t *err)
+{
+	return reg_read(cci, RC632_REG_ERROR_FLAG, err);
+}
+
+int _clrc632_get_coll_pos(struct _cci *cci, uint8_t *pos)
+{
+	return reg_read(cci, RC632_REG_COLL_POS, pos);
+}
+
+int _clrc632_transceive(struct _cci *cci,
+			 const uint8_t *tx_buf,
+			 uint8_t tx_len,
+			 uint8_t *rx_buf,
+			 uint8_t *rx_len,
+			 uint64_t timer,
+			 unsigned int toggle)
 {
 	int cur_tx_len;
 	uint8_t rx_avail;
@@ -324,191 +373,6 @@ static int transceive(struct _cci *cci,
 	return fifo_read(cci, rx_buf, *rx_len);
 }
 
-/* issue a 14443-3 A PCD -> PICC command in a short frame, such as REQA, WUPA */
-int _clrc632_iso14443a_transceive_sf(struct _cci *cci,
-					uint8_t cmd,
-		    			struct iso14443a_atqa *atqa)
-{
-	uint8_t tx_buf[1];
-	uint8_t rx_len = 2;
-	uint8_t error_flag;
-
-	memset(atqa, 0, sizeof(*atqa));
-
-	tx_buf[0] = cmd;
-
-	/* transfer only 7 bits of last byte in frame */
-	if ( !reg_write(cci, RC632_REG_BIT_FRAMING, 0x07) )
-		return 0;
-
-	if ( !asic_clear_bits(cci, RC632_REG_CONTROL,
-				RC632_CONTROL_CRYPTO1_ON) )
-		return 0;
-
-	if ( !asic_clear_bits(cci, RC632_REG_CHANNEL_REDUNDANCY,
-				RC632_CR_RX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE) )
-		return 0;
-
-	if ( !transceive(cci, tx_buf, sizeof(tx_buf),
-				(uint8_t *)atqa, &rx_len,
-				ISO14443A_FDT_ANTICOL_LAST1, 0) ) {
-		printf("error during rc632_transceive()\n");
-		return 0;
-	}
-
-	/* switch back to normal 8bit last byte */
-	if ( !reg_write(cci, RC632_REG_BIT_FRAMING, 0x00) )
-		return 0;
-
-	/* determine whether there was a collission */
-	if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &error_flag) )
-		return 0;
-
-	if (error_flag & RC632_ERR_FLAG_COL_ERR) {
-		uint8_t boc;
-		/* retrieve bit of collission */
-		if ( !reg_read(cci, RC632_REG_COLL_POS, &boc) )
-			return 0;
-		printf("collision detected in xcv_sf: bit_of_col=%u\n", boc);
-		/* FIXME: how to signal this up the stack */
-	}
-
-	if (rx_len != 2) {
-		printf("rx_len(%d) != 2\n", rx_len);
-		return 0;
-	}
-
-	return 1;
-}
-
-/* transceive regular frame */
-int _clrc632_iso14443ab_transceive(struct _cci *cci,
-				   unsigned int frametype,
-				   const uint8_t *tx_buf, unsigned int tx_len,
-				   uint8_t *rx_buf, unsigned int *rx_len,
-				   uint64_t timeout, unsigned int flags)
-{
-	int ret;
-	uint8_t rxl;
-	uint8_t channel_red;
-
-	if (*rx_len > 0xff)
-		rxl = 0xff;
-	else
-		rxl = *rx_len;
-
-	memset(rx_buf, 0, *rx_len);
-
-	switch (frametype) {
-	case RFID_14443A_FRAME_REGULAR:
-	case RFID_MIFARE_FRAME:
-		channel_red = RC632_CR_RX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE
-				|RC632_CR_PARITY_ENABLE|RC632_CR_PARITY_ODD;
-		break;
-	case RFID_14443B_FRAME_REGULAR:
-		channel_red = RC632_CR_RX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE
-				|RC632_CR_CRC3309;
-		break;
-#if 0
-	case RFID_MIFARE_FRAME:
-		channel_red = RC632_CR_PARITY_ENABLE|RC632_CR_PARITY_ODD;
-		break;
-#endif
-	case RFID_15693_FRAME:
-		channel_red = RC632_CR_CRC3309 | RC632_CR_RX_CRC_ENABLE
-				| RC632_CR_TX_CRC_ENABLE;
-		break;
-	case RFID_15693_FRAME_ICODE1:
-		/* FIXME: implement */
-	default:
-		return 0;
-	}
-	if ( !reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY, channel_red) )
-		return 0;
-
-	ret = transceive(cci, tx_buf, tx_len,
-					rx_buf, &rxl, timeout, 0);
-	*rx_len = rxl;
-	if (!ret)
-		return 0;
-
-	return 1;
-}
-
-/* transceive anti collission bitframe */
-int _clrc632_iso14443a_transceive_acf(struct _cci *cci,
-					struct iso14443a_anticol_cmd *acf,
-					unsigned int *bit_of_col)
-{
-	int ret;
-	uint8_t rx_buf[64];
-	uint8_t rx_len = sizeof(rx_buf);
-	uint8_t rx_align = 0, tx_last_bits, tx_bytes, tx_bytes_total;
-	uint8_t boc;
-	uint8_t error_flag;
-	*bit_of_col = ISO14443A_BITOFCOL_NONE;
-	memset(rx_buf, 0, sizeof(rx_buf));
-
-	/* disable mifare cryto */
-	if ( !asic_clear_bits(cci, RC632_REG_CONTROL,
-				RC632_CONTROL_CRYPTO1_ON) )
-		return 0;
-
-	/* disable CRC summing */
-#if 0
-	ret = reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY,
-				(RC632_CR_PARITY_ENABLE |
-				 RC632_CR_PARITY_ODD));
-#else
-	ret = asic_clear_bits(cci, RC632_REG_CHANNEL_REDUNDANCY,
-				RC632_CR_TX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE);
-#endif
-	if (!ret)
-		return 0;
-
-	tx_last_bits = acf->nvb & 0x07;	/* lower nibble indicates bits */
-	tx_bytes = ( acf->nvb >> 4 ) & 0x07;
-	if (tx_last_bits) {
-		tx_bytes_total = tx_bytes+1;
-		rx_align = tx_last_bits & 0x07; /* rx frame complements tx */
-	}
-	else
-		tx_bytes_total = tx_bytes;
-
-	/* set RxAlign and TxLastBits*/
-	if ( !reg_write(cci, RC632_REG_BIT_FRAMING,
-				(rx_align << 4) | (tx_last_bits)) )
-		return 0;
-
-	if ( !transceive(cci, (uint8_t *)acf, tx_bytes_total,
-				rx_buf, &rx_len, 0x32, 0) )
-		return 0;
-
-	/* bitwise-OR the two halves of the split byte */
-	acf->uid_bits[tx_bytes-2] = (
-		  (acf->uid_bits[tx_bytes-2] & (0xff >> (8-tx_last_bits)))
-		| rx_buf[0]);
-
-	/* copy the rest */
-	if (rx_len)
-		memcpy(&acf->uid_bits[tx_bytes-1], &rx_buf[1], rx_len-1);
-
-	/* determine whether there was a collission */
-	if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &error_flag) )
-		return 0;
-
-	if (error_flag & RC632_ERR_FLAG_COL_ERR) {
-		/* retrieve bit of collission */
-		if ( !reg_read(cci, RC632_REG_COLL_POS, &boc) )
-			return 0;
-
-		/* bit of collission relative to start of part 1 of
-		 * anticollision frame (!) */
-		*bit_of_col = 2*8 + boc;
-	}
-
-	return 1;
-}
 static const struct reg_file rf_14443a_init[] = {
 	{ .reg =	RC632_REG_TX_CONTROL,
 	  .val =	RC632_TXCTRL_MOD_SRC_INT |
@@ -562,13 +426,6 @@ int _clrc632_14443a_init(struct _cci *cci)
 		return 0;
 	return reg_write_batch(cci, rf_14443a_init,
 				ARRAY_SIZE(rf_14443a_init));
-}
-
-int _clrc632_select(struct _cci *cci)
-{
-	if ( !_iso14443a_select(cci, 0) )
-		return 0;
-	return 1;
 }
 
 int _clrc632_init(struct _cci *cci)
