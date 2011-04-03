@@ -4,6 +4,7 @@
 #include "ccid-internal.h"
 #include "rfid.h"
 #include "iso14443a.h"
+#include "proto_tcl.h"
 
 int _rfid_select(struct _cci *cci)
 {
@@ -16,11 +17,10 @@ int _rfid_select(struct _cci *cci)
 		tag.level);
 	hex_dump(tag.uid, tag.uid_len, 16);
 
-	if ( tag.tcl_capable ) {
-		printf("Sending RATS\n");
-		return 1;
+	if ( tag.tcl_capable && !_tcl_get_ats(cci, &tag) ) {
+		return 0;
 	}
 
-	/* proprietary */
+	printf("Unsupported tag type\n");
 	return 0;
 }

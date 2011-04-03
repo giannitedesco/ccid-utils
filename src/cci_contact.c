@@ -81,7 +81,7 @@ static int contact_wait_for_card(struct _cci *cci)
 	return 1;
 }
 
-_hidden const struct _cci_ops _contact_ops = {
+_private const struct _cci_ops _contact_ops = {
 	.clock_status = contact_clock_status,
 	.power_on = contact_power_on,
 	.power_off = contact_power_off,

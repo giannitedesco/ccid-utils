@@ -1,3 +1,13 @@
+/*
+ * This file is part of ccid-utils
+ * Copyright (c) 2011 Gianni Tedesco <gianni@scaramanga.co.uk>
+ * Released under the terms of the GNU GPL version 3
+ *
+ * CLRC632 RFID ASIC driver
+ *
+ * Much logic liberally copied from librfid
+ * (C) 2005-2008 Harald Welte <laforge@gnumonks.org>
+*/
 #include <ccid.h>
 #include <unistd.h>
 
@@ -22,14 +32,6 @@
 /* 40 to 4f and 78 to 7f: proprietary */
 
 #define	ISO14443A_BITOFCOL_NONE		0xffffffff
-
-enum rfid_frametype {
-	RFID_14443A_FRAME_REGULAR,
-	RFID_14443B_FRAME_REGULAR,
-	RFID_MIFARE_FRAME,
-	RFID_15693_FRAME,
-	RFID_15693_FRAME_ICODE1,
-};
 
 enum iso14443a_state {
 	ISO14443A_STATE_ERROR,
@@ -107,7 +109,7 @@ int _iso14443ab_transceive(struct _cci *cci,
 				   unsigned int frametype,
 				   const uint8_t *tx_buf, unsigned int tx_len,
 				   uint8_t *rx_buf, unsigned int *rx_len,
-				   uint64_t timeout, unsigned int flags)
+				   uint64_t timeout)
 {
 	int ret;
 	uint8_t rxl;
@@ -338,7 +340,7 @@ cascade:
 	if ( !_iso14443ab_transceive(cci, RFID_14443A_FRAME_REGULAR,
 				   (unsigned char *)&acf, sizeof(acf),
 				   (unsigned char *) &sak, &rx_len,
-				   TIMEOUT, 0) )
+				   TIMEOUT) )
 		return 0;
 
 	if (sak[0] & 0x04) {

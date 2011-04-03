@@ -8,7 +8,7 @@
 
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
 #define _private __attribute__((visibility("hidden")))
-#define _friend __attribute__((visibility("protected")))
+#define _nopreload __attribute__((visibility("protected")))
 #endif
 
 #if __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 96 )
@@ -45,16 +45,12 @@
 #define _packed
 #endif
 
+#ifndef _nopreload
+#define _nopreload
+#endif
+
 #ifndef _private
 #define _private
-#endif
-
-#ifndef _friend
-#define _friend
-#endif
-
-#ifndef _hidden
-#define _hidden
 #endif
 
 #ifndef _public

@@ -6,6 +6,9 @@
 #ifndef _ISO14443A_H
 #define _ISO14443A_H
 
+#define ISO14443_FREQ_CARRIER		13560000
+#define ISO14443_FREQ_SUBCARRIER	(ISO14443_FREQ_CARRIER/16)
+
 /* ISO 14443-3, Chapter 6.3.2 */
 #define ISO14443A_AC_SEL_CODE_CL1	0x93
 #define ISO14443A_AC_SEL_CODE_CL2	0x92
@@ -28,6 +31,14 @@ struct iso14443a_atqa {
 #define ISO14443A_FDT_ANTICOL_LAST1     92      /* 1236 / fc = 91.15 usec */
 #define ISO14443A_FDT_ANTICOL_LAST0     87      /* 1172 / fc = 86.43 usec */
 
+enum rfid_frametype {
+	RFID_14443A_FRAME_REGULAR,
+	RFID_14443B_FRAME_REGULAR,
+	RFID_MIFARE_FRAME,
+	RFID_15693_FRAME,
+	RFID_15693_FRAME_ICODE1,
+};
+
 _private int _iso14443a_transceive_sf(struct _cci *cci,
 						uint8_t cmd,
 						struct iso14443a_atqa *atqa);
@@ -35,7 +46,7 @@ _private int _iso14443ab_transceive(struct _cci *cci,
 				   unsigned int frametype,
 				   const uint8_t *tx_buf, unsigned int tx_len,
 				   uint8_t *rx_buf, unsigned int *rx_len,
-				   uint64_t timeout, unsigned int flags);
+				   uint64_t timeout);
 _private int _iso14443a_transceive_acf(struct _cci *cci,
 					struct iso14443a_anticol_cmd *acf,
 					unsigned int *bit_of_col);

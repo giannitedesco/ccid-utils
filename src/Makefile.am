@@ -13,11 +13,16 @@ libccid_la_SOURCES = \
 	ccid-internal.h \
 	cci_contact.c \
 	cci_rfid.c \
+	proto_tcl.c \
+	proto_tcl.h \
 	iso14443a.c \
+	iso14443a.h \
 	clrc632.c \
+	clrc632.h \
 	omnikey.c \
 	ccidev.c \
 	rfid.c \
+	rfid.h \
 	ccid.c \
 	cci.c \
 	util.c \

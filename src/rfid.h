@@ -60,7 +60,7 @@ struct rfid_tag {
 	uint8_t proto_supported;
 };
 
-_hidden int _rfid_select(struct _cci *cci);
+_private int _rfid_select(struct _cci *cci);
 
 /* Could become a chip agnostic API */
 _private int _clrc632_init(struct _cci *cc);

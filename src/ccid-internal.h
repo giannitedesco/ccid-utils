@@ -38,8 +38,8 @@ struct _cci_ops {
 	int (*transact)(struct _cci *cc, struct _xfr *xfr);
 	int (*wait_for_card)(struct _cci *cc);
 };
-_hidden extern const struct _cci_ops _contact_ops;
-_hidden extern const struct _cci_ops _rfid_ops;
+extern const struct _cci_ops _contact_ops;
+extern const struct _cci_ops _rfid_ops;
 
 struct _cci {
 	struct _ccid *cc_parent;

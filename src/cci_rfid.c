@@ -49,7 +49,7 @@ static int rfid_wait_for_card(struct _cci *cci)
 	return 1;
 }
 
-_hidden const struct _cci_ops _rfid_ops = {
+_private const struct _cci_ops _rfid_ops = {
 	.clock_status = rfid_clock_status,
 	.power_on = rfid_power_on,
 	.power_off = rfid_power_off,
