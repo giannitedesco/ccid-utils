@@ -10,11 +10,12 @@
 
 static int do_stuff(cci_t cci)
 {
+#if 0
 	if ( !cci_wait_for_card(cci) ) {
 		printf(" - wait failed\n");
 		return 0;
 	}
-
+#endif
 	if ( !cci_power_on(cci, CHIPCARD_AUTO_VOLTAGE, NULL) ) {
 		printf(" - power on failed\n");
 		return 0;

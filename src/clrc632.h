@@ -12,7 +12,6 @@ _private int _clrc632_14443a_init(struct _cci *cci);
 _private int _clrc632_select(struct _cci *cci);
 
 /* CL RC632 register set */
-
 /* PAGE 0 */
 #define RC632_REG_PAGE0			0x00
 
@@ -54,7 +53,11 @@ _private int _clrc632_select(struct _cci *cci);
 
 #define RC632_REG_CONTROL		0x09
 #define  RC632_CONTROL_FIFO_FLUSH	(1<<0)
+#define  RC632_CONTROL_TIMER_START	(1<<1)
+#define  RC632_CONTROL_TIMER_STOP	(1<<2)
+#define  RC632_CONTROL_CRYPTO1_ON	(1<<3)
 #define  RC632_CONTROL_POWERDOWN	(1<<4)
+#define  RC632_CONTROL_STANDBY		(1<<5)
 
 #define RC632_REG_ERROR_FLAG		0x0a
 #define  RC632_ERR_FLAG_COL_ERR		(1<<0)
@@ -89,7 +92,7 @@ _private int _clrc632_select(struct _cci *cci);
 #define RC632_REG_MOD_CONDUCTANCE	0x13
 
 #define RC632_REG_CODER_CONTROL		0x14
-#define  RC632_CDRCTRL_TXCD_14443A	(0)
+#define  RC632_CDRCTRL_TXCD_14443A	(1)
 #define  RC632_CDRCTRL_RATE_106K	(3 << 3)
 
 #define RC632_REG_MOD_WIDTH		0x15
@@ -112,7 +115,7 @@ _private int _clrc632_select(struct _cci *cci);
 #define  RC632_RXCTRL1_SUBCP_16		(4 << 5)
 
 #define RC632_REG_DECODER_CONTROL	0x1a
-#define  RC632_DECCTRL_MANCHESTER	(1 << 0)
+#define  RC632_DECCTRL_MANCHESTER	(0)
 #define  RC632_DECCTRL_RXFR_14443A	(1 << 3)
 
 #define RC632_REG_BIT_PHASE		0x1b
@@ -134,9 +137,13 @@ _private int _clrc632_select(struct _cci *cci);
 #define RC632_REG_RX_WAIT		0x21
 
 #define RC632_REG_CHANNEL_REDUNDANCY	0x22
+#define  RC632_CR_PARITY_EVEN		(0<<1)
 #define  RC632_CR_PARITY_ENABLE		(1<<0)
 #define  RC632_CR_PARITY_ODD		(1<<1)
-#define  RC632_CR_PARITY_EVEN		(0<<1)
+#define  RC632_CR_TX_CRC_ENABLE		(1<<2)
+#define  RC632_CR_RX_CRC_ENABLE		(1<<3)
+#define  RC632_CR_CRC8			(1<<4)
+#define  RC632_CR_CRC3309		(1<<5)
 
 #define RC632_REG_CRC_PRESET_LSB	0x23
 #define RC632_REG_CRC_PRESET_MSB	0x24
