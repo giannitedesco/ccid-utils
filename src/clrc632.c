@@ -428,6 +428,21 @@ int _clrc632_14443a_init(struct _cci *cci)
 				ARRAY_SIZE(rf_14443a_init));
 }
 
+unsigned int _clrc632_carrier_freq(struct _cci *cc)
+{
+	return ISO14443_FREQ_CARRIER;
+}
+
+unsigned int _clrc632_mtu(struct _cci *cc)
+{
+	return 64;
+}
+
+unsigned int _clrc632_mru(struct _cci *cc)
+{
+	return 64;
+}
+
 int _clrc632_init(struct _cci *cci)
 {
 	if ( !asic_power(cci, 0) )

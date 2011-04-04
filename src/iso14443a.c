@@ -3,7 +3,7 @@
  * Copyright (c) 2011 Gianni Tedesco <gianni@scaramanga.co.uk>
  * Released under the terms of the GNU GPL version 3
  *
- * CLRC632 RFID ASIC driver
+ * ISO-14443-A Layer 2
  *
  * Much logic liberally copied from librfid
  * (C) 2005-2008 Harald Welte <laforge@gnumonks.org>
@@ -42,6 +42,32 @@ enum iso14443a_state {
 	ISO14443A_STATE_ANTICOL_RUNNING,
 	ISO14443A_STATE_SELECTED,
 };
+
+static uint8_t fsdi_table[] = { 15, 23, 31, 39, 47, 63, 95, 127, 255 };
+
+int _iso14443_fsdi_to_fsd(uint8_t fsdi, size_t *fsd)
+{
+	/* ISO 14443-4:2000(E) Section 5.1. */
+	if (fsdi > sizeof(fsdi_table)/sizeof(*fsdi_table))
+		return 0;
+
+	*fsd = fsdi_table[fsdi] + 1;
+	return 1;
+}
+
+int _iso14443_fsd_to_fsdi(size_t fsd, uint8_t *fsdi)
+{
+	int i;
+
+	for (i = 0; i < sizeof(fsdi_table)/sizeof(*fsdi_table); i++) {
+		if (fsdi_table[i] + 1 == fsd) {
+			*fsdi = i;
+			return 0;
+		}
+	}
+
+	return -1;
+}
 
 /* transceive anti collission bitframe */
 int _iso14443a_transceive_acf(struct _cci *cci,

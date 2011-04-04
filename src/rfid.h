@@ -6,6 +6,9 @@
 #ifndef _RFID_H
 #define _RFID_H
 
+#define ISO14443_FREQ_CARRIER		13560000
+#define ISO14443_FREQ_SUBCARRIER	(ISO14443_FREQ_CARRIER/16)
+
 #define RF_PARITY_ENABLE	(1<<0)
 #define RF_PARITY_EVEN		(1<<1)
 #define RF_TX_CRC		(1<<2)
@@ -77,5 +80,8 @@ _private int _clrc632_transceive(struct _cci *cci,
 				 uint8_t *rx_len,
 				 uint64_t timer,
 				 unsigned int toggle);
+_private unsigned int _clrc632_carrier_freq(struct _cci *cc);
+_private unsigned int _clrc632_mtu(struct _cci *cc);
+_private unsigned int _clrc632_mru(struct _cci *cc);
 
 #endif /* RFID_H */

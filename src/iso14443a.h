@@ -6,9 +6,6 @@
 #ifndef _ISO14443A_H
 #define _ISO14443A_H
 
-#define ISO14443_FREQ_CARRIER		13560000
-#define ISO14443_FREQ_SUBCARRIER	(ISO14443_FREQ_CARRIER/16)
-
 /* ISO 14443-3, Chapter 6.3.2 */
 #define ISO14443A_AC_SEL_CODE_CL1	0x93
 #define ISO14443A_AC_SEL_CODE_CL2	0x92
@@ -39,6 +36,8 @@ enum rfid_frametype {
 	RFID_15693_FRAME_ICODE1,
 };
 
+_private int _iso14443_fsdi_to_fsd(uint8_t fsdi, size_t *fsd);
+_private int _iso14443_fsd_to_fsdi(size_t fsd, uint8_t *fsdi);
 _private int _iso14443a_transceive_sf(struct _cci *cci,
 						uint8_t cmd,
 						struct iso14443a_atqa *atqa);
