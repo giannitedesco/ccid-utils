@@ -76,6 +76,20 @@ static int asic_set_bits(struct _cci *cci, uint8_t reg, uint8_t bits)
 	return reg_write(cci, reg, val | bits);
 }
 
+static int asic_set_mask(struct _cci *cci, uint8_t reg,
+			 uint8_t mask, uint8_t bits)
+{
+	uint8_t val;
+
+	if ( !reg_read(cci, reg, &val) )
+		return 0;
+
+	if ( (val & mask) == bits )
+		return 1;
+
+	return reg_write(cci, reg, (val & ~mask) | (bits & mask));
+}
+
 static int reg_write_batch(struct _cci *cci, const struct reg_file *r,
 				unsigned int num)
 {
@@ -428,17 +442,100 @@ int _clrc632_14443a_init(struct _cci *cci)
 				ARRAY_SIZE(rf_14443a_init));
 }
 
-unsigned int _clrc632_carrier_freq(struct _cci *cc)
+static struct {
+	uint8_t subc_pulses;
+	uint8_t rx_coding;
+	uint8_t rx_threshold;
+	uint8_t bpsk_dem_ctrl;
+	uint8_t rate;
+	uint8_t mod_width;
+}rate[] = {
+	[RFID_14443A_SPEED_106K] = {
+	  .subc_pulses 		= RC632_RXCTRL1_SUBCP_8,
+	  .rx_coding 		= RC632_DECCTRL_MANCHESTER,
+	  .rx_threshold		= 0x88,
+	  .bpsk_dem_ctrl	= 0x00,
+	  .rate 		= RC632_CDRCTRL_RATE_106K,
+	  .mod_width		= 0x13,
+	},
+	[RFID_14443A_SPEED_212K] = {
+	  .subc_pulses		= RC632_RXCTRL1_SUBCP_4,
+	  .rx_coding		= RC632_DECCTRL_BPSK,
+	  .rx_threshold		= 0x50,
+	  .bpsk_dem_ctrl	= 0x0c,
+	  .rate			= RC632_CDRCTRL_RATE_212K,
+	  .mod_width		= 0x07,
+	},
+	[RFID_14443A_SPEED_424K] = { 
+	  .subc_pulses		= RC632_RXCTRL1_SUBCP_2,
+	  .rx_coding		= RC632_DECCTRL_BPSK,
+	  .rx_threshold		= 0x50,
+	  .bpsk_dem_ctrl	= 0x0c,
+	  .rate			= RC632_CDRCTRL_RATE_424K,
+	  .mod_width		= 0x03,
+	},
+	[RFID_14443A_SPEED_848K] = { 
+	  .subc_pulses		= RC632_RXCTRL1_SUBCP_1,
+	  .rx_coding		= RC632_DECCTRL_BPSK,
+	  .rx_threshold		= 0x50,
+	  .bpsk_dem_ctrl	= 0x0c,
+	  .rate			= RC632_CDRCTRL_RATE_848K,
+	  .mod_width		= 0x01,
+	},
+};
+
+int _clrc632_set_speed(struct _cci *cci, unsigned int i)
+{
+	if ( i >= ARRAY_SIZE(rate) )
+		return 0;
+	
+	if ( !asic_set_mask(cci, RC632_REG_RX_CONTROL1,
+			   RC632_RXCTRL1_SUBCP_MASK,
+			   rate[i].subc_pulses) )
+		return 0;
+
+	if ( !asic_set_mask(cci, RC632_REG_DECODER_CONTROL,
+			   RC632_DECCTRL_BPSK,
+			   rate[i].rx_coding) )
+		return 0;
+
+	if ( !reg_write(cci, RC632_REG_RX_THRESHOLD, rate[i].rx_threshold) )
+		return 0;
+
+	if ( rate[i].rx_coding == RC632_DECCTRL_BPSK &&
+		!reg_write(cci, RC632_REG_BPSK_DEM_CONTROL,
+				rate[i].bpsk_dem_ctrl) )
+		return 0;
+
+	if ( !asic_set_mask(cci, RC632_CDRCTRL_RATE_MASK,
+			   RC632_DECCTRL_BPSK,
+			   rate[i].rate) )
+		return 0;
+
+	if ( !reg_write(cci, RC632_REG_MOD_WIDTH, rate[i].mod_width) )
+		return 0;
+
+	return 1;
+}
+unsigned int _clrc632_get_speeds(struct _cci *cci)
+{
+	return (1 << RFID_14443A_SPEED_106K) |
+		(1 << RFID_14443A_SPEED_212K) |
+		(1 << RFID_14443A_SPEED_424K) |
+		(1 << RFID_14443A_SPEED_848K);
+}
+
+unsigned int _clrc632_carrier_freq(struct _cci *cci)
 {
 	return ISO14443_FREQ_CARRIER;
 }
 
-unsigned int _clrc632_mtu(struct _cci *cc)
+unsigned int _clrc632_mtu(struct _cci *cci)
 {
 	return 64;
 }
 
-unsigned int _clrc632_mru(struct _cci *cc)
+unsigned int _clrc632_mru(struct _cci *cci)
 {
 	return 64;
 }

@@ -16,6 +16,16 @@
 #include "iso14443a.h"
 #include "proto_tcl.h"
 
+enum tcl_pcd_state {
+	TCL_STATE_NONE = 0x00,
+	TCL_STATE_INITIAL,
+	TCL_STATE_RATS_SENT,		/* waiting for ATS */
+	TCL_STATE_ATS_RCVD,		/* ATS received */
+	TCL_STATE_PPS_SENT,		/* waiting for PPS response */
+	TCL_STATE_ESTABLISHED,		/* xchg transparent data */
+	TCL_STATE_DESELECT_SENT,	/* waiting for DESELECT response */
+	TCL_STATE_DESELECTED,		/* card deselected or HLTA'd */
+};
 struct tcl_handle {
 	/* derived from ats */
 	unsigned char *historical_bytes; /* points into ats */
@@ -80,9 +90,102 @@ static unsigned int fwi_to_fwt(struct _cci *cci,
 	return (tmp / _clrc632_carrier_freq(cci)) * multiplier;
 }
 
-/* 4.9seconds as microseconds (4.9 billion seconds) exceeds 2^32 */
-#define activation_fwt(x) (((u_int64_t)1000000 * 65536 / x->l2h->rh->ah->fc))
-#define deactivation_fwt(x) activation_fwt(x)
+#define ATS_TA_DIV_2	1
+#define ATS_TA_DIV_4	2
+#define ATS_TA_DIV_8	4
+
+#define PPS_DIV_8	3
+#define PPS_DIV_4	2
+#define PPS_DIV_2	1
+#define PPS_DIV_1	0
+static unsigned char d_to_di(struct _cci *cci, unsigned char D)
+{
+	static char DI;
+	unsigned int speeds = _clrc632_get_speeds(cci);
+	
+	if ((D & ATS_TA_DIV_8) && (speeds & (1 << RFID_14443A_SPEED_848K)))
+		DI = PPS_DIV_8;
+	else if ((D & ATS_TA_DIV_4) && (speeds & (1 << RFID_14443A_SPEED_424K)))
+		DI = PPS_DIV_4;
+	else if ((D & ATS_TA_DIV_2) && (speeds & (1 <<RFID_14443A_SPEED_212K)))
+		DI = PPS_DIV_2;
+	else
+		DI = PPS_DIV_1;
+
+	return DI;
+}
+
+static unsigned int di_to_speed(unsigned char DI)
+{
+	switch (DI) {
+	case PPS_DIV_8:
+		return RFID_14443A_SPEED_848K;
+	case PPS_DIV_4:
+		return RFID_14443A_SPEED_424K;
+	case PPS_DIV_2:
+		return RFID_14443A_SPEED_212K;
+	case PPS_DIV_1:
+		return RFID_14443A_SPEED_106K;
+	}
+	abort();
+}
+
+/* start a PPS run (autimatically configure highest possible speed */
+/* start a PPS run (autimatically configure highest possible speed */
+static int do_pps(struct _cci *cci, struct rfid_tag *tag,
+			struct tcl_handle *h)
+{
+	unsigned char ppss[3];
+	/* FIXME: this stinks like hell. IF we reduce pps_response size to one,
+	   we'll get stack corruption! */
+	unsigned char pps_response[10];
+	unsigned int rx_len = 1;
+	unsigned char Dr, Ds, DrI, DsI;
+	unsigned int speed;
+
+	if (h->state != TCL_STATE_ATS_RCVD)
+		return 0;
+
+	Dr = h->ta & 0x07;
+	Ds = h->ta & 0x70 >> 4;
+	//printf("Dr = 0x%x, Ds = 0x%x\n", Dr, Ds);
+
+	if (Dr != Ds && !(h->ta & 0x80)) {
+		/* device supports different divisors for rx and tx, but not
+		 * really ?!? */
+		printf("PICC has contradictory TA, aborting PPS\n");
+		return 0;
+	};
+
+	/* ISO 14443-4:2000(E) Section 5.3. */
+
+	ppss[0] = 0xd0 | (h->cid & 0x0f);
+	ppss[1] = 0x11;
+	ppss[2] = 0x00;
+
+	/* FIXME: deal with different speed for each direction */
+	DrI = d_to_di(cci, Dr);
+	DsI = d_to_di(cci, Ds);
+	//printf("DrI = 0x%x, DsI = 0x%x\n", DrI, DsI);
+
+	ppss[2] = (ppss[2] & 0xf0) | (DrI | DsI << 2);
+
+	if ( !_iso14443ab_transceive(cci, RFID_14443A_FRAME_REGULAR,
+					ppss, 3, pps_response, &rx_len,
+					h->fwt) )
+		return 0;
+
+	if (pps_response[0] != ppss[0]) {
+		printf("PPS Response != PPSS\n");
+		return 0;
+	}
+
+	speed = di_to_speed(DrI);
+	if ( !_clrc632_set_speed(cci, speed) )
+		return 0;
+
+	return 1;
+}
 
 static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 			struct tcl_handle *h,
@@ -157,7 +260,6 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 	return 1;
 }
 
-#define FSD	5 /* 64 bytes */
 #define CID	0
 #define TIMEOUT	(((uint64_t)1000000 * 65536 / ISO14443_FREQ_CARRIER))
 int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
@@ -183,11 +285,15 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
 				TIMEOUT) )
 		return 0;
 
+	tclh.state = TCL_STATE_ATS_RCVD;
 	ccid = cci->cc_parent;
 
 	if ( !parse_ats(cci, tag, &tclh, ats, ats_len) ) {
 		return 0;
 	}
+
+	if ( !do_pps(cci, tag, &tclh) )
+		return 0;
 
 	memcpy(ccid->cci_xfr->x_rxbuf, ats, ats_len);
 	ccid->cci_xfr->x_rxlen = ats_len;
