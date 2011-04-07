@@ -30,13 +30,11 @@ struct _clrc632_ops {
 };
 
 struct _cci_ops {
-	unsigned (*clock_status)(struct _cci *cci);
 	const uint8_t *(*power_on)(struct _cci *cci,
 					unsigned int v,
 					size_t *atr_len);
 	int (*power_off)(struct _cci *cci);
 	int (*transact)(struct _cci *cc, struct _xfr *xfr);
-	int (*wait_for_card)(struct _cci *cc);
 };
 extern const struct _cci_ops _contact_ops;
 extern const struct _cci_ops _rfid_ops;

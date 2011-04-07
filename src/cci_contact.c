@@ -10,9 +10,22 @@
 
 #include "ccid-internal.h"
 
-static unsigned contact_clock_status(struct _cci *cci)
+
+/** Retrieve chip card status.
+ * \ingroup g_cci
+ *
+ * @param cci \ref cci_t to query.
+ *
+ * Query CCID for status of clock in relevant chip card slot.
+ *
+ * @return one of CHIPCARD_CLOCK_(START|STOP|STOP_L|STOP_H).
+ */
+unsigned int cci_clock_status(cci_t cci)
 {
 	struct _ccid *ccid = cci->cc_parent;
+
+	if ( cci->cc_ops != &_contact_ops )
+		return CHIPCARD_CLOCK_ERR;
 
 	if ( !_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
@@ -27,6 +40,9 @@ static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
 				size_t *atr_len)
 {
 	struct _ccid *ccid = cci->cc_parent;
+
+	if ( cci->cc_ops != &_contact_ops )
+		return 0;
 
 	if ( !_PC_to_RDR_IccPowerOn(ccid, cci->cc_idx, ccid->cci_xfr, voltage) )
 		return 0;
@@ -67,7 +83,14 @@ static int contact_transact(struct _cci *cci, struct _xfr *xfr)
 	return 1;
 }
 
-static int contact_wait_for_card(struct _cci *cci)
+/** Wait for insertion of a chip card in to the slot.
+ * \ingroup g_cci
+ *
+ * @param cci \ref cci_t to wait on.
+ *
+ * @return Always succeeds and returns 1.
+ */
+int cci_wait_for_card(cci_t cci)
 {
 	struct _ccid *ccid = cci->cc_parent;
 
@@ -82,9 +105,7 @@ static int contact_wait_for_card(struct _cci *cci)
 }
 
 _private const struct _cci_ops _contact_ops = {
-	.clock_status = contact_clock_status,
 	.power_on = contact_power_on,
 	.power_off = contact_power_off,
 	.transact = contact_transact,
-	.wait_for_card = contact_wait_for_card,
 };

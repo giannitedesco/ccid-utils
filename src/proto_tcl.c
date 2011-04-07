@@ -22,6 +22,7 @@ enum tcl_pcb_bits {
 	TCL_PCB_CID_FOLLOWING		= 0x08,
 	TCL_PCB_NAD_FOLLOWING		= 0x04,
 };
+
 enum tcl_pcd_state {
 	TCL_STATE_NONE = 0x00,
 	TCL_STATE_INITIAL,
@@ -32,6 +33,7 @@ enum tcl_pcd_state {
 	TCL_STATE_DESELECT_SENT,	/* waiting for DESELECT response */
 	TCL_STATE_DESELECTED,		/* card deselected or HLTA'd */
 };
+
 struct tcl_handle {
 	/* derived from ats */
 	unsigned char *historical_bytes; /* points into ats */
@@ -149,7 +151,6 @@ static unsigned int di_to_speed(unsigned char DI)
 	abort();
 }
 
-/* start a PPS run (autimatically configure highest possible speed */
 /* start a PPS run (autimatically configure highest possible speed */
 static int do_pps(struct _cci *cci, struct rfid_tag *tag,
 			struct tcl_handle *h)
@@ -295,8 +296,6 @@ struct rfid_xcvb {
 	u_int64_t timeout;		/* timeout to wait for reply */
 	struct fr_buff tx;
 	struct fr_buff rx;
-
-	//struct rfid_protocol_handle *h;	/* connection to which we belong */
 };
 
 struct tcl_tx_context {

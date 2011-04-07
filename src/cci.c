@@ -38,20 +38,6 @@ ccid_t cci_ccid(cci_t cci)
 	return cci->cc_parent;
 }
 
-/** Retrieve chip card status.
- * \ingroup g_cci
- *
- * @param cci \ref cci_t to query.
- *
- * Query CCID for status of clock in relevant chip card slot.
- *
- * @return one of CHIPCARD_CLOCK_(START|STOP|STOP_L|STOP_H).
- */
-unsigned int cci_clock_status(cci_t cci)
-{
-	return (*cci->cc_ops->clock_status)(cci);
-}
-
 /** Power on a chip card slot.
  * \ingroup g_cci
  *
@@ -92,16 +78,4 @@ int cci_transact(cci_t cci, xfr_t xfr)
 int cci_power_off(cci_t cci)
 {
 	return (*cci->cc_ops->power_off)(cci);
-}
-
-/** Wait for insertion of a chip card in to the slot.
- * \ingroup g_cci
- *
- * @param cci \ref cci_t to wait on.
- *
- * @return Always succeeds and returns 1.
- */
-int cci_wait_for_card(cci_t cci)
-{
-	return (*cci->cc_ops->wait_for_card)(cci);
 }
