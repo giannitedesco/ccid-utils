@@ -779,13 +779,16 @@ if __name__ == '__main__':
 	for dev in ccid.devlist():
 		try:
 			cci = ccid.ccid(dev, 'gemv.trace')
-			slot = cci[0]
-			slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
-			w = EMVShell(slot)
-			w.show_all()
-			wins.append(w)
 		except:
-			pass
+			continue
+		for slot in cci.interfaces:
+			try:
+				slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+				w = EMVShell(slot)
+				w.show_all()
+				wins.append(w)
+			except:
+				pass
 	if len(wins) == 0:
 		bail("No CCI devices could be found")
 	gtk.main()

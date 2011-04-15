@@ -33,11 +33,11 @@ class scsh:
 		dev = ccid.dev(int(arg[0]), int(arg[1]))
 		cci = ccid.ccid(dev, self.__tf)
 		self.__cci = cci
-		self.__slot = cci[0]
+		self.__slot = cci.interfaces[0]
 
 	def cmd_slot(self, str, *arg):
 		"Select a slot on a multi-slot CCI device."
-		slot = self.__cci[int(arg[0])]
+		slot = self.__cci.interfaces[int(arg[0])]
 		self.__slot = slot
 
 	def cmd_on(self, str, *arg):
@@ -524,7 +524,7 @@ class scsh:
 		for dev in devs:
 			try:
 				self.__cci = ccid.ccid(dev, self.__tf)
-				self.__slot = self.__cci[0]
+				self.__slot = self.__cci.interfaces[0]
 			except:
 				pass
 

@@ -25,7 +25,7 @@ unsigned int cci_clock_status(cci_t cci)
 	struct _ccid *ccid = cci->cc_parent;
 
 	if ( cci->cc_ops != &_contact_ops )
-		return CHIPCARD_CLOCK_ERR;
+		return CHIPCARD_NOT_PRESENT;
 
 	if ( !_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr) )
 		return CHIPCARD_CLOCK_ERR;
@@ -42,13 +42,13 @@ static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
 	struct _ccid *ccid = cci->cc_parent;
 
 	if ( cci->cc_ops != &_contact_ops )
-		return 0;
+		return NULL;
 
 	if ( !_PC_to_RDR_IccPowerOn(ccid, cci->cc_idx, ccid->cci_xfr, voltage) )
-		return 0;
+		return NULL;
 
 	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
-		return 0;
+		return NULL;
 	
 	_RDR_to_PC_DataBlock(ccid, ccid->cci_xfr);
 	if ( atr_len )

@@ -405,23 +405,19 @@ static PyTypeObject cci_pytype = {
 
 
 /* ---[ CCI wrapper */
-static PyObject *cci_get(struct cp_ccid *self, Py_ssize_t i)
+static PyObject *Py_cci_New(struct cp_ccid *owner, cci_t cci)
 {
 	struct cp_cci *cc;
 
 	cc = (struct cp_cci *)_PyObject_New(&cci_pytype);
 	if ( NULL == cc ) {
-		PyErr_SetString(PyExc_MemoryError, "Allocating chipcard");
+		PyErr_SetString(PyExc_MemoryError,
+				"Allocating chipcard interface");
 		return NULL;
 	}
 
-	cc->owner = (PyObject *)self;
-	cc->slot = ccid_get_slot(self->dev, i);
-	if ( NULL == cc->slot) {
-		_PyObject_Del(cc);
-		PyErr_SetString(PyExc_ValueError, "Bad slot number\n");
-		return NULL;
-	}
+	cc->owner = (PyObject *)owner;
+	cc->slot = cci;
 
 	Py_INCREF(cc->owner);
 	return (PyObject *)cc;
@@ -458,9 +454,45 @@ static void cp_ccid_dealloc(struct cp_ccid *self)
 	self->ob_type->tp_free((PyObject*)self);
 }
 
-static Py_ssize_t cci_len(struct cp_ccid *self)
+static PyObject *ccid_interfaces_get(struct cp_ccid *self)
 {
-	return ccid_num_slots(self->dev);
+	size_t num_slots, num_fields, i;
+	PyObject *list, *elem;
+	cci_t cci;
+
+	num_slots = ccid_num_slots(self->dev);
+	num_fields = ccid_num_fields(self->dev);
+
+	list = PyList_New(num_slots + num_fields);
+	if ( NULL == list )
+		return NULL;
+
+	for(i = 0; i < num_slots; i++) {
+		cci = ccid_get_slot(self->dev, i);
+		if ( NULL == cci )
+			goto err;
+
+		elem = Py_cci_New(self, cci);
+		if ( NULL == elem )
+			goto err;
+		PyList_SetItem(list, i, elem);
+	}
+
+	for(i = 0; i < num_fields; i++) {
+		cci = ccid_get_field(self->dev, i);
+		if ( NULL == cci )
+			goto err;
+
+		elem = Py_cci_New(self, cci);
+		if ( NULL == elem )
+			goto err;
+		PyList_SetItem(list, num_slots + i, elem);
+	}
+
+	return list;
+err:
+	Py_DECREF(list);
+	return NULL;
 }
 
 static PyObject *cp_log(struct cp_ccid *self, PyObject *args)
@@ -476,15 +508,16 @@ static PyObject *cp_log(struct cp_ccid *self, PyObject *args)
 	return Py_None;
 }
 
+static PyGetSetDef cp_ccid_attribs[] = {
+	{"interfaces", (getter)ccid_interfaces_get, NULL,
+		"Chipcard Interfaces"},
+	{NULL, }
+};
+
 static PyMethodDef cp_ccid_methods[] = {
 	{"log",(PyCFunction)cp_log, METH_VARARGS,
 		"ccid.log(string) - Log some text to the tracefile"},
 	{NULL, }
-};
-
-static PySequenceMethods cci_seq = {
-	.sq_length = (lenfunc)cci_len,
-	.sq_item = (ssizeargfunc)cci_get,
 };
 
 static PyTypeObject ccid_pytype = {
@@ -495,8 +528,8 @@ static PyTypeObject ccid_pytype = {
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)cp_ccid_init,
 	.tp_dealloc = (destructor)cp_ccid_dealloc,
-	.tp_as_sequence = &cci_seq,
 	.tp_methods = cp_ccid_methods,
+	.tp_getset = cp_ccid_attribs,
 	.tp_doc = "Chipcard Interface Device",
 };
 
