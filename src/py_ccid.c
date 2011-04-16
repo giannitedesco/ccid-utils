@@ -508,8 +508,29 @@ static PyObject *cp_log(struct cp_ccid *self, PyObject *args)
 	return Py_None;
 }
 
+static PyObject *ccid_bus_get(struct cp_ccid *self)
+{
+	return PyInt_FromLong(ccid_bus(self->dev));
+}
+
+static PyObject *ccid_addr_get(struct cp_ccid *self)
+{
+	return PyInt_FromLong(ccid_addr(self->dev));
+}
+
+static PyObject *ccid_name_get(struct cp_ccid *self)
+{
+	return PyString_FromString(ccid_name(self->dev));
+}
+
 static PyGetSetDef cp_ccid_attribs[] = {
 	{"interfaces", (getter)ccid_interfaces_get, NULL,
+		"Chipcard Interfaces"},
+	{"bus", (getter)ccid_bus_get, NULL,
+		"Chipcard Interfaces"},
+	{"addr", (getter)ccid_addr_get, NULL,
+		"Chipcard Interfaces"},
+	{"name", (getter)ccid_name_get, NULL,
 		"Chipcard Interfaces"},
 	{NULL, }
 };

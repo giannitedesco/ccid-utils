@@ -726,11 +726,7 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	if ( NULL == ccid->cci_xfr )
 		goto out_close;
 
-	/* Fourth, Initialise any proprietary interfaces */
-	if ( intf.flags & INTF_RFID_OMNI )
-		_omnikey_init_prox(ccid);
-
-	/* Fifth, setup each slot */
+	/* Fourth, setup each slot */
 	trace(ccid, "Setting up %u contact card slots\n", ccid->cci_num_slots);
 	for(x = 0; x < ccid->cci_num_slots; x++) {
 		if ( !_PC_to_RDR_GetSlotStatus(ccid, x, ccid->cci_xfr) )
@@ -741,12 +737,13 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 			goto out_freebuf;
 	}
 
-	/* Finally, setup RF fields */
-	trace(ccid, "Setting up %u proximity card RF fields\n",
-		ccid->cci_num_rf);
-	for(x = 0; x < ccid->cci_num_rf; x++) {
-	}
+	/* Fifth, Initialise any proprietary interfaces */
+	if ( intf.flags & INTF_RFID_OMNI )
+		_omnikey_init_prox(ccid);
 
+	ccid->cci_bus = libusb_get_bus_number(dev);
+	ccid->cci_addr = libusb_get_device_address(dev);
+	ccid->cci_name = strdup(intf.name);
 	goto out;
 
 out_freebuf:
@@ -759,6 +756,21 @@ out_free:
 	fprintf(stderr, "ccid: error probing device\n");
 out:
 	return ccid;
+}
+
+uint8_t ccid_bus(ccid_t ccid)
+{
+	return ccid->cci_bus;
+}
+
+uint8_t ccid_addr(ccid_t ccid)
+{
+	return ccid->cci_addr;
+}
+
+const char *ccid_name(ccid_t ccid)
+{
+	return ccid->cci_name;
 }
 
 /** Close connection to a chip card device.
@@ -778,6 +790,7 @@ void ccid_close(ccid_t ccid)
 		if ( ccid->cci_tf )
 			fclose(ccid->cci_tf);
 		_xfr_do_free(ccid->cci_xfr);
+		free(ccid->cci_name);
 
 		for(i = 0; i < ccid->cci_num_rf; i++) {
 			if ( NULL == ccid->cci_rf[i].cc_ops->dtor )

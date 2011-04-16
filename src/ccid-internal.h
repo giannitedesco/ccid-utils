@@ -56,7 +56,7 @@ struct _ccid {
 	uint16_t 	cci_max_intr;
 
 	uint8_t 	cci_seq;
-	uint8_t		_pad0;
+	uint8_t		cci_bus, cci_addr;
 
 	/* cci slots */
 	unsigned int 	cci_num_slots;
@@ -69,6 +69,8 @@ struct _ccid {
 
 	/* CCID USB descriptor */
 	struct ccid_desc cci_desc;
+
+	char		*cci_name;
 };
 
 struct _xfr {

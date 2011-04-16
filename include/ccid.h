@@ -88,6 +88,9 @@ _public unsigned int ccid_num_fields(ccid_t cci);
 _public cci_t ccid_get_field(ccid_t cci, unsigned int i);
 _public void ccid_close(ccid_t cci);
 _public void ccid_log(ccid_t cci, const char *fmt, ...) _printf(2, 3);
+_public uint8_t ccid_bus(ccid_t ccid);
+_public uint8_t ccid_addr(ccid_t ccid);
+_public const char *ccid_name(ccid_t ccid);
 
 _public xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf);
 _public void xfr_reset(xfr_t xfr);
