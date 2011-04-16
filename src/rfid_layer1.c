@@ -23,6 +23,7 @@ int _rfid_init(struct _cci *cci,
 
 	cci->cc_priv = rf;
 
+	cci->cc_status = CHIPCARD_NOT_PRESENT;
 	return 1;
 }
 

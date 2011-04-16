@@ -289,7 +289,7 @@ static PyObject *cp_cci_wait(struct cp_cci *self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject *cp_cci_status(struct cp_cci *self, PyObject *args)
+static PyObject *cp_cci_status(struct cp_cci *self)
 {
 	if ( NULL == self->slot ) {
 		PyErr_SetString(PyExc_ValueError, "Bad slot");
@@ -366,12 +366,6 @@ static PyMethodDef cp_cci_methods[] = {
 		"cci.wait_for_card()\n"
 		"Sleep until the end of time, or until a card is inserted."
 		"whichever comes soonest."},
-	{"slot_status", (PyCFunction)cp_cci_status, METH_NOARGS,	
-		"cci.slot_status()\n"
-		"Get status of the slot."},
-	{"clock_status", (PyCFunction)cp_cci_clock, METH_NOARGS,	
-		"cci.clock_status()\n"
-		"Get chip card clock status."},
 	{"on", (PyCFunction)cp_cci_on, METH_VARARGS,	
 		"slotchipcard.on(voltage=CHIPCARD_AUTO_VOLTAGE)\n"
 		"Power on card and retrieve ATR."},
@@ -380,6 +374,13 @@ static PyMethodDef cp_cci_methods[] = {
 		"Power off card."},
 	{"transact", (PyCFunction)cp_cci_transact, METH_VARARGS,	
 		"cci.transact(xfr) - chipcard transaction."},
+	{NULL, }
+};
+
+static PyMethodDef cp_slot_methods[] = {
+	{"clock_status", (PyCFunction)cp_cci_clock, METH_NOARGS,	
+		"cci.clock_status()\n"
+		"Get chip card clock status."},
 	{NULL, }
 };
 
@@ -408,6 +409,9 @@ static PyGetSetDef cp_cci_attribs[] = {
 		"Interface index"},
 	{"owner", (getter)cci_owner_get, NULL,
 		"Owning device"},
+	{"status", (getter)cp_cci_status, NULL,	
+		"cci.status()\n"
+		"Get card-present status of the interface."},
 	{NULL,}
 };
 
@@ -431,6 +435,7 @@ static PyTypeObject slot_pytype = {
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	.tp_new = PyType_GenericNew,
 	.tp_dealloc = (destructor)cp_cci_dealloc,
+	.tp_methods = cp_slot_methods,
 	.tp_doc = "Contact Card Interface",
 };
 

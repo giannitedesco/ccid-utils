@@ -7,6 +7,9 @@ import emv
 __copyright__ = 'Copyright (c) 2011 Gianni Tedesco'
 __licence__ = 'GPLv3'
 
+class CCIDApp(gtk.Container):
+	pass
+
 class CCIDeviceView(gtk.TreeView):
 	def __init__(self, callback = None):
 		self.callback = callback
@@ -15,9 +18,9 @@ class CCIDeviceView(gtk.TreeView):
 						gobject.TYPE_STRING)
 		gtk.TreeView.__init__(self, self.store)
 
-		self.set_headers_visible(True)
-		self.set_headers_clickable(True)
-		self.set_enable_search(True)
+		self.set_headers_visible(False)
+		self.set_headers_clickable(False)
+		self.set_enable_search(False)
 		self.set_search_column(0)
 
 		r = gtk.CellRendererText()
@@ -47,6 +50,11 @@ class CCIDeviceView(gtk.TreeView):
 	def __dev(self, itr, dev):
 		i = 0
 		for cci in dev.interfaces:
+			try:
+				cci.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+			except IOError:
+				# maybe no card
+				pass
 			n = isinstance(cci, ccid.rfid) and 'Field' or 'Slot'
 			label = '%s %d'%(n, cci.index)
 			icon = gtk.STOCK_FILE
@@ -85,11 +93,11 @@ class CCIDShell(gtk.Window):
 		if isinstance(item, ccid.ccid):
 			print 'Selected device: %s'%item.name
 		elif isinstance(item, ccid.slot):
-			print 'Selected slot: %d'%item.index
+			print 'Selected slot: %d'%item.index,item.status
 		elif isinstance(item, ccid.rfid):
-			print 'Selected proximity field: %d'%item.index
+			print 'Selected proximity field: %d'%item.index,item.status
 
-	def __init__(self):
+	def __init__(self, apps = []):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
 		self.set_default_size(640, 480)
 		self.set_title('CCID Utils')
@@ -102,14 +110,22 @@ class CCIDShell(gtk.Window):
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
 		self.add_accel_group(agr)
 
+		self.apps = {}
+		for app in apps:
+			self.apps[app] = None
+
 		self.__sb = gtk.Statusbar()
 		self.__tb = gtk.Toolbar()
+		self.__nb = gtk.Notebook()
+		self.__app = {}
+
+		self.__nb.append_page(gtk.Label('TODO'), gtk.Label('Example'))
 
 		vb = gtk.VBox()
 
 		hp = gtk.HPaned()
 		hp.add1(CCIDeviceView(self.select_item))
-		hp.add2(gtk.Label('WTF'))
+		hp.add2(self.__nb)
 
 		vb.pack_start(self.__tb, False, False)
 		vb.pack_start(hp)
@@ -117,8 +133,8 @@ class CCIDShell(gtk.Window):
 
 		self.add(vb)
 		self.show_all()
+		self.status('Scanned devices')
 
-		self.status('Scanning devices...')
 		gtk.main()
 	
 if __name__ == '__main__':

@@ -21,8 +21,12 @@ static int do_select(struct _cci *cci)
 	memset(&rf->rf_l3p, 0, sizeof(rf->rf_l3p));
 	rf->rf_l3 = NULL;
 
-	if ( !_iso14443a_anticol(cci, 0, &rf->rf_tag) )
+	if ( !_iso14443a_anticol(cci, 0, &rf->rf_tag) ) {
+		cci->cc_status = CHIPCARD_NOT_PRESENT;
 		return 0;
+	}
+
+	cci->cc_status = CHIPCARD_ACTIVE;
 
 	printf("Found ISO-14443-A tag: cascade level %d\n",
 		rf->rf_tag.level);
@@ -56,6 +60,7 @@ static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 
 static int rfid_power_off(struct _cci *cci)
 {
+	cci->cc_status = CHIPCARD_NOT_PRESENT;
 	return _rfid_layer1_rf_power(cci, 0);
 }
 
