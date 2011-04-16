@@ -426,11 +426,11 @@ cascade:
 	tag->state = ISO14443A_STATE_SELECTED;
 
 	if (sak[0] & 0x20) {
-		printf("we have a T=CL compliant PICC\n");
+		dprintf("we have a T=CL compliant PICC\n");
 		tag->proto_supported = (1 << RFID_PROTOCOL_TCL);
 		tag->tcl_capable = 1;
 	} else {
-		printf("we have a T!=CL PICC\n");
+		dprintf("we have a T!=CL PICC\n");
 		tag->proto_supported = (1 << RFID_PROTOCOL_MIFARE_UL)|
 					  (1 << RFID_PROTOCOL_MIFARE_CLASSIC);
 		tag->tcl_capable = 0;

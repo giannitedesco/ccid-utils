@@ -28,9 +28,9 @@ static int do_select(struct _cci *cci)
 
 	cci->cc_status = CHIPCARD_ACTIVE;
 
-	printf("Found ISO-14443-A tag: cascade level %d\n",
-		rf->rf_tag.level);
-	hex_dump(rf->rf_tag.uid, rf->rf_tag.uid_len, 16);
+	//printf("Found ISO-14443-A tag: cascade level %d\n",
+	//	rf->rf_tag.level);
+	//hex_dump(rf->rf_tag.uid, rf->rf_tag.uid_len, 16);
 
 	if ( rf->rf_tag.tcl_capable ) {
 		ret = _tcl_get_ats(cci, &rf->rf_tag, &rf->rf_l3p.tcl);

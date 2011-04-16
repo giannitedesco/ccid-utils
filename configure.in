@@ -75,7 +75,6 @@ dnl
 AC_OUTPUT([
 Makefile
 src/Makefile
-src/gemv
 src/ccid-sh
 ])
-chmod 755 src/ccid-sh src/gemv || true
+chmod 755 src/ccid-sh src/ccid-util || true

@@ -4,7 +4,7 @@ INCLUDES = \
 	-I../include
 
 lib_LTLIBRARIES = libccid.la libemv.la libsim.la
-dist_bin_SCRIPTS = ccid-sh gemv
+dist_bin_SCRIPTS = ccid-sh ccid-util
 bin_PROGRAMS = emvtool simtool cselect
 
 libccid_la_LIBADD = -lusb-1.0

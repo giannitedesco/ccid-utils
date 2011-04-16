@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import gobject, gtk
 import gnome
 from gnome import ui
@@ -525,12 +523,9 @@ class EMVAppDialog(gtk.Dialog):
 
 		return True
 
-class EMVShell(ui.App):
-	def destroy(self, w):
-		gtk.main_quit()
-
+class EMVShell(gtk.ScrolledWindow):
 	def set_status(self, str):
-		self.__ab.set_status(str)
+		self.ccid_util.status(str)
 
 	def error(self, e):
 		msg = e.args[0]
@@ -604,7 +599,7 @@ class EMVShell(ui.App):
 			self.__add_children(i, x)
 
 	def __appsel(self, a):
-		d = EMVAppDialog(self, self.__emv)
+		d = EMVAppDialog(self.ccid_util, self.__emv)
 		try:
 			ret = d.run()
 		except Exception, e:
@@ -660,7 +655,7 @@ class EMVShell(ui.App):
 			return
 
 	def __cvm(self, a):
-		d = EMVPinDialog(self, self.__emv)
+		d = EMVPinDialog(self.ccid_util, self.__emv)
 		try:
 			if d.run():
 				self.set_status("Cardholder verified")
@@ -680,11 +675,12 @@ class EMVShell(ui.App):
 			cdol1 = self.__data[emv.TAG_CDOL1].value()
 			cdol2 = self.__data[emv.TAG_CDOL2].value()
 		except KeyError:
-			self.__ab.set_status("CDOL's not found")
+			self.set_status("CDOL's not found")
 			return
 
 		try:
-			d = EMVActionDialog(self, self.__emv, cdol1, cdol2)
+			d = EMVActionDialog(self.ccid_util, self.__emv,
+						cdol1, cdol2)
 		except Exception, e:
 			self.error(e)
 			return
@@ -697,11 +693,10 @@ class EMVShell(ui.App):
 
 		d.hide()
 		if ret:
-			self.__ab.set_status("Transaction completed")
+			self.set_status("Transaction completed")
 
-	def __toolbar(self):
-		t = gtk.Toolbar()
-		items = [ \
+	def toolbar(self):
+		return [ \
 				("Select Application",
 					gtk.STOCK_CONNECT,
 					self.__appsel),
@@ -718,77 +713,21 @@ class EMVShell(ui.App):
 					gtk.STOCK_APPLY,
 					self.__transact)
 			]
-		for (txt, iname, cb) in items:
-			icon = gtk.Image()
-			icon.set_from_stock(iname, gtk.ICON_SIZE_LARGE_TOOLBAR)
-			item = gtk.ToolButton(icon, txt)
-			item.set_tooltip_text(txt)
-			item.set_is_important(True)
-			item.set_visible_horizontal(True)
-			item.set_visible_vertical(True)
-			item.connect("clicked", cb)
-			t.insert(item, -1)
-		t.show_all()
-		return t
 
-	def __init__(self, card):
-		ui.App.__init__(self, "gemv", "EMV")
-		self.set_default_size(640, 480)
-		self.connect("destroy", self.destroy)
+	def __init__(self, parent, cci):
+		gtk.ScrolledWindow.__init__(self)
 
-		self.__tb = self.__toolbar()
-		self.set_toolbar(self.__tb)
-
-		self.__ab = ui.AppBar(True, True, ui.PREFERENCES_USER)
-		self.set_statusbar(self.__ab)
+		self.ccid_util = parent
 
 		(ts, t) = self.__data_tree_init()
 		self.__ts = ts
 		self.__sda_recs = []
 		self.__data = {}
 
-		vs = gtk.ScrolledWindow()
-		vs.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-		vs.add(t)
+		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		self.add(t)
 
-		self.__emv = emv.card(card)
+		self.__emv = emv.card(cci)
 		self.__app = None
 		self.__aip = None
 		self.__auc = None
-
-		self.set_contents(vs)
-
-def err_destroy(self):
-	gtk.main_quit()
-def err_destroy2(self, b):
-	gtk.main_quit()
-
-def bail(msg):
-	err = gtk.MessageDialog(type = gtk.MESSAGE_ERROR,
-				buttons = gtk.BUTTONS_CLOSE,
-				message_format = msg)
-	err.show_all()
-	err.connect("destroy", err_destroy)
-	err.connect("response", err_destroy2)
-	gtk.main()
-	raise SystemExit
-
-if __name__ == '__main__':
-	gnome.program_init("gemv", "@VERSION@")
-	wins = []
-	for dev in ccid.devlist():
-		try:
-			cci = ccid.ccid(dev, 'gemv.trace')
-		except:
-			continue
-		for slot in cci.interfaces:
-			try:
-				slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
-				w = EMVShell(slot)
-				w.show_all()
-				wins.append(w)
-			except:
-				pass
-	if len(wins) == 0:
-		bail("No CCI devices could be found")
-	gtk.main()

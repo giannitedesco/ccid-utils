@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
+from emv_applet import EMVShell
+
 import gobject, gtk
 import ccid
-import emv
 
 __copyright__ = 'Copyright (c) 2011 Gianni Tedesco'
 __licence__ = 'GPLv3'
@@ -86,7 +87,57 @@ class CCIDeviceView(gtk.TreeView):
 		sel = self.get_selection()
 		sel.select_path('0')
 
+class CCIDApplets(gtk.Notebook):
+	def __switch(self, _, __, idx):
+		app = self.get_nth_page(idx)
+		if self.callback is not None:
+			self.callback(app)
+
+	def __init__(self, cb = None):
+		self.__map = {}
+		self.callback = cb
+		gtk.Notebook.__init__(self)
+		self.connect('switch-page', self.__switch)
+
+	def open_tab(self, parent, cci, app, title):
+		if not self.__map.has_key(cci):
+			x = app(parent, cci)
+			x.show_all()
+			idx = self.append_page(x, gtk.Label(title))
+			self.set_tab_reorderable(x, True)
+			self.__map[cci] = idx
+		self.set_current_page(self.__map[cci])
+
+class CCIDToolbar(gtk.Toolbar):
+	def clear(self):
+		n = self.get_n_items()
+		for i in xrange(n):
+			self.remove(self.get_nth_item(0))
+
+	def set_toolbar(self, app):
+		self.clear()
+		items = app.toolbar()
+		for (txt, iname, cb) in items:
+			icon = gtk.Image()
+			icon.set_from_stock(iname, gtk.ICON_SIZE_LARGE_TOOLBAR)
+			item = gtk.ToolButton(icon, txt)
+			item.set_tooltip_text(txt)
+			item.set_is_important(True)
+			item.set_visible_horizontal(True)
+			item.set_visible_vertical(True)
+			item.connect("clicked", cb)
+			self.insert(item, -1)
+
+		if self.get_n_items():
+			self.show_all()
+		else:
+			self.hide_all()
+
+
 class CCIDShell(gtk.Window):
+	def toolbar(self, items):
+		print items
+
 	def status(self, status):
 		self.__sb.pop(9)
 		self.__sb.push(0, status)
@@ -98,10 +149,18 @@ class CCIDShell(gtk.Window):
 	def select_item(self, item):
 		if isinstance(item, ccid.ccid):
 			print 'Selected device: %s'%item.name
+			self.__tb.clear()
+			return
 		elif isinstance(item, ccid.slot):
-			print 'Selected slot: %d'%item.index
+			label = '%s slot: %d'%(item.owner.name, item.index)
 		elif isinstance(item, ccid.rfid):
-			print 'Selected proximity field: %d'%item.index
+			label = '%s field: %d'%(item.owner.name, item.index)
+
+		(desc, app) = self.apps['emv']
+		self.__nb.open_tab(self, item, app, desc)
+
+	def __app_select(self, app):
+		self.__tb.set_toolbar(app)
 
 	def __init__(self, apps = []):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
@@ -117,15 +176,13 @@ class CCIDShell(gtk.Window):
 		self.add_accel_group(agr)
 
 		self.apps = {}
-		for app in apps:
-			self.apps[app] = None
+		for (name,desc,app) in apps:
+			self.apps[name] = (desc,app)
 
 		self.__sb = gtk.Statusbar()
-		self.__tb = gtk.Toolbar()
-		self.__nb = gtk.Notebook()
+		self.__tb = CCIDToolbar()
+		self.__nb = CCIDApplets(self.__app_select)
 		self.__app = {}
-
-		self.__nb.append_page(gtk.Label('TODO'), gtk.Label('Example'))
 
 		vb = gtk.VBox()
 
@@ -139,9 +196,10 @@ class CCIDShell(gtk.Window):
 
 		self.add(vb)
 		self.show_all()
+		self.__tb.hide()
 		self.status('Scanned devices')
 
 		gtk.main()
 	
 if __name__ == '__main__':
-	CCIDShell()
+	CCIDShell([('emv', 'EMV Payment Card', EMVShell)])
