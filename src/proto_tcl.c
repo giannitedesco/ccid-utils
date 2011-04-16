@@ -35,24 +35,6 @@ enum tcl_pcd_state {
 	TCL_STATE_DESELECTED,		/* card deselected or HLTA'd */
 };
 
-struct tcl_handle {
-	/* derived from ats */
-	unsigned int fsc;	/* max frame size accepted by card */
-	unsigned int fsd;	/* max frame size accepted by reader */
-	unsigned int fwt;	/* frame waiting time (in usec)*/
-	unsigned char ta;	/* divisor information */
-	unsigned char sfgt;	/* start-up frame guard time (in usec) */
-
-	/* otherwise determined */
-	unsigned int cid;	/* Card ID */
-	unsigned int nad;	/* Node Address */
-
-	unsigned int flags;
-	unsigned int state;	/* protocol state */
-
-	unsigned int toggle;	/* send toggle with next frame */
-};
-
 enum tcl_handle_flags {
 	TCL_HANDLE_F_NAD_SUPPORTED 	= 0x0001,
 	TCL_HANDLE_F_CID_SUPPORTED 	= 0x0002,
@@ -588,17 +570,17 @@ out:
 
 #define CID	0
 #define TIMEOUT	(((uint64_t)1000000 * 65536 / ISO14443_FREQ_CARRIER))
-int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
+int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag,
+		 struct tcl_handle *th)
 {
-	struct tcl_handle tclh;
 	struct _ccid *ccid;
 	uint8_t ats[64];
 	uint8_t rats[2];
 	size_t ats_len;
 	uint8_t fsdi;
 
-	memset(&tclh, 0, sizeof(tclh));
-	tclh.toggle = 1;
+	memset(th, 0, sizeof(*th));
+	th->toggle = 1;
 
 	_iso14443_fsd_to_fsdi(_rfid_layer1_mtu(cci), &fsdi);
 	rats[0] = 0xe0;
@@ -611,14 +593,14 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
 				TIMEOUT) )
 		return 0;
 
-	tclh.state = TCL_STATE_ATS_RCVD;
+	th->state = TCL_STATE_ATS_RCVD;
 	ccid = cci->cc_parent;
 
-	if ( !parse_ats(cci, tag, &tclh, ats, ats_len) ) {
+	if ( !parse_ats(cci, tag, th, ats, ats_len) ) {
 		return 0;
 	}
 
-	if ( !do_pps(cci, tag, &tclh) )
+	if ( !do_pps(cci, tag, th) )
 		return 0;
 
 	memcpy(ccid->cci_xfr->x_rxbuf, ats, ats_len);

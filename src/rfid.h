@@ -48,7 +48,4 @@ struct rfid_tag {
 /* ==================[ API ]================== */
 struct _rfid *rfid_t;
 
-_private int _rfid_select(struct _cci *cci);
-_private void _rfid_dtor(struct _cci *cci);
-
 #endif /* RFID_H */

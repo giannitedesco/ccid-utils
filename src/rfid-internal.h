@@ -15,6 +15,12 @@ struct _rfid {
 
 	const struct rfid_layer1_ops *rf_l1;
 	void *rf_l1p;
+
+	struct rfid_tag rf_tag;
+
+	union {
+		struct tcl_handle tcl;
+	}rf_l2;
 };
 
 #endif /* RFID_INTERNAL_H */
