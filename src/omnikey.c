@@ -10,6 +10,7 @@
 
 #include "ccid-internal.h"
 #include "rfid.h"
+#include "clrc632.h"
 
 #define RFID_SLOT 0
 
@@ -143,10 +144,9 @@ void _omnikey_init_prox(struct _ccid *ccid)
 	if ( !enable_clrc632(ccid) )
 		return;
 
-	ccid->cci_rf[ccid->cci_num_rf].cc_rc632 = &asic_ops;
 	ccid->cci_rf[ccid->cci_num_rf].cc_idx = RFID_SLOT;
 
-	if ( !_clrc632_init(ccid->cci_rf + ccid->cci_num_rf) )
+	if ( !_clrc632_init(ccid->cci_rf + ccid->cci_num_rf, &asic_ops) )
 		return;
 
 	if ( !_clrc632_rf_power(ccid->cci_rf + ccid->cci_num_rf, 0) )

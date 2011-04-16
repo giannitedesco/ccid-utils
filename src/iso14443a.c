@@ -14,6 +14,7 @@
 #include "ccid-internal.h"
 #include "rfid.h"
 #include "iso14443a.h"
+#include "clrc632.h"
 
 #if 0
 #define dprintf printf

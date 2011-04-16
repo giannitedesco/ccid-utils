@@ -70,25 +70,4 @@ struct rfid_tag {
 
 _private int _rfid_select(struct _cci *cci);
 
-/* Could become a chip agnostic API */
-_private int _clrc632_init(struct _cci *cc);
-_private int _clrc632_rf_power(struct _cci *cci, unsigned int on);
-_private int _clrc632_14443a_init(struct _cci *cci);
-_private int _clrc632_set_rf_mode(struct _cci *cci, const struct rf_mode *rf);
-_private int _clrc632_get_rf_mode(struct _cci *cci, const struct rf_mode *rf);
-_private int _clrc632_get_error(struct _cci *cci, uint8_t *err);
-_private int _clrc632_get_coll_pos(struct _cci *cci, uint8_t *pos);
-_private int _clrc632_set_speed(struct _cci *cc, unsigned int i);
-_private int _clrc632_transceive(struct _cci *cci,
-				 const uint8_t *tx_buf,
-				 uint8_t tx_len,
-				 uint8_t *rx_buf,
-				 uint8_t *rx_len,
-				 uint64_t timer,
-				 unsigned int toggle);
-_private unsigned int _clrc632_carrier_freq(struct _cci *cc);
-_private unsigned int _clrc632_get_speeds(struct _cci *cc);
-_private unsigned int _clrc632_mtu(struct _cci *cc);
-_private unsigned int _clrc632_mru(struct _cci *cc);
-
 #endif /* RFID_H */

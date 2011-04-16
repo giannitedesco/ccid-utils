@@ -14,8 +14,9 @@
 #include <inttypes.h>
 
 #include "ccid-internal.h"
-#include "clrc632.h"
+#include "clrc632-regs.h"
 #include "rfid.h"
+#include "clrc632.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
@@ -28,26 +29,26 @@ struct reg_file {
 
 static int reg_read(struct _cci *cci, uint8_t reg, uint8_t *val)
 {
-	return (*cci->cc_rc632->reg_read)
-		(cci->cc_parent, cci->cc_idx, reg, val);
+	const struct _clrc632_ops *ops = cci->cc_priv;
+	return (*ops->reg_read)(cci->cc_parent, cci->cc_idx, reg, val);
 }
 
 static int reg_write(struct _cci *cci, uint8_t reg, uint8_t val)
 {
-	return (*cci->cc_rc632->reg_write)
-		(cci->cc_parent, cci->cc_idx, reg, val);
+	const struct _clrc632_ops *ops = cci->cc_priv;
+	return (*ops->reg_write)(cci->cc_parent, cci->cc_idx, reg, val);
 }
 
 static int fifo_read(struct _cci *cci, uint8_t *buf, size_t len)
 {
-	return (*cci->cc_rc632->fifo_read)
-		(cci->cc_parent, cci->cc_idx, buf, len);
+	const struct _clrc632_ops *ops = cci->cc_priv;
+	return (*ops->fifo_read)(cci->cc_parent, cci->cc_idx, buf, len);
 }
 
 static int fifo_write(struct _cci *cci, const uint8_t *buf, size_t len)
 {
-	return (*cci->cc_rc632->fifo_write)
-		(cci->cc_parent, cci->cc_idx, buf, len);
+	const struct _clrc632_ops *ops = cci->cc_priv;
+	return (*ops->fifo_write)(cci->cc_parent, cci->cc_idx, buf, len);
 }
 
 static int asic_clear_bits(struct _cci *cci, uint8_t reg, uint8_t bits)
@@ -540,8 +541,10 @@ unsigned int _clrc632_mru(struct _cci *cci)
 	return 64;
 }
 
-int _clrc632_init(struct _cci *cci)
+int _clrc632_init(struct _cci *cci, const struct _clrc632_ops *asic_ops)
 {
+	cci->cc_priv = (void *)asic_ops;
+
 	if ( !asic_power(cci, 0) )
 		return 0;
 
@@ -557,7 +560,9 @@ int _clrc632_init(struct _cci *cci)
 
 	if ( !_clrc632_rf_power(cci, 0) )
 		return 0;
+
 	usleep(100000);
+
 	if ( !_clrc632_rf_power(cci, 1) )
 		return 0;
 

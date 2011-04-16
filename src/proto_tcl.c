@@ -36,9 +36,6 @@ enum tcl_pcd_state {
 
 struct tcl_handle {
 	/* derived from ats */
-	unsigned char *historical_bytes; /* points into ats */
-	unsigned int historical_len;
-
 	unsigned int fsc;	/* max frame size accepted by card */
 	unsigned int fsd;	/* max frame size accepted by reader */
 	unsigned int fwt;	/* frame waiting time (in usec)*/
@@ -101,7 +98,7 @@ static unsigned int fwi_to_fwt(struct _cci *cci,
 	if (fwi > 14)
 		fwi = 14;
 
-	multiplier  = 1 << fwi; /* 2 to the power of fwi */
+	multiplier = 1 << fwi; /* 2 to the power of fwi */
 
 	/* ISO 14443-4:2000(E) Section 7.2.:
 	 * (256*16 / h->l2h->rh->ah->fc) * (2 ^ fwi) */
@@ -247,7 +244,7 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 
 	_iso14443_fsdi_to_fsd(t0 & 0xf, &h->fsc);
 	if (h->fsc > _clrc632_mtu(cci) )
-		h->fsc =  _clrc632_mtu(cci);
+		h->fsc = _clrc632_mtu(cci);
 
 	if (t0 & (1 << 4)) {
 		/* TA is transmitted */
@@ -274,8 +271,8 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 		cur++;
 	}
 
-	h->historical_len = (ats+len) - cur;
-	h->historical_bytes = cur;
+	//h->historical_len = (ats+len) - cur;
+	//h->historical_bytes = cur;
 	
 	return 1;
 }
@@ -438,7 +435,7 @@ tcl_refill_xcvb(struct tcl_handle *th, struct rfid_xcvb *xcvb,
 }
 
 static void fill_xcvb_wtxm(struct tcl_handle *th, struct rfid_xcvb *xcvb,
-			  unsigned char inf)
+			unsigned char inf)
 {
 	/* Acknowledge WTXM */
 	tcl_build_prologue_s(th, xcvb->tx.data, &xcvb->tx.hdr_len);
@@ -577,7 +574,7 @@ do_tx:
 			/* we're not the last frame in the chain, continue rx */
 			printf("not the last frame in the chain, continue\n");
 			ack_len = sizeof(ack);
-			tcl_build_prologue_r(th, xcvb.tx.data, &xcvb.tx.frame_len,						  0);
+			tcl_build_prologue_r(th, xcvb.tx.data, &xcvb.tx.frame_len, 0);
 			xcvb.timeout = th->fwt;
 			goto do_tx;
 		}

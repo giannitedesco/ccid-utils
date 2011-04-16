@@ -18,23 +18,13 @@
 			} \
 		}while(0);
 
-struct _clrc632_ops {
-	int (*fifo_read)(struct _ccid *ccid, unsigned int field,
-			 uint8_t *buf, size_t len);
-	int (*fifo_write)(struct _ccid *ccid, unsigned int field,
-			  const uint8_t *buf, size_t len);
-	int (*reg_read)(struct _ccid *ccid, unsigned int field,
-			uint8_t reg, uint8_t *val);
-	int (*reg_write)(struct _ccid *ccid, unsigned int field,
-			 uint8_t reg, uint8_t val);
-};
-
 struct _cci_ops {
 	const uint8_t *(*power_on)(struct _cci *cci,
 					unsigned int v,
 					size_t *atr_len);
 	int (*power_off)(struct _cci *cci);
 	int (*transact)(struct _cci *cc, struct _xfr *xfr);
+	void (*dtor)(struct _cci *cc);
 };
 extern const struct _cci_ops _contact_ops;
 extern const struct _cci_ops _rfid_ops;
@@ -44,10 +34,7 @@ struct _cci {
 	uint8_t cc_idx;
 	uint8_t cc_status;
 	const struct _cci_ops *cc_ops;
-
-	/* Fields related to proprietary interfaces */
-	const struct _clrc632_ops *cc_rc632;
-	/* XXX: may need to cache some internal state here */
+	void *cc_priv;
 };
 
 #define RFID_MAX_FIELDS 1

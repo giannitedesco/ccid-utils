@@ -10,6 +10,7 @@
 
 #include "ccid-internal.h"
 #include "rfid.h"
+#include "clrc632.h"
 
 /* TODO: Need tag selection API whereby we do collision detection, allow
  * caller to determine which tag they want to talk to and then returns
@@ -39,6 +40,7 @@ static int rfid_power_off(struct _cci *cci)
 
 static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 {
+	printf("%s: called\n", __func__);
 	return 0;
 }
 
