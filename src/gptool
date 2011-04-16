@@ -324,11 +324,8 @@ if __name__ == '__main__':
 				w = GPTool(dev, slot)
 				w.show_all()
 				wins.append(w)
-			except IOError:
-				pass
 			except:
-				raise
-				pass
+				continue
 	if len(wins) == 0:
 		bail("No CCI devices could be found")
 	gtk.main()
