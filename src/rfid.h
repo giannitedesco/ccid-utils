@@ -6,30 +6,6 @@
 #ifndef _RFID_H
 #define _RFID_H
 
-#define RFID_14443A_SPEED_106K	0
-#define RFID_14443A_SPEED_212K	1
-#define RFID_14443A_SPEED_424K  2
-#define RFID_14443A_SPEED_848K  3
-
-#define ISO14443_FREQ_CARRIER		13560000
-#define ISO14443_FREQ_SUBCARRIER	(ISO14443_FREQ_CARRIER/16)
-
-#define RF_PARITY_ENABLE	(1<<0)
-#define RF_PARITY_EVEN		(1<<1)
-#define RF_TX_CRC		(1<<2)
-#define RF_RX_CRC		(1<<3)
-#define RF_CRYPTO1		(1<<4)
-struct rf_mode {
-	uint8_t tx_last_bits;
-	uint8_t rx_last_bits;
-	uint8_t rx_align;
-	uint8_t flags;
-} _packed;
-
-#define RF_ERR_COLLISION	(1<<0)
-#define RF_ERR_CRC		(1<<1)
-#define RF_ERR_TIMEOUT		(1<<2)
-
 #define RFID_LAYER2_NONE	0
 #define RFID_LAYER2_ISO14443A	44431U
 #define RFID_LAYER2_ISO14443B	44432U
@@ -37,6 +13,7 @@ struct rf_mode {
 #define RFID_LAYER2_ICODE1	1U
 typedef unsigned long rfid_layer2_t;
 
+/* ==================[ RFID Tag State ]================== */
 #define ISO14443A_MAX_UID 10
 struct rfid_tag {
 	/* Layer 2 protocol selector */
@@ -68,6 +45,10 @@ struct rfid_tag {
 	uint8_t proto_supported;
 };
 
+/* ==================[ API ]================== */
+struct _rfid *rfid_t;
+
 _private int _rfid_select(struct _cci *cci);
+_private void _rfid_dtor(struct _cci *cci);
 
 #endif /* RFID_H */

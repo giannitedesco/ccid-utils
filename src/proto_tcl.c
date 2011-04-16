@@ -13,6 +13,7 @@
 
 #include "ccid-internal.h"
 #include "rfid.h"
+#include "rfid_layer1.h"
 #include "iso14443a.h"
 #include "proto_tcl.h"
 
@@ -87,7 +88,7 @@ static unsigned int sfgi_to_sfgt(struct _cci *cci,
 	 * (256 * 16 / h->l2h->rh->ah->fc) * (2 ^ sfgi) */
 	tmp = (unsigned int) 1000000 * 256 * 16;
 
-	return (tmp / _clrc632_carrier_freq(cci)) * multiplier;
+	return (tmp / _rfid_layer1_carrier_freq(cci)) * multiplier;
 }
 
 static unsigned int fwi_to_fwt(struct _cci *cci,
@@ -105,7 +106,7 @@ static unsigned int fwi_to_fwt(struct _cci *cci,
 
 	tmp = (unsigned int) 1000000 * 256 * 16;
 
-	return (tmp / _clrc632_carrier_freq(cci)) * multiplier;
+	return (tmp / _rfid_layer1_carrier_freq(cci)) * multiplier;
 }
 
 #define ATS_TA_DIV_2	1
@@ -119,7 +120,7 @@ static unsigned int fwi_to_fwt(struct _cci *cci,
 static unsigned char d_to_di(struct _cci *cci, unsigned char D)
 {
 	static char DI;
-	unsigned int speeds = _clrc632_get_speeds(cci);
+	unsigned int speeds = _rfid_layer1_get_speeds(cci);
 	
 	if ((D & ATS_TA_DIV_8) && (speeds & (1 << RFID_14443A_SPEED_848K)))
 		DI = PPS_DIV_8;
@@ -198,7 +199,7 @@ static int do_pps(struct _cci *cci, struct rfid_tag *tag,
 	}
 
 	speed = di_to_speed(DrI);
-	if ( !_clrc632_set_speed(cci, speed) )
+	if ( !_rfid_layer1_set_speed(cci, speed) )
 		return 0;
 
 	return 1;
@@ -243,8 +244,8 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 	cur = &ats[2];
 
 	_iso14443_fsdi_to_fsd(t0 & 0xf, &h->fsc);
-	if (h->fsc > _clrc632_mtu(cci) )
-		h->fsc = _clrc632_mtu(cci);
+	if (h->fsc > _rfid_layer1_mtu(cci) )
+		h->fsc = _rfid_layer1_mtu(cci);
 
 	if (t0 & (1 << 4)) {
 		/* TA is transmitted */
@@ -599,7 +600,7 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag)
 	memset(&tclh, 0, sizeof(tclh));
 	tclh.toggle = 1;
 
-	_iso14443_fsd_to_fsdi(_clrc632_mtu(cci), &fsdi);
+	_iso14443_fsd_to_fsdi(_rfid_layer1_mtu(cci), &fsdi);
 	rats[0] = 0xe0;
 	rats[1] = (CID & 0xf) | ((fsdi & 0xf) << 4);
 

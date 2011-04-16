@@ -770,12 +770,20 @@ out:
  */
 void ccid_close(ccid_t ccid)
 {
+	unsigned int i;
+
 	if ( ccid ) {
 		if ( ccid->cci_dev )
 			libusb_close(ccid->cci_dev);
 		if ( ccid->cci_tf )
 			fclose(ccid->cci_tf);
 		_xfr_do_free(ccid->cci_xfr);
+
+		for(i = 0; i < ccid->cci_num_rf; i++) {
+			if ( NULL == ccid->cci_rf[i].cc_ops->dtor )
+				continue;
+			(*ccid->cci_rf[i].cc_ops->dtor)(ccid->cci_rf + i);
+		}
 	}
 	free(ccid);
 }

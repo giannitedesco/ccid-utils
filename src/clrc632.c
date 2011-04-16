@@ -17,6 +17,7 @@
 #include "clrc632-regs.h"
 #include "rfid.h"
 #include "clrc632.h"
+#include "rfid_layer1.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
@@ -27,134 +28,146 @@ struct reg_file {
 	uint8_t val;
 };
 
-static int reg_read(struct _cci *cci, uint8_t reg, uint8_t *val)
+static int reg_read(struct _ccid *ccid, const struct _clrc632_ops *ops,
+			uint8_t reg, uint8_t *val)
 {
-	const struct _clrc632_ops *ops = cci->cc_priv;
-	return (*ops->reg_read)(cci->cc_parent, cci->cc_idx, reg, val);
+	return (*ops->reg_read)(ccid, 0, reg, val);
 }
 
-static int reg_write(struct _cci *cci, uint8_t reg, uint8_t val)
+static int reg_write(struct _ccid *ccid, const struct _clrc632_ops *ops,
+			uint8_t reg, uint8_t val)
 {
-	const struct _clrc632_ops *ops = cci->cc_priv;
-	return (*ops->reg_write)(cci->cc_parent, cci->cc_idx, reg, val);
+	return (*ops->reg_write)(ccid, 0, reg, val);
 }
 
-static int fifo_read(struct _cci *cci, uint8_t *buf, size_t len)
+static int fifo_read(struct _ccid *ccid, const struct _clrc632_ops *ops,
+			uint8_t *buf, size_t len)
 {
-	const struct _clrc632_ops *ops = cci->cc_priv;
-	return (*ops->fifo_read)(cci->cc_parent, cci->cc_idx, buf, len);
+	return (*ops->fifo_read)(ccid, 0, buf, len);
 }
 
-static int fifo_write(struct _cci *cci, const uint8_t *buf, size_t len)
+static int fifo_write(struct _ccid *ccid, const struct _clrc632_ops *ops,
+			const uint8_t *buf, size_t len)
 {
-	const struct _clrc632_ops *ops = cci->cc_priv;
-	return (*ops->fifo_write)(cci->cc_parent, cci->cc_idx, buf, len);
+	return (*ops->fifo_write)(ccid, 0, buf, len);
 }
 
-static int asic_clear_bits(struct _cci *cci, uint8_t reg, uint8_t bits)
+static int asic_clear_bits(struct _ccid *ccid, void *priv,
+				uint8_t reg, uint8_t bits)
 {
 	uint8_t val;
 
-	if ( !reg_read(cci, reg, &val) )
+	if ( !reg_read(ccid, priv, reg, &val) )
 		return 0;
 
 	if ( (val & bits) == 0 )
 		return 1;
 
-	return reg_write(cci, reg, val & ~bits);
+	return reg_write(ccid, priv, reg, val & ~bits);
 }
 
-static int asic_set_bits(struct _cci *cci, uint8_t reg, uint8_t bits)
+static int asic_set_bits(struct _ccid *ccid, void *priv,
+			 uint8_t reg, uint8_t bits)
 {
 	uint8_t val;
 
-	if ( !reg_read(cci, reg, &val) )
+	if ( !reg_read(ccid, priv, reg, &val) )
 		return 0;
 
 	if ( (val & bits) == bits )
 		return 1;
 
-	return reg_write(cci, reg, val | bits);
+	return reg_write(ccid, priv, reg, val | bits);
 }
 
-static int asic_set_mask(struct _cci *cci, uint8_t reg,
+static int asic_set_mask(struct _ccid *ccid, void *priv, uint8_t reg,
 			 uint8_t mask, uint8_t bits)
 {
 	uint8_t val;
 
-	if ( !reg_read(cci, reg, &val) )
+	if ( !reg_read(ccid, priv, reg, &val) )
 		return 0;
 
 	if ( (val & mask) == bits )
 		return 1;
 
-	return reg_write(cci, reg, (val & ~mask) | (bits & mask));
+	return reg_write(ccid, priv, reg, (val & ~mask) | (bits & mask));
 }
 
-static int reg_write_batch(struct _cci *cci, const struct reg_file *r,
+static int reg_write_batch(struct _ccid *ccid, void *priv,
+				const struct reg_file *r,
 				unsigned int num)
 {
 	unsigned int i;
 	for(i = 0; i < num; i++) {
-		if ( !reg_write(cci, r[i].reg, r[i].val) )
+		if ( !reg_write(ccid, priv, r[i].reg, r[i].val) )
 			return 0;
 	}
 	return 1;
 }
 
-static int asic_power(struct _cci *cci, unsigned int on)
+static int asic_power(struct _ccid *ccid, void *priv, unsigned int on)
 {
 	if ( on ) {
-		return asic_clear_bits(cci, RC632_REG_CONTROL,
+		return asic_clear_bits(ccid, priv, RC632_REG_CONTROL,
 						RC632_CONTROL_POWERDOWN);
 	}else{
-		return asic_set_bits(cci, RC632_REG_CONTROL,
+		return asic_set_bits(ccid, priv, RC632_REG_CONTROL,
 						RC632_CONTROL_POWERDOWN);
 	}
 }
 
-int _clrc632_rf_power(struct _cci *cci, unsigned int on)
+static int rf_power(struct _ccid *ccid, void *priv, unsigned int on)
 {
+	int ret;
+
 	if ( on ) {
-		return asic_clear_bits(cci, RC632_REG_TX_CONTROL,
+		ret = asic_clear_bits(ccid, priv, RC632_REG_TX_CONTROL,
 				RC632_TXCTRL_TX1_RF_EN|RC632_TXCTRL_TX2_RF_EN);
 	}else{
-		return asic_set_bits(cci, RC632_REG_TX_CONTROL,
+		ret = asic_set_bits(ccid, priv, RC632_REG_TX_CONTROL,
 				RC632_TXCTRL_TX1_RF_EN|RC632_TXCTRL_TX2_RF_EN);
 	}
+
+	/* let it settle */
+	if ( ret )
+		usleep(10000);
+
+	return ret;
 }
 
-static int flush_fifo(struct _cci *cci)
+static int flush_fifo(struct _ccid *ccid, void *priv)
 {
-	return reg_write(cci, RC632_REG_CONTROL, RC632_CONTROL_FIFO_FLUSH);
+	return reg_write(ccid, priv, RC632_REG_CONTROL,
+				RC632_CONTROL_FIFO_FLUSH);
 }
 
-static int clear_irqs(struct _cci *cci, uint8_t bits)
+static int clear_irqs(struct _ccid *ccid, void *priv, uint8_t bits)
 {
-	return reg_write(cci, RC632_REG_INTERRUPT_RQ,
+	return reg_write(ccid, priv, RC632_REG_INTERRUPT_RQ,
 			(~RC632_INT_SET) & bits);
 }
 
 /* Wait until RC632 is idle or TIMER IRQ has happened */
-static int wait_idle_timer(struct _cci *cci)
+static int wait_idle_timer(struct _ccid *ccid, void *priv)
 {
 	uint8_t stat, irq, cmd;
 
-	if ( !reg_read(cci, RC632_REG_INTERRUPT_EN, &irq) )
+	if ( !reg_read(ccid, priv, RC632_REG_INTERRUPT_EN, &irq) )
 		return 0;
 
-	if ( !reg_write(cci, RC632_REG_INTERRUPT_EN, RC632_IRQ_SET
+	if ( !reg_write(ccid, priv, RC632_REG_INTERRUPT_EN, RC632_IRQ_SET
 				| RC632_IRQ_TIMER
 				| RC632_IRQ_IDLE
 				| RC632_IRQ_RX ) )
 		return 0;
 
 	while (1) {
-		if ( !reg_read(cci, RC632_REG_PRIMARY_STATUS, &stat) )
+		if ( !reg_read(ccid, priv, RC632_REG_PRIMARY_STATUS, &stat) )
 			return 0;
 		if (stat & RC632_STAT_ERR) {
 			uint8_t err;
-			if ( !reg_read(cci, RC632_REG_ERROR_FLAG, &err) )
+			if ( !reg_read(ccid, priv, RC632_REG_ERROR_FLAG, &err) )
 				return 0;
 			if (err & (RC632_ERR_FLAG_COL_ERR |
 				   RC632_ERR_FLAG_PARITY_ERR |
@@ -168,22 +181,23 @@ static int wait_idle_timer(struct _cci *cci)
 			}
 		}
 		if (stat & RC632_STAT_IRQ) {
-			if ( !reg_read(cci, RC632_REG_INTERRUPT_RQ, &irq) )
+			if ( !reg_read(ccid, priv,
+				RC632_REG_INTERRUPT_RQ, &irq) )
 				return 0;
 
 			if (irq & RC632_IRQ_TIMER && !(irq & RC632_IRQ_RX)) {
 				/* timed out */
 				printf("..timed out\n");
-				clear_irqs(cci, RC632_IRQ_TIMER);
+				clear_irqs(ccid, priv, RC632_IRQ_TIMER);
 				return 0;
 			}
 		}
 
-		if ( !reg_read(cci, RC632_REG_COMMAND, &cmd) )
+		if ( !reg_read(ccid, priv, RC632_REG_COMMAND, &cmd) )
 			return 0;
 
 		if (cmd == 0) {
-			clear_irqs(cci, RC632_IRQ_RX);
+			clear_irqs(ccid, priv, RC632_IRQ_RX);
 			return 1;
 		}
 
@@ -233,7 +247,7 @@ static void best_prescaler(uint64_t timeout, uint8_t *prescaler,
 }
 
 #define TIMER_RELAX_FACTOR 10
-static int timer_set(struct _cci *cci, uint64_t timeout)
+static int timer_set(struct _ccid *ccid, void *priv, uint64_t timeout)
 {
 	uint8_t prescaler, divisor;
 
@@ -241,43 +255,43 @@ static int timer_set(struct _cci *cci, uint64_t timeout)
 
 	best_prescaler(timeout, &prescaler, &divisor);
 
-	if ( !reg_write(cci, RC632_REG_TIMER_CLOCK,
+	if ( !reg_write(ccid, priv, RC632_REG_TIMER_CLOCK,
 			      prescaler & 0x1f) )
 		return 0;
 
-	if ( !reg_write(cci, RC632_REG_TIMER_CONTROL,
+	if ( !reg_write(ccid, priv, RC632_REG_TIMER_CONTROL,
 			      RC632_TMR_START_TX_END|RC632_TMR_STOP_RX_BEGIN) )
 		return 0;
 
 	/* clear timer irq bit */
-	if ( !clear_irqs(cci, RC632_IRQ_TIMER) )
+	if ( !clear_irqs(ccid, priv, RC632_IRQ_TIMER) )
 		return 0;
 
 	/* enable timer IRQ */
-	if ( !reg_write(cci, RC632_REG_INTERRUPT_EN,
+	if ( !reg_write(ccid, priv, RC632_REG_INTERRUPT_EN,
 			RC632_IRQ_SET | RC632_IRQ_TIMER) )
 		return 0;
 
-	if ( !reg_write(cci, RC632_REG_TIMER_RELOAD, divisor) )
+	if ( !reg_write(ccid, priv, RC632_REG_TIMER_RELOAD, divisor) )
 		return 0;
 
 	return 1;
 }
 
-int _clrc632_set_rf_mode(struct _cci *cci, const struct rf_mode *rf)
+static int set_rf_mode(struct _ccid *ccid, void *priv, const struct rf_mode *rf)
 {
 	uint8_t red;
 
-	if ( !reg_write(cci, RC632_REG_BIT_FRAMING,
+	if ( !reg_write(ccid, priv, RC632_REG_BIT_FRAMING,
 				(rf->rx_align << 4) | (rf->tx_last_bits)) )
 		return 0;
 
 	if ( rf->flags & RF_CRYPTO1 ) {
-		if ( !asic_clear_bits(cci, RC632_REG_CONTROL,
+		if ( !asic_clear_bits(ccid, priv, RC632_REG_CONTROL,
 					RC632_CONTROL_CRYPTO1_ON) )
 			return 0;
 	}else{
-		if ( !asic_set_bits(cci, RC632_REG_CONTROL,
+		if ( !asic_set_bits(ccid, priv, RC632_REG_CONTROL,
 					RC632_CONTROL_CRYPTO1_ON) )
 			return 0;
 	}
@@ -292,28 +306,28 @@ int _clrc632_set_rf_mode(struct _cci *cci, const struct rf_mode *rf)
 	if ( !(rf->flags & RF_PARITY_EVEN) )
 		red |= RC632_CR_PARITY_ODD;
 	
-	if ( !reg_write(cci, RC632_REG_CHANNEL_REDUNDANCY, red) )
+	if ( !reg_write(ccid, priv, RC632_REG_CHANNEL_REDUNDANCY, red) )
 		return 0;
 
 	return 1;
 }
 
-int _clrc632_get_rf_mode(struct _cci *cci, const struct rf_mode *rf)
+static int get_rf_mode(struct _ccid *ccid, void *priv, const struct rf_mode *rf)
 {
 	return 0;
 }
 
-int _clrc632_get_error(struct _cci *cci, uint8_t *err)
+static int get_error(struct _ccid *ccid, void *priv, uint8_t *err)
 {
-	return reg_read(cci, RC632_REG_ERROR_FLAG, err);
+	return reg_read(ccid, priv, RC632_REG_ERROR_FLAG, err);
 }
 
-int _clrc632_get_coll_pos(struct _cci *cci, uint8_t *pos)
+static int get_coll_pos(struct _ccid *ccid, void *priv, uint8_t *pos)
 {
-	return reg_read(cci, RC632_REG_COLL_POS, pos);
+	return reg_read(ccid, priv, RC632_REG_COLL_POS, pos);
 }
 
-int _clrc632_transceive(struct _cci *cci,
+static int transact(struct _ccid *ccid, void *priv,
 			 const uint8_t *tx_buf,
 			 uint8_t tx_len,
 			 uint8_t *rx_buf,
@@ -333,21 +347,21 @@ int _clrc632_transceive(struct _cci *cci,
 	else
 		cur_tx_len = tx_len;
 
-	if ( !reg_write(cci, RC632_REG_COMMAND, RC632_CMD_IDLE) )
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_IDLE) )
 		return 0;
 	/* clear all interrupts */
-	if ( !reg_write(cci, RC632_REG_INTERRUPT_RQ, 0x7f) )
+	if ( !reg_write(ccid, priv, RC632_REG_INTERRUPT_RQ, 0x7f) )
 		return 0;
 
-	if ( !timer_set(cci, timer) )
+	if ( !timer_set(ccid, priv, timer) )
 		return 0;
 
 	do {
-		if ( !fifo_write(cci, cur_tx_buf, cur_tx_len) )
+		if ( !fifo_write(ccid, priv, cur_tx_buf, cur_tx_len) )
 			return 0;
 
 		if (cur_tx_buf == tx_buf) {
-			if ( !reg_write(cci, RC632_REG_COMMAND,
+			if ( !reg_write(ccid, priv, RC632_REG_COMMAND,
 					RC632_CMD_TRANSCEIVE) )
 				return 0;
 		}
@@ -355,7 +369,7 @@ int _clrc632_transceive(struct _cci *cci,
 		cur_tx_buf += cur_tx_len;
 		if (cur_tx_buf < tx_buf + tx_len) {
 			uint8_t fifo_fill;
-			if ( !reg_read(cci, RC632_REG_FIFO_LENGTH,
+			if ( !reg_read(ccid, priv, RC632_REG_FIFO_LENGTH,
 					&fifo_fill) )
 				return 0;
 
@@ -365,13 +379,13 @@ int _clrc632_transceive(struct _cci *cci,
 	} while (cur_tx_len);
 
 	//if (toggle == 1)
-	//	tcl_toggle_pcb(cci);
+	//	tcl_toggle_pcb(ccid, priv);
 
-	if ( !wait_idle_timer(cci) ) {
+	if ( !wait_idle_timer(ccid, priv) ) {
 		return 0;
 	}
 
-	if ( !reg_read(cci, RC632_REG_FIFO_LENGTH, &rx_avail) )
+	if ( !reg_read(ccid, priv, RC632_REG_FIFO_LENGTH, &rx_avail) )
 		return 0;
 
 	if (rx_avail > *rx_len)
@@ -385,7 +399,7 @@ int _clrc632_transceive(struct _cci *cci,
 	}
 
 	/* FIXME: discard addidional bytes in FIFO */
-	return fifo_read(cci, rx_buf, *rx_len);
+	return fifo_read(ccid, priv, rx_buf, *rx_len);
 }
 
 static const struct reg_file rf_14443a_init[] = {
@@ -435,11 +449,11 @@ static const struct reg_file rf_14443a_init[] = {
 	  .val =	0x63 },
 };
 
-int _clrc632_14443a_init(struct _cci *cci)
+static int iso14443a_init(struct _ccid *ccid, void *priv)
 {
-	if ( !flush_fifo(cci) )
+	if ( !flush_fifo(ccid, priv) )
 		return 0;
-	return reg_write_batch(cci, rf_14443a_init,
+	return reg_write_batch(ccid, priv, rf_14443a_init,
 				ARRAY_SIZE(rf_14443a_init));
 }
 
@@ -485,40 +499,41 @@ static struct {
 	},
 };
 
-int _clrc632_set_speed(struct _cci *cci, unsigned int i)
+static int set_speed(struct _ccid *ccid, void *priv, unsigned int i)
 {
 	if ( i >= ARRAY_SIZE(rate) )
 		return 0;
 	
-	if ( !asic_set_mask(cci, RC632_REG_RX_CONTROL1,
+	if ( !asic_set_mask(ccid, priv, RC632_REG_RX_CONTROL1,
 			   RC632_RXCTRL1_SUBCP_MASK,
 			   rate[i].subc_pulses) )
 		return 0;
 
-	if ( !asic_set_mask(cci, RC632_REG_DECODER_CONTROL,
+	if ( !asic_set_mask(ccid, priv, RC632_REG_DECODER_CONTROL,
 			   RC632_DECCTRL_BPSK,
 			   rate[i].rx_coding) )
 		return 0;
 
-	if ( !reg_write(cci, RC632_REG_RX_THRESHOLD, rate[i].rx_threshold) )
+	if ( !reg_write(ccid, priv, RC632_REG_RX_THRESHOLD, rate[i].rx_threshold) )
 		return 0;
 
 	if ( rate[i].rx_coding == RC632_DECCTRL_BPSK &&
-		!reg_write(cci, RC632_REG_BPSK_DEM_CONTROL,
+		!reg_write(ccid, priv, RC632_REG_BPSK_DEM_CONTROL,
 				rate[i].bpsk_dem_ctrl) )
 		return 0;
 
-	if ( !asic_set_mask(cci, RC632_CDRCTRL_RATE_MASK,
+	if ( !asic_set_mask(ccid, priv, RC632_CDRCTRL_RATE_MASK,
 			   RC632_DECCTRL_BPSK,
 			   rate[i].rate) )
 		return 0;
 
-	if ( !reg_write(cci, RC632_REG_MOD_WIDTH, rate[i].mod_width) )
+	if ( !reg_write(ccid, priv, RC632_REG_MOD_WIDTH, rate[i].mod_width) )
 		return 0;
 
 	return 1;
 }
-unsigned int _clrc632_get_speeds(struct _cci *cci)
+
+static unsigned int get_speeds(struct _ccid *ccid, void *priv)
 {
 	return (1 << RFID_14443A_SPEED_106K) |
 		(1 << RFID_14443A_SPEED_212K) |
@@ -526,44 +541,55 @@ unsigned int _clrc632_get_speeds(struct _cci *cci)
 		(1 << RFID_14443A_SPEED_848K);
 }
 
-unsigned int _clrc632_carrier_freq(struct _cci *cci)
+static unsigned int carrier_freq(struct _ccid *ccid, void *priv)
 {
 	return ISO14443_FREQ_CARRIER;
 }
 
-unsigned int _clrc632_mtu(struct _cci *cci)
+static unsigned int get_mtu(struct _ccid *ccid, void *priv)
 {
 	return 64;
 }
 
-unsigned int _clrc632_mru(struct _cci *cci)
+static unsigned int get_mru(struct _ccid *ccid, void *priv)
 {
 	return 64;
 }
+
+static const struct rfid_layer1_ops l1_ops = {
+	.rf_power = rf_power,
+	.iso14443a_init = iso14443a_init,
+	.set_rf_mode = set_rf_mode, 
+	.get_rf_mode = get_rf_mode,
+	.get_error = get_error,
+	.get_coll_pos = get_coll_pos,
+	.set_speed = set_speed,
+	.transact = transact,
+	.carrier_freq = carrier_freq,
+	.get_speeds = get_speeds,
+	.mtu = get_mtu,
+	.mru = get_mru,
+};
 
 int _clrc632_init(struct _cci *cci, const struct _clrc632_ops *asic_ops)
 {
-	cci->cc_priv = (void *)asic_ops;
+	struct _ccid *ccid = cci->cc_parent;
+	void *priv = (void *)asic_ops;
 
-	if ( !asic_power(cci, 0) )
+	if ( !asic_power(ccid, priv, 0) )
 		return 0;
 
 	usleep(10000);
 
-	if ( !asic_power(cci, 1) )
+	if ( !asic_power(ccid, priv, 1) )
 		return 0;
 
-	if ( !asic_set_bits(cci, RC632_REG_PAGE0, 0) )
+	if ( !asic_set_bits(ccid, priv, RC632_REG_PAGE0, 0) )
 		return 0;
-	if ( !asic_set_bits(cci, RC632_REG_TX_CONTROL, 0x5b) )
-		return 0;
-
-	if ( !_clrc632_rf_power(cci, 0) )
+	if ( !asic_set_bits(ccid, priv, RC632_REG_TX_CONTROL, 0x5b) )
 		return 0;
 
-	usleep(100000);
-
-	if ( !_clrc632_rf_power(cci, 1) )
+	if ( !_rfid_init(cci, &l1_ops, priv) )
 		return 0;
 
 	return 1;

@@ -11,7 +11,10 @@ libccid_la_LIBADD = -lusb-1.0
 libccid_la_LDFLAGS =  -version-info 4:0:0
 libccid_la_SOURCES = \
 	ccid-internal.h \
+	rfid-internal.h \
 	cci_contact.c \
+	rfid_layer1.c \
+	rfid_layer1.h \
 	cci_rfid.c \
 	proto_tcl.c \
 	proto_tcl.h \

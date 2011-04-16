@@ -149,9 +149,6 @@ void _omnikey_init_prox(struct _ccid *ccid)
 	if ( !_clrc632_init(ccid->cci_rf + ccid->cci_num_rf, &asic_ops) )
 		return;
 
-	if ( !_clrc632_rf_power(ccid->cci_rf + ccid->cci_num_rf, 0) )
-		return;
-
 	ccid->cci_num_rf++;
 	trace(ccid, " o CMRC632 ASIC RF interface enabled\n");
 	return;

@@ -13,8 +13,8 @@
 
 #include "ccid-internal.h"
 #include "rfid.h"
+#include "rfid_layer1.h"
 #include "iso14443a.h"
-#include "clrc632.h"
 
 #if 0
 #define dprintf printf
@@ -98,10 +98,10 @@ int _iso14443a_transceive_acf(struct _cci *cci,
 
 	mode.rx_align = rx_align;
 	mode.tx_last_bits = tx_last_bits;
-	if ( !_clrc632_set_rf_mode(cci, &mode) )
+	if ( !_rfid_layer1_set_rf_mode(cci, &mode) )
 		return 0;
 
-	if ( !_clrc632_transceive(cci, (uint8_t *)acf, tx_bytes_total,
+	if ( !_rfid_layer1_transact(cci, (uint8_t *)acf, tx_bytes_total,
 				rx_buf, &rx_len, 0x32, 0) )
 		return 0;
 
@@ -115,12 +115,12 @@ int _iso14443a_transceive_acf(struct _cci *cci,
 		memcpy(&acf->uid_bits[tx_bytes-1], &rx_buf[1], rx_len-1);
 
 	/* determine whether there was a collission */
-	if ( !_clrc632_get_error(cci, &error_flag) )
+	if ( !_rfid_layer1_get_error(cci, &error_flag) )
 		return 0;
 
 	if (error_flag & RF_ERR_COLLISION ) {
 		/* retrieve bit of collission */
-		if ( !_clrc632_get_coll_pos(cci, &boc) )
+		if ( !_rfid_layer1_get_coll_pos(cci, &boc) )
 			return 0;
 
 		/* bit of collission relative to start of part 1 of
@@ -173,10 +173,10 @@ int _iso14443ab_transceive(struct _cci *cci,
 		return 0;
 	}
 
-	if ( !_clrc632_set_rf_mode(cci, &mode) )
+	if ( !_rfid_layer1_set_rf_mode(cci, &mode) )
 		return 0;
 
-	ret = _clrc632_transceive(cci, tx_buf, tx_len,
+	ret = _rfid_layer1_transact(cci, tx_buf, tx_len,
 					rx_buf, &rxl, timeout, 0);
 	*rx_len = rxl;
 	if (!ret)
@@ -198,14 +198,14 @@ int _iso14443a_transceive_sf(struct _cci *cci,
 		.flags = RF_PARITY_ENABLE,
 	};
 
-	if ( !_clrc632_set_rf_mode(cci, &mode) )
+	if ( !_rfid_layer1_set_rf_mode(cci, &mode) )
 		return 0;
 
 	memset(atqa, 0, sizeof(*atqa));
 
 	tx_buf[0] = cmd;
 
-	if ( !_clrc632_transceive(cci, tx_buf, sizeof(tx_buf),
+	if ( !_rfid_layer1_transact(cci, tx_buf, sizeof(tx_buf),
 				(uint8_t *)atqa, &rx_len,
 				ISO14443A_FDT_ANTICOL_LAST1, 0) ) {
 		dprintf("error during rc632_transceive()\n");
@@ -213,14 +213,14 @@ int _iso14443a_transceive_sf(struct _cci *cci,
 	}
 
 	/* determine whether there was a collission */
-	if ( !_clrc632_get_error(cci, &error_flag) )
+	if ( !_rfid_layer1_get_error(cci, &error_flag) )
 		return 0;
 
 	if (error_flag & RF_ERR_COLLISION ) {
 		uint8_t boc;
 
 		/* retrieve bit of collission */
-		if ( !_clrc632_get_coll_pos(cci, &boc) )
+		if ( !_rfid_layer1_get_coll_pos(cci, &boc) )
 			return 0;
 
 		dprintf("collision detected in xcv_sf: bit_of_col=%u\n", boc);

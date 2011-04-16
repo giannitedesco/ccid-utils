@@ -2,9 +2,17 @@
 #include <unistd.h>
 
 #include "ccid-internal.h"
-#include "rfid.h"
+#include "rfid-internal.h"
 #include "iso14443a.h"
-#include "proto_tcl.h"
+
+void _rfid_dtor(struct _cci *cci)
+{
+	struct _rfid *rfid = cci->cc_priv;
+	if ( rfid->rf_l1->dtor )
+		rfid->rf_l1->dtor(rfid->rf_ccid, rfid->rf_l1p);
+	free(rfid);
+	cci->cc_priv = NULL;
+}
 
 int _rfid_select(struct _cci *cci)
 {
