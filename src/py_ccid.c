@@ -18,13 +18,13 @@ static ccidev_t get_dev(struct cp_dev *dev)
 		return dev->owner->list[dev->idx];
 }
 
-static PyObject *cp_dev_bus(struct cp_dev *self, PyObject *args)
+static PyObject *cp_dev_bus(struct cp_dev *self)
 {
 	ccidev_t dev = get_dev(self);
 	return PyInt_FromLong(libccid_device_bus(dev));
 }
 
-static PyObject *cp_dev_addr(struct cp_dev *self, PyObject *args)
+static PyObject *cp_dev_addr(struct cp_dev *self)
 {
 	ccidev_t dev = get_dev(self);
 	return PyInt_FromLong(libccid_device_addr(dev));
@@ -56,11 +56,11 @@ static void cp_dev_dealloc(struct cp_dev *self)
 	self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyMethodDef cp_dev_methods[] = {
-	{"bus", (PyCFunction)cp_dev_bus, METH_NOARGS,	
+static PyGetSetDef cp_dev_attribs[] = {
+	{"bus", (getter)cp_dev_bus, NULL,	
 		"xfr.bus()\n"
 		"Retrieves bus number of device."},
-	{"addr", (PyCFunction)cp_dev_addr, METH_NOARGS,	
+	{"addr", (getter)cp_dev_addr, NULL,
 		"xfr.addr()\n"
 		"Retrieves USB device address."},
 	{NULL, }
@@ -74,7 +74,7 @@ static PyTypeObject dev_pytype = {
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)cp_dev_init,
 	.tp_dealloc = (destructor)cp_dev_dealloc,
-	.tp_methods = cp_dev_methods,
+	.tp_getset = cp_dev_attribs,
 	.tp_doc = "CCI device list entry",
 };
 

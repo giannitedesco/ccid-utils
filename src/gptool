@@ -116,17 +116,19 @@ class GPTool(ui.App):
 		self.__terminal.transact(xfr)
 		return (bytearray(xfr.rx_data()), xfr.rx_sw1(), xfr.rx_sw2())
 
-	def select_by_aid(self, aid = None, p1 = 4):
-		return self.do_select(p1, 0, aid)
-
 	def do_select(self, p1, p2, data = None):
 		(data, sw1, sw2) = self.apdu(0x00, 0xa4, p1, p2, data)
 		if sw1 == 0x61 or sw1 == 0x9f:
 			return self.apdu(0x00, 0xc0, 0, 0, le = sw2)
 		return (data, sw1, sw2)
 
+	def select_by_aid(self, aid = None, p1 = 4):
+		print 'Select: %s'%''.join(map(lambda x:'%.2x'%x, aid))
+		return self.do_select(p1, 0, aid)
+
 	def get_data(self, tag):
-		(d, sw1, sw2) = self.apdu(0x80, 0xca, (tag >> 8), tag & 0xff, le = 0)
+		(d, sw1, sw2) = self.apdu(0x80, 0xca,
+						(tag >> 8), tag & 0xff, le = 0)
 		if sw1 != 0x6c:
 			return (d, sw1, sw2)
 		raise GPError('Get data failed')
@@ -139,9 +141,9 @@ class GPTool(ui.App):
 		challenge = self.__rand(8)
 		(d, sw1, sw2) = self.apdu(0x80, 0x50, kv, 0,
 						data = challenge, le = 0)
-		if sw1 != 0x90:
-			raise GPError('Initialize update failed %x %x'%(sw1, sw2))
 		print '%.2x %.2x (%d bytes)'%(sw1, sw2, len(d))
+		if sw1 != 0x90:
+			raise GPError('Initialize update failed')
 		print hex_str(d)
 		if len(d) != 28:
 			raise GPError('Corrupt initialize update response')
@@ -180,8 +182,8 @@ class GPTool(ui.App):
 		p = PropList()
 
 		p.subsection('Device Information')
-		p.append('USB Bus', self.__dev.bus())
-		p.append('USB Address', self.__dev.addr())
+		p.append('USB Bus', self.__dev.bus)
+		p.append('USB Address', self.__dev.addr)
 
 		p.subsection('Tag Information')
 #		if isinstance(self.__tag, acg.iso1443a):
@@ -276,12 +278,14 @@ class GPTool(ui.App):
 		(d, sw1, sw2) = self.select_by_aid(self.aid_jcop)
 		if (sw1, sw2) == (0x6a, 0x82) and len(d) > 8:
 			# decode JCOP ID data
+			ccid.hex_dump(str(d))
 			pass
-
 		self.get_card_data()
-		#(d, sw1, sw2) = self.select_by_aid(self.aid_isd)
-		#ber_dump(d)
-		#self.select_by_aid()
+
+		(d, sw1, sw2) = self.select_by_aid(self.aid_op)
+		if sw1 != 0x90:
+			raise GPError('Failed to select JCOP AID')
+		ber_dump(d)
 
 		ui.App.__init__(self, "gptool", "RFID GlobalPlatform")
 		self.set_default_size(640, 480)
@@ -320,10 +324,13 @@ if __name__ == '__main__':
 			continue
 		for slot in cci.interfaces:
 			try:
-				slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+				x = slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+				ccid.hex_dump(x)
 				w = GPTool(dev, slot)
 				w.show_all()
 				wins.append(w)
+			except GPError, e:
+				print e.args[0]
 			except:
 				continue
 	if len(wins) == 0:
