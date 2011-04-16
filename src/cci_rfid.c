@@ -63,7 +63,6 @@ static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 {
 	struct _rfid *rf = cci->cc_priv;
 	size_t rx_len;
-	int ret;
 
 	if ( NULL == rf->rf_l3 ) {
 		printf("%s: called for unsupported protocol\n", __func__);
@@ -71,12 +70,12 @@ static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 	}
 
 	rx_len = xfr->x_rxmax;
-	ret = (*rf->rf_l3)(cci, &rf->rf_tag, &rf->rf_l3p,
+	if ( !(*rf->rf_l3)(cci, &rf->rf_tag, &rf->rf_l3p,
 			xfr->x_txbuf, xfr->x_txlen,
-			xfr->x_rxbuf, &rx_len);
-	printf("transact ret %d %zu\n", ret, rx_len);
-	xfr->x_rxlen = rx_len;
+			xfr->x_rxbuf, &rx_len) )
+		return 0;
 
+	xfr->x_rxlen = rx_len;
 	return 1;
 }
 

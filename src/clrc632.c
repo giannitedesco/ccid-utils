@@ -339,8 +339,8 @@ static int transact(struct _ccid *ccid, void *priv,
 	uint8_t rx_avail;
 	const uint8_t *cur_tx_buf = tx_buf;
 
-	printf("%s: timeout=%"PRIu64", rx_len=%u, tx_len=%u\n",
-		__func__, timer, *rx_len, tx_len);
+//	printf("%s: timeout=%"PRIu64", rx_len=%u, tx_len=%u\n",
+//		__func__, timer, *rx_len, tx_len);
 
 	if (tx_len > 64)
 		cur_tx_len = 64;
