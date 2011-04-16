@@ -1,0 +1,122 @@
+#!/usr/bin/python
+
+import gobject, gtk
+import ccid
+import emv
+
+__copyright__ = 'Copyright (c) 2011 Gianni Tedesco'
+__licence__ = 'GPLv3'
+
+class CCIDeviceView(gtk.TreeView):
+	def __init__(self, callback = None):
+		self.callback = callback
+		self.store = gtk.TreeStore(gobject.TYPE_PYOBJECT,
+						gobject.TYPE_STRING,
+						gobject.TYPE_STRING)
+		gtk.TreeView.__init__(self, self.store)
+
+		self.set_headers_visible(True)
+		self.set_headers_clickable(True)
+		self.set_enable_search(True)
+		self.set_search_column(0)
+
+		r = gtk.CellRendererText()
+		i = gtk.CellRendererPixbuf()
+		col = gtk.TreeViewColumn('Devices', None)
+		col.pack_start(i, True)
+		col.add_attribute(i, 'stock-id', 1)
+		col.pack_start(r, True)
+		col.add_attribute(r, 'text', 2)
+		col.set_resizable(True)
+		self.append_column(col)
+
+		sel = self.get_selection()
+		sel.connect('changed', self.__cb)
+		self.refresh()
+
+	def __cb(self, sel):
+		if self.callback is None:
+			return
+		(store, i) = sel.get_selected()
+		if i is None:
+			return
+
+		obj = store.get_value(i, 0)
+		self.callback(obj)
+
+	def __dev(self, itr, dev):
+		i = 0
+		for cci in dev.interfaces:
+			label = 'Slot %d'%i
+			icon = gtk.STOCK_FILE
+			self.store.append(itr, (cci, icon, label))
+			i += 1
+
+	def refresh(self):
+		self.store.clear()
+
+		for dev in ccid.devlist():
+			try:
+				d = ccid.ccid(dev, None)
+			except:
+				raise
+			icon = gtk.STOCK_HARDDISK
+			label = '%s @ %d:%d'%(d.name, d.bus, d.addr)
+			itr = self.store.append(None, (d, icon, label))
+
+			self.__dev(itr, d)
+
+		self.expand_all()
+
+		sel = self.get_selection()
+		sel.select_path('0')
+
+class CCIDShell(gtk.Window):
+	def status(self, status):
+		self.__sb.pop(9)
+		self.__sb.push(0, status)
+
+	def destroy(self, *_):
+		gtk.Window.destroy(self)
+		gtk.main_quit()
+
+	def select_item(self, item):
+		if isinstance(item, ccid.ccid):
+			print 'Selected device: %s'%item.name
+		elif isinstance(item, ccid.cci):
+			print 'Selected slot'
+
+	def __init__(self):
+		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
+		self.set_default_size(640, 480)
+		self.set_title('CCID Utils')
+
+		self.connect('destroy', self.destroy)
+		agr = gtk.AccelGroup()
+		(k, m) = gtk.accelerator_parse('<Control>Q')
+		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
+		(k, m) = gtk.accelerator_parse('<Control>W')
+		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.destroy)
+		self.add_accel_group(agr)
+
+		self.__sb = gtk.Statusbar()
+		self.__tb = gtk.Toolbar()
+
+		vb = gtk.VBox()
+
+		hp = gtk.HPaned()
+		hp.add1(CCIDeviceView(self.select_item))
+		hp.add2(gtk.Label('WTF'))
+
+		vb.pack_start(self.__tb, False, False)
+		vb.pack_start(hp)
+		vb.pack_start(self.__sb, False, False)
+
+		self.add(vb)
+		self.show_all()
+
+		self.status('Scanning devices...')
+		gtk.main()
+	
+if __name__ == '__main__':
+	CCIDShell()
