@@ -522,9 +522,9 @@ static int set_speed(struct _ccid *ccid, void *priv, unsigned int i)
 				rate[i].bpsk_dem_ctrl) )
 		return 0;
 
-	if ( !asic_set_mask(ccid, priv, RC632_CDRCTRL_RATE_MASK,
-			   RC632_DECCTRL_BPSK,
-			   rate[i].rate) )
+	if ( !asic_set_mask(ccid, priv, RC632_REG_CODER_CONTROL,
+			RC632_CDRCTRL_RATE_MASK,
+			rate[i].rate) )
 		return 0;
 
 	if ( !reg_write(ccid, priv, RC632_REG_MOD_WIDTH, rate[i].mod_width) )
