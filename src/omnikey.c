@@ -14,8 +14,7 @@
 
 #define RFID_SLOT 0
 
-static int fifo_read(struct _ccid *ccid, unsigned int field,
-			uint8_t *buf, size_t len)
+static int fifo_read(struct _ccid *ccid, uint8_t *buf, size_t len)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
@@ -40,8 +39,7 @@ static int fifo_read(struct _ccid *ccid, unsigned int field,
 	return 1;
 }
 
-static int fifo_write(struct _ccid *ccid, unsigned int field,
-			const uint8_t *buf, size_t len)
+static int fifo_write(struct _ccid *ccid, const uint8_t *buf, size_t len)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
@@ -65,8 +63,7 @@ static int fifo_write(struct _ccid *ccid, unsigned int field,
 	return 1;
 }
 
-static int reg_read(struct _ccid *ccid, unsigned int field,
-			uint8_t reg, uint8_t *val)
+static int reg_read(struct _ccid *ccid, uint8_t reg, uint8_t *val)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 
@@ -94,8 +91,7 @@ static int reg_read(struct _ccid *ccid, unsigned int field,
 	return 1;
 }
 
-static int reg_write(struct _ccid *ccid, unsigned int field,
-			uint8_t reg, uint8_t val)
+static int reg_write(struct _ccid *ccid, uint8_t reg, uint8_t val)
 {
 	struct _xfr *xfr = ccid->cci_xfr;
 

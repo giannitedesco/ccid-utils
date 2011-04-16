@@ -31,25 +31,25 @@ struct reg_file {
 static int reg_read(struct _ccid *ccid, const struct _clrc632_ops *ops,
 			uint8_t reg, uint8_t *val)
 {
-	return (*ops->reg_read)(ccid, 0, reg, val);
+	return (*ops->reg_read)(ccid, reg, val);
 }
 
 static int reg_write(struct _ccid *ccid, const struct _clrc632_ops *ops,
 			uint8_t reg, uint8_t val)
 {
-	return (*ops->reg_write)(ccid, 0, reg, val);
+	return (*ops->reg_write)(ccid, reg, val);
 }
 
 static int fifo_read(struct _ccid *ccid, const struct _clrc632_ops *ops,
 			uint8_t *buf, size_t len)
 {
-	return (*ops->fifo_read)(ccid, 0, buf, len);
+	return (*ops->fifo_read)(ccid, buf, len);
 }
 
 static int fifo_write(struct _ccid *ccid, const struct _clrc632_ops *ops,
 			const uint8_t *buf, size_t len)
 {
-	return (*ops->fifo_write)(ccid, 0, buf, len);
+	return (*ops->fifo_write)(ccid, buf, len);
 }
 
 static int asic_clear_bits(struct _ccid *ccid, void *priv,
