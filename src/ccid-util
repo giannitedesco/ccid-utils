@@ -56,7 +56,13 @@ class CCIDeviceView(gtk.TreeView):
 				# maybe no card
 				pass
 			n = isinstance(cci, ccid.rfid) and 'Field' or 'Slot'
-			label = '%s %d'%(n, cci.index)
+			t = isinstance(cci, ccid.rfid) and 'Tag' or 'Card'
+			if cci.status in [ccid.CHIPCARD_PRESENT,
+						ccid.CHIPCARD_ACTIVE]:
+				status = '%s Present'%t
+			else:
+				status = 'Empty'
+			label = '%s %d\n%s'%(n, cci.index, status)
 			icon = gtk.STOCK_FILE
 			self.store.append(itr, (cci, icon, label))
 			i += 1
@@ -70,7 +76,7 @@ class CCIDeviceView(gtk.TreeView):
 			except:
 				raise
 			icon = gtk.STOCK_HARDDISK
-			label = '%s @ %d:%d'%(d.name, d.bus, d.addr)
+			label = '%s\nBus %d, Address %d'%(d.name, d.bus, d.addr)
 			itr = self.store.append(None, (d, icon, label))
 
 			self.__dev(itr, d)
@@ -93,9 +99,9 @@ class CCIDShell(gtk.Window):
 		if isinstance(item, ccid.ccid):
 			print 'Selected device: %s'%item.name
 		elif isinstance(item, ccid.slot):
-			print 'Selected slot: %d'%item.index,item.status
+			print 'Selected slot: %d'%item.index
 		elif isinstance(item, ccid.rfid):
-			print 'Selected proximity field: %d'%item.index,item.status
+			print 'Selected proximity field: %d'%item.index
 
 	def __init__(self, apps = []):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
