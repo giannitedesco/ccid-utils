@@ -1,0 +1,334 @@
+#!/usr/bin/python
+
+import gobject, gtk, pango
+from gnome import ui, program_init
+import random
+import ccid
+import ber
+
+__copyright__ = "Copyright (c) 2010 Gianni Tedesco"
+__licence__ = "GPLv3"
+
+class GPError(Exception):
+	pass
+
+def ber_dump(s):
+	try:
+		t = ber.tlv(s)
+	except ber.ACG_BER_Error:
+		return
+	t.pretty_print()
+
+def hex_str(s):
+	return ' '.join(map(lambda x:'%.2x'%x, s))
+
+class PropList(gtk.Table):
+	def __init__(self):
+		gtk.Table.__init__(self, rows = 1, columns = 3)
+		attr = pango.AttrList()
+		attr.insert(pango.AttrWeight(pango.WEIGHT_BOLD, 0, -1))
+		self.__bold = attr
+
+		attr = pango.AttrList()
+		attr.insert(pango.AttrWeight(pango.WEIGHT_BOLD, 0, -1))
+		attr.insert(pango.AttrScale(pango.SCALE_LARGE, 0, -1))
+		self.__section = attr
+
+	def append(self, k, v):
+		nr = self.get_property('n-rows')
+		self.set_property('n-rows', nr + 1)
+
+		l = gtk.Label(k + ':')
+		r = gtk.Label(v)
+
+		l.set_alignment(0, 0)
+		r.set_alignment(0, 0)
+
+#		l.set_property('attributes', self.__bold)
+
+		self.attach(l, 0, 1, nr - 1, nr, yoptions = 0)
+		self.attach(r, 1, 2, nr - 1, nr, yoptions = 0)
+
+	def subsection(self, label):
+		nr = self.get_property('n-rows')
+		if nr != 1:
+			self.set_property('n-rows', nr + 1)
+			self.attach(gtk.Label(''), 0, 2,
+					nr - 1, nr, yoptions = 0)
+
+		nr = self.get_property('n-rows')
+		self.set_property('n-rows', nr + 1)
+
+		l = gtk.Label(label)
+		l.set_property('attributes', self.__section)
+		l.set_alignment(0, 0)
+
+		self.attach(l, 0, 2, nr - 1, nr, yoptions = 0)
+
+		nr = self.get_property('n-rows')
+		self.set_property('n-rows', nr + 1)
+		self.attach(gtk.HSeparator(), 0, 2, nr - 1, nr, yoptions = 0)
+		return
+
+class GPTool(ui.App):
+#	__clevel = {
+#			acg.iso1443a.CASCADE_LEVEL1: 1,
+#			acg.iso1443a.CASCADE_LEVEL2: 2,
+#			acg.iso1443a.CASCADE_LEVEL3: 3,
+#		}
+	GP_STATUS_ISD = 0x80
+	GP_STATUS_APPLICATIONS = 0x40
+	GP_STATUS_EXEC_LOAD = 0x20
+	GP_STATUS_EXEC_LOAD_AND_MOD = 0x10
+	aid_op = bytearray([0xa0, 0x00 , 0x00, 0x00, 0x03, 0x00, 0x00, 0x00])
+	aid_isd = bytearray([0xa0, 0x00 , 0x00, 0x01, 0x51, 0x00, 0x00])
+	aid_jcop = bytearray([0xA0, 0, 0, 0x01, 0x67, 0x41, 0x30, 0, 0xFF])
+
+	def destroy(self, w):
+		gtk.main_quit()
+
+	def set_status(self, str):
+		self.__ab.set_status(str)
+
+	def error(self, e):
+		msg = ' '.join(e.args)
+		self.set_status(msg)
+		return
+
+	def apdu(self, cla, ins, p1, p2, data = None, le = None):
+		if self.__dev is None:
+			raise CmdError, 'Select an RFID device first'
+		x = bytearray([cla, ins, p1, p2])
+		totlen = 4
+		if data is not None:
+			x.append(len(data)) # Lc
+			x.extend(bytearray(data))
+			totlen += 1 + len(data)
+		if  le is not None:
+			x.append(le)
+			totlen += 1
+		while totlen < 5:
+			x.append(0)
+			totlen += 1
+
+		xfr = ccid.xfr(len(x), 4096)
+		xfr.tx_str(str(x))
+		self.__terminal.transact(xfr)
+		return (bytearray(xfr.rx_data()), xfr.rx_sw1(), xfr.rx_sw2())
+
+	def select_by_aid(self, aid = None, p1 = 4):
+		return self.do_select(p1, 0, aid)
+
+	def do_select(self, p1, p2, data = None):
+		(data, sw1, sw2) = self.apdu(0x00, 0xa4, p1, p2, data)
+		if sw1 == 0x61 or sw1 == 0x9f:
+			return self.apdu(0x00, 0xc0, 0, 0, le = sw2)
+		return (data, sw1, sw2)
+
+	def get_data(self, tag):
+		(d, sw1, sw2) = self.apdu(0x80, 0xca, (tag >> 8), tag & 0xff, le = 0)
+		if sw1 != 0x6c:
+			return (d, sw1, sw2)
+		raise GPError('Get data failed')
+		return self.apdu(0x00, 0xca, x >> 8, x & 0xff, le = sw2)
+
+	def __rand(self, nbytes):
+		return bytearray(map(lambda x:self.__rng.getrandbits(8),
+					xrange(nbytes)))
+	def initialize_update(self, kv = 0):
+		challenge = self.__rand(8)
+		(d, sw1, sw2) = self.apdu(0x80, 0x50, kv, 0,
+						data = challenge, le = 0)
+		if sw1 != 0x90:
+			raise GPError('Initialize update failed %x %x'%(sw1, sw2))
+		print '%.2x %.2x (%d bytes)'%(sw1, sw2, len(d))
+		print hex_str(d)
+		if len(d) != 28:
+			raise GPError('Corrupt initialize update response')
+
+	def get_card_data(self):
+		(d, sw1, sw2) = self.get_data(0x66)
+		if sw1 != 0x90:
+			raise GPError('Card data not retrieved %x'%sw1)
+
+		tlv = ber.tlv(d)
+		#ber_dump(d)
+
+		if int(tlv.tag) != 0x66 or not tlv.has_tag(0x73):
+			raise GPError('Card data corrupted')
+
+		tlv73 = tlv[0x73][0]
+
+		if not tlv73.has_tag(0x64) or not tlv73[0x64][0].has_tag(0x06):
+			raise GPError('Card recognition data corrupted')
+		if not tlv73.has_tag(0x60) or not tlv73[0x60][0].has_tag(0x06):
+			raise GPError('Card recognition data corrupted')
+
+		tlv64 = tlv73[0x64][0][0x06][0].val
+		self.scp = (tlv64[-2], tlv64[-1])
+		if tlv64[-3] != 4:
+			raise GPError('Unsupported scp'\
+					'version %d'%tlv64[-3])
+
+		tlv60 = tlv73[0x60][0][0x06][0].val
+		if tlv60[-4] != 2:
+			raise GPError('Unsupported global '\
+					'platform version %d'%tlv60[-4])
+		self.gp_ver = tuple(tlv60[-3:])
+
+	def __page_card(self):
+		p = PropList()
+
+		p.subsection('Device Information')
+		p.append('USB Bus', self.__dev.bus())
+		p.append('USB Address', self.__dev.addr())
+
+		p.subsection('Tag Information')
+#		if isinstance(self.__tag, acg.iso1443a):
+#			p.append('Tag Type', 'ISO1443-A')
+#			if self.__clevel.has_key(self.__tag.cascade):
+#				p.append('Cascade Level',
+#					self.__clevel[self.__tag.cascade])
+#			if self.__tag.reqa is not None:
+#				p.append('REQA Response',
+#					hex_str(self.__tag.reqa))
+#			if self.__tag.rats is not None:
+#				p.append('RATS', hex_str(self.__tag.rats))
+#		elif isinstance(self.__tag, acg.iso1443b):
+#			p.append('Tag Type', 'ISO1443-B')
+#		if self.__tag.baud is not None:
+#			p.append('Baud Rate', '%uKbps'%self.__tag.baud)
+#		if self.__tag.frame_size is not None:
+#			p.append('Frame Size', '%u bytes'%self.__tag.frame_size)
+
+		p.subsection('GlobalPlatform Card Data')
+		p.append('Global Platform', 'Version %u.%u.%u'%self.gp_ver)
+		p.append('Secure Channel Protocol',
+				'%d, Implementation %d'%self.scp)
+
+		return p
+
+	def __page_app(self):
+		self.initialize_update()
+		return gtk.Label("App shitz")
+
+	def __page_select(self, sel):
+		(ls, i) = sel.get_selected()
+		if i is None:
+			return
+		w = ls.get_value(i, 0)()
+		w.show_all()
+		ow = self.__hp.get_child2()
+		if ow is not None:
+			ow.destroy()
+		self.__hp.add2(w)
+		self.__hp.show_all()
+
+	def __page_list(self):
+		ls = gtk.ListStore(gobject.TYPE_PYOBJECT,
+					gobject.TYPE_STRING,
+					gobject.TYPE_STRING)
+		t = gtk.TreeView(ls)
+		self.__hp.add1(t)
+
+		t.set_headers_visible(False)
+		t.set_enable_search(True)
+		t.set_search_column(0)
+
+		r = gtk.CellRendererText()
+		i = gtk.CellRendererPixbuf()
+		i.set_property("stock-size", gtk.ICON_SIZE_LARGE_TOOLBAR)
+
+		col = gtk.TreeViewColumn("Page", None)
+		col.pack_start(i, True)
+		col.add_attribute(i, "stock-id", 1)
+		col.pack_start(r, True)
+		col.add_attribute(r, "text", 2)
+		col.set_resizable(True)
+		t.append_column(col)
+
+		for (label, cb, icon) in self.__pages:
+			ls.append((cb, icon, label))
+
+		sel = t.get_selection()
+		sel.connect("changed", self.__page_select)
+		sel.select_path('0')
+
+		return (ls, t)
+
+	def __init__(self, dev, terminal):
+		self.__pages = [
+			('Card Details', self.__page_card,
+					gtk.STOCK_DIALOG_AUTHENTICATION),
+			('Install Application', self.__page_app,
+					gtk.STOCK_DIALOG_AUTHENTICATION),
+		]
+
+		self.__dev = dev
+		self.__terminal = terminal
+
+		try:
+			self.__rng = random.SystemRandom()
+		except:
+			self.__rng = random.WinchmannHill()
+
+
+		(d, sw1, sw2) = self.select_by_aid(self.aid_jcop)
+		if (sw1, sw2) == (0x6a, 0x82) and len(d) > 8:
+			# decode JCOP ID data
+			pass
+
+		self.get_card_data()
+		#(d, sw1, sw2) = self.select_by_aid(self.aid_isd)
+		#ber_dump(d)
+		#self.select_by_aid()
+
+		ui.App.__init__(self, "gptool", "RFID GlobalPlatform")
+		self.set_default_size(640, 480)
+		self.connect("destroy", self.destroy)
+
+		self.__ab = ui.AppBar(True, True, ui.PREFERENCES_USER)
+		self.set_statusbar(self.__ab)
+
+		self.__hp = gtk.HPaned()
+		self.__page_list()
+
+		self.set_contents(self.__hp)
+
+def err_destroy(self):
+	gtk.main_quit()
+def err_destroy2(self, b):
+	gtk.main_quit()
+
+def bail(msg):
+	err = gtk.MessageDialog(type = gtk.MESSAGE_ERROR,
+				buttons = gtk.BUTTONS_CLOSE,
+				message_format = msg)
+	err.show_all()
+	err.connect("destroy", err_destroy)
+	err.connect("response", err_destroy2)
+	gtk.main()
+	raise SystemExit
+
+if __name__ == '__main__':
+	program_init("gptool", "0.3")
+	wins = []
+	for dev in ccid.devlist():
+		try:
+			cci = ccid.ccid(dev, 'gptool.trace')
+		except:
+			continue
+		for slot in cci.interfaces:
+			try:
+				slot.on(ccid.CHIPCARD_AUTO_VOLTAGE)
+				w = GPTool(dev, slot)
+				w.show_all()
+				wins.append(w)
+			except IOError:
+				pass
+			except:
+				raise
+				pass
+	if len(wins) == 0:
+		bail("No CCI devices could be found")
+	gtk.main()
