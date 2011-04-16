@@ -346,7 +346,7 @@ static PyTypeObject *ccid_cci_type;
 
 static int PyCCI_Check(PyObject *obj)
 {
-	return (ccid_cci_type == obj->ob_type);
+	return (ccid_cci_type == obj->ob_type) || (ccid_cci_type == obj->ob_type->tp_base);
 }
 
 static int cp_emv_init(struct cp_emv *self, PyObject *args, PyObject *kwds)
