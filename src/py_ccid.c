@@ -392,24 +392,67 @@ static void cp_cci_dealloc(struct cp_cci *self)
 	self->ob_type->tp_free((PyObject*)self);
 }
 
+static PyObject *cci_index_get(struct cp_cci *self)
+{
+	return PyInt_FromLong(self->index);
+}
+
+static PyObject *cci_owner_get(struct cp_cci *self)
+{
+	Py_INCREF(self->owner);
+	return self->owner;
+}
+
+static PyGetSetDef cp_cci_attribs[] = {
+	{"index", (getter)cci_index_get, NULL,
+		"Interface index"},
+	{"owner", (getter)cci_owner_get, NULL,
+		"Owning device"},
+	{NULL,}
+};
+
 static PyTypeObject cci_pytype = {
 	PyObject_HEAD_INIT(NULL)
 	.tp_name = "ccid.cci",
 	.tp_basicsize = sizeof(struct cp_cci),
-	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	.tp_new = PyType_GenericNew,
 	.tp_methods = cp_cci_methods,
+	.tp_getset = cp_cci_attribs,
 	.tp_dealloc = (destructor)cp_cci_dealloc,
 	.tp_doc = "Chip Card Interface",
 };
 
+static PyTypeObject slot_pytype = {
+	PyObject_HEAD_INIT(NULL)
+	.tp_name = "ccid.slot",
+	.tp_base = &cci_pytype,
+	.tp_basicsize = sizeof(struct cp_cci),
+	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	.tp_new = PyType_GenericNew,
+	.tp_dealloc = (destructor)cp_cci_dealloc,
+	.tp_doc = "Contact Card Interface",
+};
+
+static PyTypeObject rfid_pytype = {
+	PyObject_HEAD_INIT(NULL)
+	.tp_name = "ccid.rfid",
+	.tp_base = &cci_pytype,
+	.tp_basicsize = sizeof(struct cp_cci),
+	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	.tp_new = PyType_GenericNew,
+	.tp_dealloc = (destructor)cp_cci_dealloc,
+	.tp_doc = "Proximity Card Interface",
+};
 
 /* ---[ CCI wrapper */
-static PyObject *Py_cci_New(struct cp_ccid *owner, cci_t cci)
+static PyObject *Py_cci_New(PyTypeObject *type,
+				struct cp_ccid *owner, cci_t cci,
+				unsigned int idx)
 {
 	struct cp_cci *cc;
 
-	cc = (struct cp_cci *)_PyObject_New(&cci_pytype);
+	cc = (struct cp_cci *)_PyObject_New(type);
 	if ( NULL == cc ) {
 		PyErr_SetString(PyExc_MemoryError,
 				"Allocating chipcard interface");
@@ -418,6 +461,7 @@ static PyObject *Py_cci_New(struct cp_ccid *owner, cci_t cci)
 
 	cc->owner = (PyObject *)owner;
 	cc->slot = cci;
+	cc->index = idx;
 
 	Py_INCREF(cc->owner);
 	return (PyObject *)cc;
@@ -472,7 +516,7 @@ static PyObject *ccid_interfaces_get(struct cp_ccid *self)
 		if ( NULL == cci )
 			goto err;
 
-		elem = Py_cci_New(self, cci);
+		elem = Py_cci_New(&slot_pytype, self, cci, i);
 		if ( NULL == elem )
 			goto err;
 		PyList_SetItem(list, i, elem);
@@ -483,7 +527,7 @@ static PyObject *ccid_interfaces_get(struct cp_ccid *self)
 		if ( NULL == cci )
 			goto err;
 
-		elem = Py_cci_New(self, cci);
+		elem = Py_cci_New(&rfid_pytype, self, cci, i);
 		if ( NULL == elem )
 			goto err;
 		PyList_SetItem(list, num_slots + i, elem);
@@ -599,6 +643,10 @@ PyMODINIT_FUNC initccid(void)
 		return;
 	if ( PyType_Ready(&cci_pytype) < 0 )
 		return;
+	if ( PyType_Ready(&slot_pytype) < 0 )
+		return;
+	if ( PyType_Ready(&rfid_pytype) < 0 )
+		return;
 
 	m = Py_InitModule3("ccid", methods, "USB Chip Card Interface Driver");
 	if ( NULL == m )
@@ -625,7 +673,13 @@ PyMODINIT_FUNC initccid(void)
 	Py_INCREF(&cci_pytype);
 	PyModule_AddObject(m, "cci", (PyObject *)&cci_pytype);
 
-	Py_INCREF(&cci_pytype);
+	Py_INCREF(&slot_pytype);
+	PyModule_AddObject(m, "slot", (PyObject *)&slot_pytype);
+
+	Py_INCREF(&rfid_pytype);
+	PyModule_AddObject(m, "rfid", (PyObject *)&rfid_pytype);
+
+	Py_INCREF(&ccid_pytype);
 	PyModule_AddObject(m, "ccid", (PyObject *)&ccid_pytype);
 
 	Py_INCREF(&dev_pytype);

@@ -26,6 +26,7 @@ struct cp_cci {
 	PyObject_HEAD;
 	PyObject *owner;
 	cci_t slot;
+	unsigned int index;
 };
 
 struct cp_ccid {

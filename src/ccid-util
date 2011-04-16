@@ -47,7 +47,8 @@ class CCIDeviceView(gtk.TreeView):
 	def __dev(self, itr, dev):
 		i = 0
 		for cci in dev.interfaces:
-			label = 'Slot %d'%i
+			n = isinstance(cci, ccid.rfid) and 'Field' or 'Slot'
+			label = '%s %d'%(n, cci.index)
 			icon = gtk.STOCK_FILE
 			self.store.append(itr, (cci, icon, label))
 			i += 1
@@ -83,8 +84,10 @@ class CCIDShell(gtk.Window):
 	def select_item(self, item):
 		if isinstance(item, ccid.ccid):
 			print 'Selected device: %s'%item.name
-		elif isinstance(item, ccid.cci):
-			print 'Selected slot'
+		elif isinstance(item, ccid.slot):
+			print 'Selected slot: %d'%item.index
+		elif isinstance(item, ccid.rfid):
+			print 'Selected proximity field: %d'%item.index
 
 	def __init__(self):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
