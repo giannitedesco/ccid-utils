@@ -254,6 +254,7 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 		cur++;
 	}
 
+	printf("T=CL fwt=%u\n", h->fwt);
 	//h->historical_len = (ats+len) - cur;
 	//h->historical_bytes = cur;
 	
@@ -273,7 +274,7 @@ struct fr_buff {
 struct rfid_xcvb {
 	struct rfix_xcvb *next;		/* next in queue of buffers */
 
-	u_int64_t timeout;		/* timeout to wait for reply */
+	uint64_t timeout;		/* timeout to wait for reply */
 	struct fr_buff tx;
 	struct fr_buff rx;
 };
@@ -441,11 +442,10 @@ static int check_cid(struct tcl_handle *th, struct rfid_xcvb *xcvb)
 	return 1;
 }
 
-int _tcl_transceive(struct _cci *cci, struct rfid_tag *tag,
+int _tcl_transact(struct _cci *cci, struct rfid_tag *tag,
 		struct tcl_handle *th,
 		const unsigned char *tx_data, unsigned int tx_len,
-		unsigned char *rx_data, unsigned int *rx_len,
-		unsigned int timeout)
+		unsigned char *rx_data, unsigned int *rx_len)
 {
 	int ret;
 
@@ -579,7 +579,6 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag,
 	size_t ats_len;
 	uint8_t fsdi;
 
-	memset(th, 0, sizeof(*th));
 	th->toggle = 1;
 
 	_iso14443_fsd_to_fsdi(_rfid_layer1_mtu(cci), &fsdi);

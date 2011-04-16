@@ -10,6 +10,14 @@
 #include "rfid_layer1.h"
 #include "proto_tcl.h"
 
+union _rfid_layer3 {
+	struct tcl_handle tcl;
+};
+
+typedef int (*rfid_l3_t)(struct _cci *cci, struct rfid_tag *tag,
+			union _rfid_layer3 *l3p,
+			const unsigned char *tx_data, unsigned int tx_len,
+			unsigned char *rx_data, unsigned int *rx_len);
 struct _rfid {
 	struct _ccid *rf_ccid;
 
@@ -18,9 +26,8 @@ struct _rfid {
 
 	struct rfid_tag rf_tag;
 
-	union {
-		struct tcl_handle tcl;
-	}rf_l2;
+	rfid_l3_t rf_l3;
+	union _rfid_layer3 rf_l3p;
 };
 
 #endif /* RFID_INTERNAL_H */

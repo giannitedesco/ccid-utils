@@ -8,6 +8,28 @@
 
 #include <stdio.h>
 
+static int jcop_select(cci_t cci)
+{
+	xfr_t xfr;
+	int ret;
+
+	xfr = xfr_alloc(1024, 1024);
+	if ( NULL == xfr )
+		return 0;
+
+	xfr_reset(xfr);
+	xfr_tx_byte(xfr, 0); /* cla */
+	xfr_tx_byte(xfr, 0xc0); /* ins: SELECT */
+	xfr_tx_byte(xfr, 4); /* p1 */
+	xfr_tx_byte(xfr, 0); /* p2 */
+	xfr_tx_byte(xfr, 9); /* lc */
+	xfr_tx_buf(xfr, (uint8_t *)"\xa0\0\0\x01\x67\x41\x30\0\xff", 9);
+	ret = cci_transact(cci, xfr);
+
+	xfr_free(xfr);
+	return ret;
+}
+
 static int do_stuff(cci_t cci)
 {
 	const uint8_t *ats;
@@ -27,6 +49,13 @@ static int do_stuff(cci_t cci)
 
 	printf(" - Got %zu bytes ATS...\n", ats_len);
 	hex_dump(ats, ats_len, 16);
+
+	if ( !jcop_select(cci) ) {
+		printf(" - jcop select failed\n");
+		return 0;
+	}
+
+	printf("YAY\n");
 	return 1;
 }
 

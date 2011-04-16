@@ -15,8 +15,11 @@
 static int do_select(struct _cci *cci)
 {
 	struct _rfid *rf = cci->cc_priv;
+	int ret;
 
 	memset(&rf->rf_tag, 0, sizeof(rf->rf_tag));
+	memset(&rf->rf_l3p, 0, sizeof(rf->rf_l3p));
+	rf->rf_l3 = NULL;
 
 	if ( !_iso14443a_anticol(cci, 0, &rf->rf_tag) )
 		return 0;
@@ -25,8 +28,12 @@ static int do_select(struct _cci *cci)
 		rf->rf_tag.level);
 	hex_dump(rf->rf_tag.uid, rf->rf_tag.uid_len, 16);
 
-	if ( rf->rf_tag.tcl_capable )
-		return _tcl_get_ats(cci, &rf->rf_tag, &rf->rf_l2.tcl);
+	if ( rf->rf_tag.tcl_capable ) {
+		ret = _tcl_get_ats(cci, &rf->rf_tag, &rf->rf_l3p.tcl);
+		if ( ret )
+			rf->rf_l3 = (rfid_l3_t)_tcl_transact;
+		return ret;
+	}
 
 	printf("Unsupported tag type\n");
 	return 0;
@@ -54,8 +61,23 @@ static int rfid_power_off(struct _cci *cci)
 
 static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 {
-	printf("%s: called\n", __func__);
-	return 0;
+	struct _rfid *rf = cci->cc_priv;
+	size_t rx_len;
+	int ret;
+
+	if ( NULL == rf->rf_l3 ) {
+		printf("%s: called for unsupported protocol\n", __func__);
+		return 0;
+	}
+
+	rx_len = xfr->x_rxmax;
+	ret = (*rf->rf_l3)(cci, &rf->rf_tag, &rf->rf_l3p,
+			xfr->x_txbuf, xfr->x_txlen,
+			xfr->x_rxbuf, &rx_len);
+	printf("transact ret %d %zu\n", ret, rx_len);
+	xfr->x_rxlen = rx_len;
+
+	return 1;
 }
 
 static void rfid_dtor(struct _cci *cci)
