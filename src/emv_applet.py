@@ -44,7 +44,8 @@ def exp(idx):
 
 class EMVPinDialog(gtk.Dialog):
 	def __init__(self, parent, e):
-		gtk.Dialog.__init__(self, "EMV Cardholder Verification", parent,
+		gtk.Dialog.__init__(self, "EMV Cardholder Verification",
+			parent.ccid_util,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
 			 gtk.STOCK_OK, gtk.RESPONSE_OK))
@@ -425,7 +426,8 @@ class EMVActionDialog(gtk.Dialog):
 		return p
 
 	def __init__(self, parent, e, cdol1, cdol2):
-		gtk.Dialog.__init__(self, "EMV Card Action Analysis", parent,
+		gtk.Dialog.__init__(self, "EMV Card Action Analysis",
+			parent.ccid_util,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
 			 gtk.STOCK_OK, gtk.RESPONSE_OK))
@@ -655,7 +657,7 @@ class EMVShell(gtk.ScrolledWindow):
 			return
 
 	def __cvm(self, a):
-		d = EMVPinDialog(self.ccid_util, self.__emv)
+		d = EMVPinDialog(self, self.__emv)
 		try:
 			if d.run():
 				self.set_status("Cardholder verified")
@@ -679,7 +681,7 @@ class EMVShell(gtk.ScrolledWindow):
 			return
 
 		try:
-			d = EMVActionDialog(self.ccid_util, self.__emv,
+			d = EMVActionDialog(self, self.__emv,
 						cdol1, cdol2)
 		except Exception, e:
 			self.error(e)
