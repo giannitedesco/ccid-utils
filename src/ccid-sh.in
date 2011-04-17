@@ -266,7 +266,9 @@ class scsh:
 					"Stopped in HI state",
 				ccid.CHIPCARD_CLOCK_STOP: "Stopped"
 			}
-			self.out("Status: " + cstr[c])
+			self.out("Clock: " + cstr[c])
+		elif self.__slot.status == ccid.CHIPCARD_NOT_PRESENT:
+			self.__slot.on()
 
 		s = self.__slot.status
 		sstr = {
@@ -274,7 +276,7 @@ class scsh:
 			ccid.CHIPCARD_PRESENT: "PRESENT",
 			ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
 		}
-		self.out("Clock: " + sstr[s])
+		self.out("Status: " + sstr[s])
 
 	def cmd_brutecla(self, str, *arg):
 		"Brute force CLA."
