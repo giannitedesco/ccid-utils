@@ -73,6 +73,7 @@ static const struct {
 	{0x6c00, "Wrong Le field"},
 	{0x6d00, "Bad INS"},
 	{0x6e00, "Bad CLA"},
+	{0x9000, "Not an EMV payment card"},
 };
 static const char *icc_err_string(uint32_t code)
 {
