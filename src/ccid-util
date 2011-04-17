@@ -267,7 +267,8 @@ class CCIDShell(gtk.Window):
 		self.add_accel_group(agr)
 
 		tb = [ \
-			('Refresh', gtk.STOCK_REFRESH, self.refresh)
+			('Quit', gtk.STOCK_QUIT, self.destroy),
+			('Refresh', gtk.STOCK_REFRESH, self.refresh),
 			]
 		self.apps = {}
 		for (name,desc,app) in apps:
