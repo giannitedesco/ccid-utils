@@ -55,7 +55,9 @@ class CCIDeviceView(gtk.TreeView):
 		if ev.button != 1:
 			return
 
-		(path, col, x, y) = self.get_path_at_pos(ev.x, ev.y)
+		(path, col, x, y) = self.get_path_at_pos(
+					int(round(ev.x)),
+					int(round(ev.y)))
 		itr = self.store.get_iter(path)
 		obj = self.store.get_value(itr, 0)
 		if obj == self.current_sel:
