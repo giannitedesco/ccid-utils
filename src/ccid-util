@@ -91,7 +91,10 @@ class CCIDeviceView(gtk.TreeView):
 
 class CCIDApplets(gtk.Notebook):
 	def __switch(self, _, __, idx):
-		app = self.get_nth_page(idx)
+		if idx < 0:
+			app = None
+		else:
+			app = self.get_nth_page(idx)
 		if self.callback is not None:
 			self.callback(app)
 
@@ -144,6 +147,8 @@ class CCIDApplets(gtk.Notebook):
 
 		del self.__map[a.cci]
 		self.remove_page(idx)
+		if not self.get_n_pages():
+			self.__switch(None, None, -1)
 		return
 
 	def __close_tab(self, button, tab = None):
@@ -163,31 +168,45 @@ class CCIDApplets(gtk.Notebook):
 			self.__map[cci] = idx
 
 		self.set_current_page(self.__map[cci])
+		return self.get_nth_page(self.get_current_page())
 
 class CCIDToolbar(gtk.Toolbar):
+	def __init__(self, defaults = []):
+		gtk.Toolbar.__init__(self)
+		self.defaults = defaults
+		self.clear()
+
 	def clear(self):
 		n = self.get_n_items()
 		for i in xrange(n):
 			self.remove(self.get_nth_item(0))
+		for i in self.defaults:
+			self.append_item(*i)
+		self.insert(gtk.SeparatorToolItem(), -1)
+		self.show_all()
+
+	def append_item(self, txt, iname, cb):
+		icon = gtk.Image()
+		icon.set_from_stock(iname, gtk.ICON_SIZE_LARGE_TOOLBAR)
+		item = gtk.ToolButton(icon, txt)
+		item.set_tooltip_text(txt)
+		item.set_is_important(True)
+		item.set_visible_horizontal(True)
+		item.set_visible_vertical(True)
+		if cb is not None:
+			item.connect('clicked', cb)
+		item.show_all()
+		self.insert(item, -1)
 
 	def set_toolbar(self, app):
 		self.clear()
-		items = app.toolbar()
-		for (txt, iname, cb) in items:
-			icon = gtk.Image()
-			icon.set_from_stock(iname, gtk.ICON_SIZE_LARGE_TOOLBAR)
-			item = gtk.ToolButton(icon, txt)
-			item.set_tooltip_text(txt)
-			item.set_is_important(True)
-			item.set_visible_horizontal(True)
-			item.set_visible_vertical(True)
-			item.connect("clicked", cb)
-			self.insert(item, -1)
+		if app is not None:
+			items = app.toolbar()
+			for i in items:
+				self.append_item(*i)
 
-		if self.get_n_items():
-			self.show_all()
-		else:
-			self.hide_all()
+	def set_default(self, items):
+		self.defaults = items
 
 
 class CCIDShell(gtk.Window):
@@ -207,7 +226,6 @@ class CCIDShell(gtk.Window):
 
 	def select_item(self, item):
 		if isinstance(item, ccid.ccid):
-			self.__tb.clear()
 			return
 		elif isinstance(item, ccid.slot):
 			label = '%s slot: %d'%(item.owner.name, item.index)
@@ -215,10 +233,14 @@ class CCIDShell(gtk.Window):
 			label = '%s field: %d'%(item.owner.name, item.index)
 
 		(desc, app) = self.apps['emv']
-		self.__nb.open_tab(self, item, app, desc)
+		a = self.__nb.open_tab(self, item, app, desc)
 
 	def __app_select(self, app):
 		self.__tb.set_toolbar(app)
+
+	def refresh(self, *_):
+		self.__dv.refresh()
+		self.status('Re-scanned devices')
 
 	def __init__(self, apps = []):
 		gtk.Window.__init__(self, gtk.WINDOW_TOPLEVEL)
@@ -233,19 +255,23 @@ class CCIDShell(gtk.Window):
 		agr.connect_group(k, m, gtk.ACCEL_VISIBLE, self.close_win)
 		self.add_accel_group(agr)
 
+		tb = [ \
+			('Refresh', gtk.STOCK_REFRESH, self.refresh)
+			]
 		self.apps = {}
 		for (name,desc,app) in apps:
 			self.apps[name] = (desc,app)
 
 		self.__sb = gtk.Statusbar()
-		self.__tb = CCIDToolbar()
+		self.__tb = CCIDToolbar(tb)
 		self.__nb = CCIDApplets(self.__app_select)
+		self.__dv = CCIDeviceView(self.select_item)
 		self.__app = {}
 
 		vb = gtk.VBox()
 
 		hp = gtk.HPaned()
-		hp.add1(CCIDeviceView(self.select_item))
+		hp.add1(self.__dv)
 		hp.add2(self.__nb)
 
 		vb.pack_start(self.__tb, False, False)
@@ -254,7 +280,6 @@ class CCIDShell(gtk.Window):
 
 		self.add(vb)
 		self.show_all()
-		self.__tb.hide()
 		self.status('Scanned devices')
 
 		gtk.main()
