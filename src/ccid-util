@@ -11,6 +11,7 @@ __licence__ = 'GPLv3'
 class CCIDeviceView(gtk.TreeView):
 	def __init__(self, callback = None):
 		self.callback = callback
+		self.current_sel = None
 		self.store = gtk.TreeStore(gobject.TYPE_PYOBJECT,
 						gobject.TYPE_STRING,
 						gobject.TYPE_STRING)
@@ -41,13 +42,23 @@ class CCIDeviceView(gtk.TreeView):
 			return
 		(store, i) = sel.get_selected()
 		if i is None:
-			return
+			obj = None
+		else:
+			obj = store.get_value(i, 0)
 
-		obj = store.get_value(i, 0)
+		self.current_sel = obj
 		self.callback(obj)
 
 	def __button(self, _, ev):
-		if ev.button == 1:
+		# synthesize a selection change event when clicking on the
+		# currently selected item
+		if ev.button != 1:
+			return
+
+		(path, col, x, y) = self.get_path_at_pos(ev.x, ev.y)
+		itr = self.store.get_iter(path)
+		obj = self.store.get_value(itr, 0)
+		if obj == self.current_sel:
 			self.__cb(self.get_selection())
 
 	def __dev(self, itr, dev):
