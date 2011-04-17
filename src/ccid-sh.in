@@ -255,24 +255,24 @@ class scsh:
 	def cmd_status(self, str, *arg):
 		"Display hardware status."
 
-		self.__slot.on()
-
 		# clock first because it updates status
 		if isinstance(self.__slot, ccid.slot):
 			c = self.__slot.clock_status()
 			cstr = {
-				ccid.CHIPCARD_ACTIVE: "ACTIVE",
-				ccid.CHIPCARD_PRESENT: "PRESENT",
-				ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
+				ccid.CHIPCARD_CLOCK_START: "Running",
+				ccid.CHIPCARD_CLOCK_STOP_L:
+					"Stopped in LO state",
+				ccid.CHIPCARD_CLOCK_STOP_H:
+					"Stopped in HI state",
+				ccid.CHIPCARD_CLOCK_STOP: "Stopped"
 			}
 			self.out("Status: " + cstr[c])
 
 		s = self.__slot.status
 		sstr = {
-			ccid.CHIPCARD_CLOCK_START: "Running",
-			ccid.CHIPCARD_CLOCK_STOP_L: "Stopped in LO state",
-			ccid.CHIPCARD_CLOCK_STOP_H: "Stopped in HI state",
-			ccid.CHIPCARD_CLOCK_STOP: "Stopped"
+			ccid.CHIPCARD_ACTIVE: "ACTIVE",
+			ccid.CHIPCARD_PRESENT: "PRESENT",
+			ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
 		}
 		self.out("Clock: " + sstr[s])
 
