@@ -456,7 +456,8 @@ class EMVActionDialog(gtk.Dialog):
 
 class EMVAppDialog(gtk.Dialog):
 	def __init__(self, parent, e):
-		gtk.Dialog.__init__(self, "EMV Application Selection", parent,
+		gtk.Dialog.__init__(self, "EMV Application Selection",
+			parent.ccid_util,
 			gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			(gtk.STOCK_CANCEL, gtk.RESPONSE_REJECT,
 			 gtk.STOCK_OK, gtk.RESPONSE_OK))
@@ -601,7 +602,7 @@ class EMVShell(gtk.ScrolledWindow):
 			self.__add_children(i, x)
 
 	def __appsel(self, a):
-		d = EMVAppDialog(self.ccid_util, self.__emv)
+		d = EMVAppDialog(self, self.__emv)
 		try:
 			ret = d.run()
 		except Exception, e:

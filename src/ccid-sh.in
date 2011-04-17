@@ -26,7 +26,7 @@ class scsh:
 	def cmd_devlist(self, str, *arg):
 		"Print out a list of candidate CCI devices."
 		for x in ccid.devlist():
-			self.out("  bus=%u addr=%u"%(x.bus(), x.addr()))
+			self.out("  bus=%u addr=%u"%(x.bus, x.addr))
 
 	def cmd_dev(self, str, *arg):
 		"Select a device by bus number and USB address."
@@ -255,17 +255,19 @@ class scsh:
 	def cmd_status(self, str, *arg):
 		"Display hardware status."
 
+		self.__slot.on()
+
 		# clock first because it updates status
-		c = self.__slot.clock_status()
-		s = self.__slot.slot_status()
+		if isinstance(self.__slot, ccid.slot):
+			c = self.__slot.clock_status()
+			cstr = {
+				ccid.CHIPCARD_ACTIVE: "ACTIVE",
+				ccid.CHIPCARD_PRESENT: "PRESENT",
+				ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
+			}
+			self.out("Status: " + cstr[c])
 
-		cstr = {
-			ccid.CHIPCARD_ACTIVE: "ACTIVE",
-			ccid.CHIPCARD_PRESENT: "PRESENT",
-			ccid.CHIPCARD_NOT_PRESENT: "NOT PRESENT"
-		}
-		self.out("Status: " + cstr[c])
-
+		s = self.__slot.status
 		sstr = {
 			ccid.CHIPCARD_CLOCK_START: "Running",
 			ccid.CHIPCARD_CLOCK_STOP_L: "Stopped in LO state",
@@ -569,7 +571,7 @@ class scsh:
 		}
 
 	def prompt(self):
-		status = self.__slot.clock_status()
+		status = self.__slot.status
 		if status == ccid.CHIPCARD_NOT_PRESENT:
 			return "ccid-$ "
 		else:
@@ -596,7 +598,7 @@ class scsh:
 		except ValueError, e:
 			self.out("Command failed: %s: %s"%(arg[0], e.args[0]))
 		except IOError, e:
-			if self.__slot.clock_status() == \
+			if self.__slot.status == \
 					ccid.CHIPCARD_NOT_PRESENT:
 				self.out("Card not present!!")
 			else:

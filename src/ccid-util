@@ -55,9 +55,12 @@ class CCIDeviceView(gtk.TreeView):
 		if ev.button != 1:
 			return
 
-		(path, col, x, y) = self.get_path_at_pos(
-					int(round(ev.x)),
-					int(round(ev.y)))
+		tup = self.get_path_at_pos(int(round(ev.x)),
+							int(round(ev.y)))
+		if tup is None:
+			return
+
+		(path, col, x, y) = tup
 		itr = self.store.get_iter(path)
 		obj = self.store.get_value(itr, 0)
 		if obj == self.current_sel:
@@ -244,6 +247,9 @@ class CCIDShell(gtk.Window):
 			label = '%s slot: %d'%(item.owner.name, item.index)
 		elif isinstance(item, ccid.rfid):
 			label = '%s field: %d'%(item.owner.name, item.index)
+		else:
+			# NoneType for example
+			return
 
 		(desc, app) = self.apps['emv']
 		a = self.__nb.open_tab(self, item, app, desc)

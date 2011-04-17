@@ -63,6 +63,7 @@ static const struct {
 	{0x6700, "Wrong length >:)"},
 	{0x6985, "Conditions of use not satisfied"},
 	{0x6a81, "Selected function not supported"},
+	{0x6a82, "File not found"},
 	{0x6a83, "Record not found"},
 	{0x6a84, "Not enough memory space in file"},
 	{0x6a85, "Lc inconsistent with TLV structure"},
