@@ -10,6 +10,32 @@
 
 #include "ccid-internal.h"
 
+static int select_params(struct _cci *cci, const uint8_t *atr, size_t len)
+{
+	return 1;
+#if 0
+	struct _ccid *ccid = cci->cc_parent;
+	xfr_t xfr;
+
+	xfr = xfr_alloc(256, 256);
+	if ( NULL == xfr )
+		return 0;
+
+	if ( !_PC_to_RDR_GetParameters(ccid, cci->cc_idx, xfr) )
+		goto err;
+	if ( !_RDR_to_PC(ccid, cci->cc_idx, xfr) )
+		goto err;
+	if ( !_RDR_to_PC_Parameters(ccid, xfr) )
+		goto err;
+
+	xfr_free(xfr);
+	return 1;
+err:
+	xfr_free(xfr);
+	return 0;
+#endif
+}
+
 
 /** Retrieve chip card status.
  * \ingroup g_cci
@@ -51,6 +77,9 @@ static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
 		return NULL;
 	
 	_RDR_to_PC_DataBlock(ccid, ccid->cci_xfr);
+
+	select_params(cci, ccid->cci_xfr->x_rxbuf, ccid->cci_xfr->x_rxlen);
+
 	if ( atr_len )
 		*atr_len = ccid->cci_xfr->x_rxlen;
 	return ccid->cci_xfr->x_rxbuf;

@@ -98,6 +98,38 @@ unsigned int _RDR_to_PC_SlotStatus(struct _ccid *ccid, struct _xfr *xfr)
 	}
 }
 
+int _RDR_to_PC_Parameters(struct _ccid *ccid, struct _xfr *xfr)
+{
+	const struct _ccid_t0 *t0;
+	const struct _ccid_t1 *t1;
+
+	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_Parameters);
+	trace(ccid, "     : RDR_to_PC_Parameters: ");
+	switch(xfr->x_rxhdr->in.bApp) {
+	case CCID_PROTOCOL_T0:
+		trace(ccid, "T=0 Protocol block follows\n");
+		if ( xfr->x_rxlen < sizeof(*t0) )
+			return 0;
+		t0 = (const struct _ccid_t0 *)xfr->x_rxbuf;
+		_hex_dumpf(ccid->cci_tf, (uint8_t *)t0,
+				sizeof(*t0), sizeof(*t0));
+		break;
+	case CCID_PROTOCOL_T1:
+		trace(ccid, "T=1 Protocol block follows\n");
+		if ( xfr->x_rxlen < sizeof(*t1) )
+			return 0;
+		t1 = (const struct _ccid_t1 *)xfr->x_rxbuf;
+		_hex_dumpf(ccid->cci_tf, (uint8_t *)t1,
+				sizeof(*t1), sizeof(*t1));
+		break;
+	default:
+		trace(ccid, "Unknown rotocol: 0x%.2x\n", xfr->x_rxhdr->in.bApp);
+		return 0;
+	}
+
+	return 1;
+}
+
 static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 {
 	switch( msg->in.bStatus & CCID_STATUS_RESULT_MASK ) {
@@ -328,6 +360,48 @@ int _PC_to_RDR_GetSlotStatus(struct _ccid *ccid, unsigned int slot,
 	ret = _PC_to_RDR(ccid, slot, xfr);
 	if ( ret )
 		trace(ccid, " Xmit: PC_to_RDR_GetSlotStatus(%u)\n", slot);
+
+	return ret;
+}
+
+int _PC_to_RDR_GetParameters(struct _ccid *ccid, unsigned int slot,
+				struct _xfr *xfr)
+{
+	int ret;
+
+	memset(xfr->x_txhdr, 0, sizeof(*xfr->x_txhdr));
+	xfr->x_txhdr->bMessageType = PC_to_RDR_GetParameters;
+	ret = _PC_to_RDR(ccid, slot, xfr);
+	if ( ret )
+		trace(ccid, " Xmit: PC_to_RDR_GetParameters(%u)\n", slot);
+
+	return ret;
+}
+
+int _PC_to_RDR_SetParameters(struct _ccid *ccid, unsigned int slot,
+				struct _xfr *xfr)
+{
+	int ret;
+
+	memset(xfr->x_txhdr, 0, sizeof(*xfr->x_txhdr));
+	xfr->x_txhdr->bMessageType = PC_to_RDR_SetParameters;
+	ret = _PC_to_RDR(ccid, slot, xfr);
+	if ( ret )
+		trace(ccid, " Xmit: PC_to_RDR_SetParameters(%u)\n", slot);
+
+	return ret;
+}
+
+int _PC_to_RDR_ResetParameters(struct _ccid *ccid, unsigned int slot,
+				struct _xfr *xfr)
+{
+	int ret;
+
+	memset(xfr->x_txhdr, 0, sizeof(*xfr->x_txhdr));
+	xfr->x_txhdr->bMessageType = PC_to_RDR_ResetParameters;
+	ret = _PC_to_RDR(ccid, slot, xfr);
+	if ( ret )
+		trace(ccid, " Xmit: PC_to_RDR_ResetParameters(%u)\n", slot);
 
 	return ret;
 }

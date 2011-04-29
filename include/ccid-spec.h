@@ -142,4 +142,24 @@ struct ccid_desc {
 	uint8_t		bMaxCCIDBusySlots;
 } _packed;
 
+#define CCID_PROTOCOL_T0 0x0
+struct _ccid_t0 {
+	uint8_t bmFindexDindex;
+	uint8_t bmTCCSKST0;
+	uint8_t bGuardTimeT0;
+	uint8_t bWaitingIntegerT0;
+	uint8_t bClockStop;
+} _packed;
+
+#define CCID_PROTOCOL_T1 0x1
+struct _ccid_t1 {
+	uint8_t bmFindexDindex;
+	uint8_t bmTCCSKST1;
+	uint8_t bGuardTimeT1;
+	uint8_t bWaitingIntegerT1;
+	uint8_t bClockStop;
+	uint8_t bIFSC;
+	uint8_t bNadValue;
+} _packed;
+
 #endif /* _CCID_SPEC_H */

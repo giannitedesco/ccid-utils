@@ -218,22 +218,27 @@ end:	/* Step 6. terminate processing */
 
 static int found_cci(ccidev_t dev)
 {
+	static int count;
+	char fn[128];
 	cci_t cc;
 	ccid_t ccid;
 	int ret = 0;
 
-	ccid = ccid_probe(dev, "./emvtool.log");
+	snprintf(fn, sizeof(fn), "emvtool.%u.log", count++);
+	ccid = ccid_probe(dev, fn);
 	if ( NULL == ccid )
 		goto out;
-	
+
+	printf("ccid: Device %s\n", ccid_name(ccid));
+
 	cc = ccid_get_slot(ccid, 0);
 	if ( NULL == cc ) {
 		fprintf(stderr, "ccid: error: no slots on CCI\n");
 		goto out_close;
 	}
 
-	if ( !cci_wait_for_card(cc) )
-		goto out_close;
+//	if ( !cci_wait_for_card(cc) )
+//		goto out_close;
 
 	if ( !cci_power_on(cc, CHIPCARD_AUTO_VOLTAGE, NULL) )
 		goto out_close;

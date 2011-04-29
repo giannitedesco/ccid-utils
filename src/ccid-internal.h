@@ -100,8 +100,15 @@ _private unsigned int _RDR_to_PC_SlotStatus(struct _ccid *ccid,
 						struct _xfr *xfr);
 _private unsigned int _RDR_to_PC_DataBlock(struct _ccid *ccid,
 						struct _xfr *xfr);
+_private int _RDR_to_PC_Parameters(struct _ccid *ccid, struct _xfr *xfr);
 
 _private int _PC_to_RDR_GetSlotStatus(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_GetParameters(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_SetParameters(struct _ccid *ccid, unsigned int slot,
+					struct _xfr *xfr);
+_private int _PC_to_RDR_ResetParameters(struct _ccid *ccid, unsigned int slot,
 					struct _xfr *xfr);
 _private int _PC_to_RDR_IccPowerOn(struct _ccid *ccid, unsigned int slot,
 					struct _xfr *xfr,
