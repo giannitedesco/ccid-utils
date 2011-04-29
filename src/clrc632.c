@@ -215,6 +215,7 @@ static void best_prescaler(uint64_t timeout, uint8_t *prescaler,
 
 	smallest_diff = LLONG_MAX;
 	best_prescaler = 0;
+	best_divisor = 1;
 
 	for (i = 0; i < 21; i++) {
 		uint64_t clk, tmp_div, res;

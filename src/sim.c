@@ -218,6 +218,7 @@ static void read_iccid(struct _sim *s)
 	const uint8_t *ptr;
 	size_t len, i;
 
+	_sim_select(s, SIM_MF);
 	_sim_select(s, SIM_EF_ICCID);
 	ptr = _sim_read_binary(s, &len);
 
@@ -237,9 +238,12 @@ static void read_imsi(struct _sim *s)
 	const uint8_t *ptr;
 	size_t len, i;
 
+	_sim_select(s, SIM_MF);
 	_sim_select(s, SIM_DF_GSM);
 	_sim_select(s, SIM_EF_IMSI);
 	ptr = _sim_read_binary(s, &len);
+	if ( NULL == ptr )
+		return;
 
 	printf("IMSI: ");
 	for(i = 0; i < len && ptr[i] != 0xff; i++) {
@@ -325,7 +329,7 @@ sim_t sim_new(cci_t cc)
 	if ( NULL == atr )
 		goto err_free_xfr;
 
-	printf(" o Found SIM with %u byte ATR:\n", atr_len);
+	printf(" o Found SIM with %zu byte ATR:\n", atr_len);
 	hex_dump(atr, atr_len, 16);
 
 	if ( !_sim_select(s, SIM_MF) )

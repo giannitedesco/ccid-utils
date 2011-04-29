@@ -16,8 +16,8 @@ union _rfid_layer3 {
 
 typedef int (*rfid_l3_t)(struct _cci *cci, struct rfid_tag *tag,
 			union _rfid_layer3 *l3p,
-			const unsigned char *tx_data, unsigned int tx_len,
-			unsigned char *rx_data, unsigned int *rx_len);
+			const unsigned char *tx_data, size_t tx_len,
+			unsigned char *rx_data, size_t *rx_len);
 struct _rfid {
 	struct _ccid *rf_ccid;
 

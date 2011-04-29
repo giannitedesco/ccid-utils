@@ -43,8 +43,8 @@ _private int _iso14443a_transceive_sf(struct _cci *cci,
 						struct iso14443a_atqa *atqa);
 _private int _iso14443ab_transceive(struct _cci *cci,
 				   unsigned int frametype,
-				   const uint8_t *tx_buf, unsigned int tx_len,
-				   uint8_t *rx_buf, unsigned int *rx_len,
+				   const uint8_t *tx_buf, size_t tx_len,
+				   uint8_t *rx_buf, size_t *rx_len,
 				   uint64_t timeout);
 _private int _iso14443a_transceive_acf(struct _cci *cci,
 					struct iso14443a_anticol_cmd *acf,

@@ -55,6 +55,7 @@ static int do_stuff(cci_t cci)
 		return 0;
 	}
 
+	cci_power_off(cci);
 	printf("YAY\n");
 	return 1;
 }
@@ -95,7 +96,6 @@ static int found_ccid(ccidev_t dev)
 
 	ret = 1;
 
-	cci_power_off(cci);
 	ccid_close(ccid);
 out:
 	return ret;

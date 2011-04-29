@@ -19,7 +19,7 @@ static void hex_dump(const uint8_t *tmp, size_t len,
 			line = llen;
 		}
 
-		printf("%*c%05x : ", depth, ' ', j);
+		printf("%*c%05zx : ", depth, ' ', j);
 
 		for(i = 0; i < line; i++) {
 			if ( isprint(tmp[i]) ) {
@@ -124,7 +124,7 @@ again:
 	if ( buf + clen > end )
 		return;
 
-	printf("%*c.len = %u (0x%x)",
+	printf("%*c.len = %zu (0x%zx)",
 		depth, ' ', len, len);
 
 	if ( ber_id_octet_constructed(idb) ) {

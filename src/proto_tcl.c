@@ -145,7 +145,7 @@ static int do_pps(struct _cci *cci, struct rfid_tag *tag,
 	/* FIXME: this stinks like hell. IF we reduce pps_response size to one,
 	   we'll get stack corruption! */
 	unsigned char pps_response[10];
-	unsigned int rx_len = 1;
+	size_t rx_len = 1;
 	unsigned char Dr, Ds, DrI, DsI;
 	unsigned int speed;
 
@@ -268,8 +268,8 @@ static int parse_ats(struct _cci *cci, struct rfid_tag *tag,
 }
 
 struct fr_buff {
-	unsigned int frame_len;		/* length of frame */
-	unsigned int hdr_len;		/* length of header within frame */
+	size_t frame_len;		/* length of frame */
+	size_t hdr_len;		/* length of header within frame */
 	unsigned char data[RFID_MAX_FRAMELEN];
 };
 
@@ -302,7 +302,7 @@ struct tcl_tx_context {
 
 static int
 tcl_build_prologue2(struct tcl_handle *th, 
-		    unsigned char *prlg, unsigned int *prlg_len, 
+		    unsigned char *prlg, size_t *prlg_len, 
 		    unsigned char pcb)
 {
 	*prlg_len = 1;
@@ -341,7 +341,7 @@ tcl_build_prologue2(struct tcl_handle *th,
 
 static int
 tcl_build_prologue_i(struct tcl_handle *th,
-		     unsigned char *prlg, unsigned int *prlg_len)
+		     unsigned char *prlg, size_t *prlg_len)
 {
 	/* ISO 14443-4:2000(E) Section 7.1.1.1 */
 	return tcl_build_prologue2(th, prlg, prlg_len, 0x02);
@@ -349,7 +349,7 @@ tcl_build_prologue_i(struct tcl_handle *th,
 
 static int
 tcl_build_prologue_r(struct tcl_handle *th,
-		     unsigned char *prlg, unsigned int *prlg_len,
+		     unsigned char *prlg, size_t *prlg_len,
 		     unsigned int nak)
 {
 	unsigned char pcb = 0xa2;
@@ -363,7 +363,7 @@ tcl_build_prologue_r(struct tcl_handle *th,
 
 static int
 tcl_build_prologue_s(struct tcl_handle *th,
-		     unsigned char *prlg, unsigned int *prlg_len)
+		     unsigned char *prlg, size_t *prlg_len)
 {
 	/* ISO 14443-4:2000(E) Section 7.1.1.1 */
 

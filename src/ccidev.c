@@ -167,7 +167,7 @@ static struct devid *load_device_types(unsigned int *pcnt)
 		lf = strchr(buf, '\n');
 		if ( NULL == lf ) {
 			fprintf(stderr,
-				"%s:%u: line exceeded max line length (%u)",
+				"%s:%u: line exceeded max line length (%zu)",
 				fn, line, sizeof(buf));
 			break;
 		}

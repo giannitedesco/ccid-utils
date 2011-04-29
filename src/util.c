@@ -23,7 +23,7 @@ void _hex_dumpf(FILE *f, const uint8_t *tmp, size_t len, size_t llen)
 			line = llen;
 		}
 
-		fprintf(f, " | %05x : ", j);
+		fprintf(f, " | %05zx : ", j);
 
 		for(i = 0; i < line; i++) {
 			if ( isprint(tmp[i]) ) {

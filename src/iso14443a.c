@@ -134,8 +134,8 @@ int _iso14443a_transceive_acf(struct _cci *cci,
 /* transceive regular frame */
 int _iso14443ab_transceive(struct _cci *cci,
 				   unsigned int frametype,
-				   const uint8_t *tx_buf, unsigned int tx_len,
-				   uint8_t *rx_buf, unsigned int *rx_len,
+				   const uint8_t *tx_buf, size_t tx_len,
+				   uint8_t *rx_buf, size_t *rx_len,
 				   uint64_t timeout)
 {
 	int ret;
@@ -292,7 +292,7 @@ int _iso14443a_anticol(struct _cci *cci, int wup, struct rfid_tag *tag)
 	struct iso14443a_anticol_cmd acf;
 	unsigned int bit_of_col;
 	unsigned char sak[3];
-	unsigned int rx_len = sizeof(sak);
+	size_t rx_len = sizeof(sak);
 
 	memset(sak, 0, sizeof(sak));
 	memset(&atqa, 0, sizeof(atqa));

@@ -38,7 +38,7 @@ int _cci_wait_for_interrupt(struct _ccid *ccid)
 	buf = (void *)ccid->cci_xfr->x_rxhdr;
 	len = (size_t)ret;
 
-	trace(ccid, " Intr: %u byte interrupt packet\n", len);
+	trace(ccid, " Intr: %zu byte interrupt packet\n", len);
 	if ( len < 1 )
 		return 1;
 
@@ -69,7 +69,7 @@ int _cci_wait_for_interrupt(struct _ccid *ccid)
 unsigned int _RDR_to_PC_DataBlock(struct _ccid *ccid, struct _xfr *xfr)
 {
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_DataBlock);
-	trace(ccid, "     : RDR_to_PC_DataBlock: %u bytes\n", xfr->x_rxlen);
+	trace(ccid, "     : RDR_to_PC_DataBlock: %zu bytes\n", xfr->x_rxlen);
 	_hex_dumpf(ccid->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
 	/* APDU chaining parameter */
 	return xfr->x_rxhdr->in.bApp;
@@ -232,7 +232,7 @@ again:
 
 	msg = xfr->x_rxhdr;
 
-	trace(ccid, " Recv: %d bytes for slot %u (seq = 0x%.2x)\n",
+	trace(ccid, " Recv: %zu bytes for slot %u (seq = 0x%.2x)\n",
 		xfr->x_rxlen, msg->bSlot, msg->bSeq);
 
 	if ( msg->bSlot != slot ) {
@@ -282,7 +282,7 @@ static int _PC_to_RDR(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	len = (size_t)ret;
 
 	if ( ret < x_tbuflen(xfr) ) {
-		fprintf(stderr, "*** error: truncated TX: %u/%u\n",
+		fprintf(stderr, "*** error: truncated TX: %zu/%zu\n",
 			len, x_tbuflen(xfr));
 		return 0;
 	}
@@ -463,7 +463,7 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 	ccid->cci_num_slots = ccid->cci_desc.bMaxSlotIndex + 1;
 	ccid->cci_max_slots = ccid->cci_desc.bMaxCCIDBusySlots;
 
-	trace(ccid, " o got %u/%u byte desc of type 0x%.2x\n",
+	trace(ccid, " o got %zu/%zu byte desc of type 0x%.2x\n",
 		len, sizeof(ccid->cci_desc), ccid->cci_desc.bDescriptorType);
 	trace(ccid, " o CCID v%u.%u device with %u/%u slots in parallel\n",
 			bcd_hi(ccid->cci_desc.bcdCCID),

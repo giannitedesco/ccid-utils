@@ -22,14 +22,14 @@ static int bop_adfname(const uint8_t *ptr, size_t len, void *priv)
 static int bop_label(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
-	snprintf(a->a_name, sizeof(a->a_name), "%.*s", len, ptr);
+	snprintf(a->a_name, sizeof(a->a_name), "%.*s", (int)len, ptr);
 	return 1;
 }
 
 static int bop_pname(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
-	snprintf(a->a_pname, sizeof(a->a_pname), "%.*s", len, ptr);
+	snprintf(a->a_pname, sizeof(a->a_pname), "%.*s", (int)len, ptr);
 	return 1;
 }
 
