@@ -574,7 +574,7 @@ static const struct rfid_layer1_ops l1_ops = {
 
 int _clrc632_init(struct _cci *cci, const struct _clrc632_ops *asic_ops)
 {
-	struct _ccid *ccid = cci->cc_parent;
+	struct _ccid *ccid = cci->i_parent;
 	void *priv = (void *)asic_ops;
 
 	if ( !asic_power(ccid, priv, 0) )

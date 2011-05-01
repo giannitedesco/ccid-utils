@@ -28,15 +28,15 @@ int _cci_wait_for_interrupt(struct _ccid *ccid)
 	int ret;
 	size_t len;
 
-	if ( libusb_interrupt_transfer(ccid->cci_dev, ccid->cci_intrp,
-				(void *)ccid->cci_xfr->x_rxhdr,
-				x_rbuflen(ccid->cci_xfr), &ret, 250) )
+	if ( libusb_interrupt_transfer(ccid->d_dev, ccid->d_intrp,
+				(void *)ccid->d_xfr->x_rxhdr,
+				x_rbuflen(ccid->d_xfr), &ret, 250) )
 		return 0;
 
 	if ( ret == 0 )
 		return 1;
 
-	buf = (void *)ccid->cci_xfr->x_rxhdr;
+	buf = (void *)ccid->d_xfr->x_rxhdr;
 	len = (size_t)ret;
 
 	trace(ccid, " Intr: %zu byte interrupt packet\n", len);
@@ -50,7 +50,7 @@ int _cci_wait_for_interrupt(struct _ccid *ccid)
 			trace(ccid, "     : Slot status changed to %s\n",
 				((buf[1] & 0x1) == 0) ? 
 					"NOT present" : "present");
-			ccid->cci_slot[0].cc_status =
+			ccid->d_slot[0].i_status =
 				((buf[1] & 0x1) == 0) ?
 					CHIPCARD_NOT_PRESENT :
 					CHIPCARD_PRESENT;
@@ -71,7 +71,7 @@ unsigned int _RDR_to_PC_DataBlock(struct _ccid *ccid, struct _xfr *xfr)
 {
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_DataBlock);
 	trace(ccid, "     : RDR_to_PC_DataBlock: %zu bytes\n", xfr->x_rxlen);
-	_hex_dumpf(ccid->cci_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
+	_hex_dumpf(ccid->d_tf, xfr->x_rxbuf, xfr->x_rxlen, 16);
 	/* APDU chaining parameter */
 	return xfr->x_rxhdr->in.bApp;
 }
@@ -168,7 +168,7 @@ int _RDR_to_PC_Parameters(struct _ccid *ccid, struct _xfr *xfr)
 		if ( xfr->x_rxlen < sizeof(*t1) )
 			return 0;
 		t1 = (const struct ccid_t1 *)xfr->x_rxbuf;
-		_hex_dumpf(ccid->cci_tf, (uint8_t *)t1,
+		_hex_dumpf(ccid->d_tf, (uint8_t *)t1,
 				sizeof(*t1), sizeof(*t1));
 		break;
 	default:
@@ -258,7 +258,7 @@ static int do_recv(struct _ccid *ccid, struct _xfr *xfr)
 	int ret;
 	size_t len;
 
-	if ( libusb_bulk_transfer(ccid->cci_dev, ccid->cci_inp,
+	if ( libusb_bulk_transfer(ccid->d_dev, ccid->d_inp,
 				(void *)xfr->x_rxhdr,
 				x_rbuflen(xfr), &ret, 0) ) {
 		fprintf(stderr, "*** error: libusb_bulk_read()\n");
@@ -286,16 +286,16 @@ static void _chipcard_set_status(struct _cci *cc, unsigned int status)
 {
 	switch( status & CCID_SLOT_STATUS_MASK ) {
 	case CCID_STATUS_ICC_ACTIVE:
-		trace(cc->cc_parent, "     : ICC present and active\n");
-		cc->cc_status = CHIPCARD_ACTIVE;
+		trace(cc->i_parent, "     : ICC present and active\n");
+		cc->i_status = CHIPCARD_ACTIVE;
 		break;
 	case CCID_STATUS_ICC_PRESENT:
-		trace(cc->cc_parent, "     : ICC present and inactive\n");
-		cc->cc_status = CHIPCARD_PRESENT;
+		trace(cc->i_parent, "     : ICC present and inactive\n");
+		cc->i_status = CHIPCARD_PRESENT;
 		break;
 	case CCID_STATUS_ICC_NOT_PRESENT:
-		trace(cc->cc_parent, "     : ICC not presnt\n");
-		cc->cc_status = CHIPCARD_NOT_PRESENT;
+		trace(cc->i_parent, "     : ICC not presnt\n");
+		cc->i_status = CHIPCARD_NOT_PRESENT;
 		break;
 	default:
 		fprintf(stderr, "*** error: unknown chipcard status update\n");
@@ -323,13 +323,13 @@ again:
 		return 0;
 	}
 
-	if ( (uint8_t)(msg->bSeq + 1) != ccid->cci_seq ) {
+	if ( (uint8_t)(msg->bSeq + 1) != ccid->d_seq ) {
 		fprintf(stderr, "*** error: expected seq 0x%.2x got 0x%.2x\n",
-			ccid->cci_seq, (uint8_t)(msg->bSeq + 1));
+			ccid->d_seq, (uint8_t)(msg->bSeq + 1));
 		return 0;
 	}
 
-	_chipcard_set_status(&ccid->cci_slot[msg->bSlot], msg->in.bStatus);
+	_chipcard_set_status(&ccid->d_slot[msg->bSlot], msg->in.bStatus);
 
 	if ( xfr->x_rxhdr->in.bStatus == CCID_RESULT_TIMEOUT && --try )
 		goto again;
@@ -347,14 +347,14 @@ static int _PC_to_RDR(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	 * presence or absense of specific vendor extensions
 	 */
 	if ( xfr->x_txhdr->bMessageType != PC_to_RDR_Escape ) {
-		assert(slot < ccid->cci_num_slots);
+		assert(slot < ccid->d_num_slots);
 	}
 
 	xfr->x_txhdr->dwLength = le32toh(xfr->x_txlen);
 	xfr->x_txhdr->bSlot = slot;
-	xfr->x_txhdr->bSeq = ccid->cci_seq++;
+	xfr->x_txhdr->bSeq = ccid->d_seq++;
 
-	if ( libusb_bulk_transfer(ccid->cci_dev, ccid->cci_outp,
+	if ( libusb_bulk_transfer(ccid->d_dev, ccid->d_outp,
 				(void *)xfr->x_txhdr,
 				x_tbuflen(xfr), &ret, 0) ) {
 		fprintf(stderr, "*** error: libusb_bulk_write()\n");
@@ -382,7 +382,7 @@ int _PC_to_RDR_XfrBlock(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	ret = _PC_to_RDR(ccid, slot, xfr);
 	if ( ret ) {
 		trace(ccid, " Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
-		_hex_dumpf(ccid->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
+		_hex_dumpf(ccid->d_tf, xfr->x_txbuf, xfr->x_txlen, 16);
 	}
 	return ret;
 }
@@ -396,7 +396,7 @@ int _PC_to_RDR_Escape(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	ret = _PC_to_RDR(ccid, slot, xfr);
 	if ( ret ) {
 		trace(ccid, " Xmit: PC_to_RDR_Escape(%u)\n", slot);
-		_hex_dumpf(ccid->cci_tf, xfr->x_txbuf, xfr->x_txlen, 16);
+		_hex_dumpf(ccid->d_tf, xfr->x_txbuf, xfr->x_txlen, 16);
 	}
 	return ret;
 }
@@ -551,11 +551,11 @@ static int get_endpoint(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
 			le16toh(ep->wMaxPacketSize));
 		if ( ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) {
-			ccid->cci_inp = ep->bEndpointAddress;
-			ccid->cci_max_in = le16toh(ep->wMaxPacketSize);
+			ccid->d_inp = ep->bEndpointAddress;
+			ccid->d_max_in = le16toh(ep->wMaxPacketSize);
 		}else{
-			ccid->cci_outp = ep->bEndpointAddress;
-			ccid->cci_max_out = le16toh(ep->wMaxPacketSize);
+			ccid->d_outp = ep->bEndpointAddress;
+			ccid->d_max_out = le16toh(ep->wMaxPacketSize);
 		}
 		break;
 	case LIBUSB_TRANSFER_TYPE_INTERRUPT:
@@ -564,8 +564,8 @@ static int get_endpoint(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 				"IN" : "OUT",
 			ep->bEndpointAddress & LIBUSB_ENDPOINT_ADDRESS_MASK,
 			le16toh(ep->wMaxPacketSize));
-		ccid->cci_intrp = ep->bEndpointAddress;
-		ccid->cci_max_intr = le16toh(ep->wMaxPacketSize);
+		ccid->d_intrp = ep->bEndpointAddress;
+		ccid->d_max_intr = le16toh(ep->wMaxPacketSize);
 		break;
 	default:
 		return 0;
@@ -576,83 +576,83 @@ static int get_endpoint(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 
 static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 {
-	if ( len < sizeof(ccid->cci_desc) ) {
+	if ( len < sizeof(ccid->d_desc) ) {
 		fprintf(stderr, "*** error: truncated CCID descriptor\n");
 		return 0;
 	}
 
-	memcpy(&ccid->cci_desc, ptr, sizeof(ccid->cci_desc));
+	memcpy(&ccid->d_desc, ptr, sizeof(ccid->d_desc));
 
-	byteswap_desc(&ccid->cci_desc);
+	byteswap_desc(&ccid->d_desc);
 
-	ccid->cci_num_slots = ccid->cci_desc.bMaxSlotIndex + 1;
-	ccid->cci_max_slots = ccid->cci_desc.bMaxCCIDBusySlots;
+	ccid->d_num_slots = ccid->d_desc.bMaxSlotIndex + 1;
+	ccid->d_max_slots = ccid->d_desc.bMaxCCIDBusySlots;
 
 	trace(ccid, " o got %zu/%zu byte desc of type 0x%.2x\n",
-		len, sizeof(ccid->cci_desc), ccid->cci_desc.bDescriptorType);
+		len, sizeof(ccid->d_desc), ccid->d_desc.bDescriptorType);
 	trace(ccid, " o CCID v%u.%u device with %u/%u slots in parallel\n",
-			bcd_hi(ccid->cci_desc.bcdCCID),
-			bcd_lo(ccid->cci_desc.bcdCCID),
-			ccid->cci_max_slots, ccid->cci_num_slots);
+			bcd_hi(ccid->d_desc.bcdCCID),
+			bcd_lo(ccid->d_desc.bcdCCID),
+			ccid->d_max_slots, ccid->d_num_slots);
 
 
 	trace(ccid, " o Voltages:");
-	if ( ccid->cci_desc.bVoltageSupport & CCID_5V )
+	if ( ccid->d_desc.bVoltageSupport & CCID_5V )
 		trace(ccid, " 5V");
-	if ( ccid->cci_desc.bVoltageSupport & CCID_3V )
+	if ( ccid->d_desc.bVoltageSupport & CCID_3V )
 		trace(ccid, " 3V");
-	if ( ccid->cci_desc.bVoltageSupport & CCID_1_8V )
+	if ( ccid->d_desc.bVoltageSupport & CCID_1_8V )
 		trace(ccid, " 1.8V");
 	trace(ccid, "\n");
 
 	trace(ccid, " o Protocols: ");
-	if ( ccid->cci_desc.dwProtocols & CCID_T0 )
+	if ( ccid->d_desc.dwProtocols & CCID_T0 )
 		trace(ccid, " T=0");
-	if ( ccid->cci_desc.dwProtocols & CCID_T1 )
+	if ( ccid->d_desc.dwProtocols & CCID_T1 )
 		trace(ccid, " T=1");
 	trace(ccid, "\n");
 
 	trace(ccid, " o Default Clock Freq.: %uKHz\n",
-			ccid->cci_desc.dwDefaultClock);
+			ccid->d_desc.dwDefaultClock);
 	trace(ccid, " o Max. Clock Freq.: %uKHz\n",
-			ccid->cci_desc.dwMaximumClock);
-	if ( ccid->cci_desc.bNumClockSupported ) {
+			ccid->d_desc.dwMaximumClock);
+	if ( ccid->d_desc.bNumClockSupported ) {
 		trace(ccid, "   .bNumClocks = %u\n",
-				ccid->cci_desc.bNumClockSupported);
+				ccid->d_desc.bNumClockSupported);
 	}
 	trace(ccid, " o Default Data Rate: %ubps\n",	
-			ccid->cci_desc.dwDataRate);
+			ccid->d_desc.dwDataRate);
 	trace(ccid, " o Max. Data Rate: %ubps\n",
-			ccid->cci_desc.dwMaxDataRate);
-	if ( ccid->cci_desc.bNumDataRatesSupported ) {
+			ccid->d_desc.dwMaxDataRate);
+	if ( ccid->d_desc.bNumDataRatesSupported ) {
 		trace(ccid, "   .bNumDataRates = %u\n",
-				ccid->cci_desc.bNumDataRatesSupported);
+				ccid->d_desc.bNumDataRatesSupported);
 	}
 	trace(ccid, " o T=1 Max. IFSD = %u\n",
-			ccid->cci_desc.dwMaxIFSD);
+			ccid->d_desc.dwMaxIFSD);
 	trace(ccid, "   .dwSynchProtocols = 0x%.8x\n",
-			ccid->cci_desc.dwSynchProtocols);
+			ccid->d_desc.dwSynchProtocols);
 	trace(ccid, "   .dwMechanical = 0x%.8x\n",
-			ccid->cci_desc.dwMechanical);
+			ccid->d_desc.dwMechanical);
 	
-	if ( ccid->cci_desc.dwFeatures & CCID_ATR_CONFIG )
+	if ( ccid->d_desc.dwFeatures & CCID_ATR_CONFIG )
 		trace(ccid, " o Paramaters configured from ATR\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_ACTIVATE )
+	if ( ccid->d_desc.dwFeatures & CCID_ACTIVATE )
 		trace(ccid, " o Chipcard auto-activate on insert\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_VOLTAGE )
+	if ( ccid->d_desc.dwFeatures & CCID_VOLTAGE )
 		trace(ccid, " o Auto Voltage Select\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_FREQ )
+	if ( ccid->d_desc.dwFeatures & CCID_FREQ )
 		trace(ccid, " o Auto Clock Freq. Select\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_BAUD )
+	if ( ccid->d_desc.dwFeatures & CCID_BAUD )
 		trace(ccid, " o Auto Data Rate Select\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_CLOCK_STOP )
+	if ( ccid->d_desc.dwFeatures & CCID_CLOCK_STOP )
 		trace(ccid, " o Clock Stop Mode\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_NAD )
+	if ( ccid->d_desc.dwFeatures & CCID_NAD )
 		trace(ccid, " o NAD value other than 0 permitted\n");
-	if ( ccid->cci_desc.dwFeatures & CCID_IFSD )
+	if ( ccid->d_desc.dwFeatures & CCID_IFSD )
 		trace(ccid, " o Auto IFSD on first exchange\n");
 	
-	switch ( ccid->cci_desc.dwFeatures & (CCID_PPS_AUTO|CCID_PPS_CUR) ) {
+	switch ( ccid->d_desc.dwFeatures & (CCID_PPS_AUTO|CCID_PPS_CUR) ) {
 	case CCID_PPS_AUTO:
 		trace(ccid, " o Parameter selection: Automatic\n");
 		break;
@@ -664,7 +664,7 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 		return 0;
 	}
 
-	switch ( ccid->cci_desc.dwFeatures &
+	switch ( ccid->d_desc.dwFeatures &
 		(CCID_T1_TPDU|CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
 	case CCID_T1_TPDU:
 		trace(ccid, " o Level: T=1 TPDU\n");
@@ -682,22 +682,22 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 
 
 	trace(ccid, " o Max. Message Length: %u bytes\n",
-		ccid->cci_desc.dwMaxCCIDMessageLength);
+		ccid->d_desc.dwMaxCCIDMessageLength);
 
-	if ( ccid->cci_desc.dwFeatures & (CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
+	if ( ccid->d_desc.dwFeatures & (CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
 		trace(ccid, " o APDU Default GetResponse: %u\n",
-			ccid->cci_desc.bClassGetResponse);
+			ccid->d_desc.bClassGetResponse);
 		trace(ccid, " o APDU Default Envelope: %u\n",
-			ccid->cci_desc.bClassEnvelope);
+			ccid->d_desc.bClassEnvelope);
 	}
 
-	if ( ccid->cci_desc.wLcdLayout ) {
+	if ( ccid->d_desc.wLcdLayout ) {
 		trace(ccid, " o LCD Layout: %ux%u\n",
-			bcd_hi(ccid->cci_desc.wLcdLayout),
-			bcd_lo(ccid->cci_desc.wLcdLayout));
+			bcd_hi(ccid->d_desc.wLcdLayout),
+			bcd_lo(ccid->d_desc.wLcdLayout));
 	}
 
-	switch ( ccid->cci_desc.bPINSupport & (CCID_PIN_VER|CCID_PIN_MOD) ) {
+	switch ( ccid->d_desc.bPINSupport & (CCID_PIN_VER|CCID_PIN_MOD) ) {
 	case CCID_PIN_VER:
 		trace(ccid, " o PIN verification supported\n");
 		break;
@@ -718,7 +718,7 @@ static int probe_descriptors(struct _ccid *ccid)
 	uint8_t *ptr, *end;
 	int sz, valid_ccid = 0;
 
-	sz = libusb_get_descriptor(ccid->cci_dev, LIBUSB_DT_CONFIG, 0,
+	sz = libusb_get_descriptor(ccid->d_dev, LIBUSB_DT_CONFIG, 0,
 				dbuf, sizeof(dbuf));
 	if ( sz < 0 )
 		return 0;
@@ -764,7 +764,7 @@ static int probe_descriptors(struct _ccid *ccid)
 
 static int get_data_rates(struct _ccid *ccid)
 {
-	uint32_t buf[ccid->cci_desc.bNumDataRatesSupported];
+	uint32_t buf[ccid->d_desc.bNumDataRatesSupported];
 	uint8_t rt;
 	int ret, i;
 
@@ -775,24 +775,24 @@ static int get_data_rates(struct _ccid *ccid)
 	rt = (LIBUSB_ENDPOINT_IN|
 		LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE);
 
-	ret = libusb_control_transfer(ccid->cci_dev, rt,
+	ret = libusb_control_transfer(ccid->d_dev, rt,
 					CCID_CTL_GET_DATA_RATES,
-					0, ccid->cci_intf,
+					0, ccid->d_intf,
 					(uint8_t *)buf, sizeof(buf),
 					1000);
 	if ( ret < 0 )	
 		return 0;
 
-	ccid->cci_num_rate = ret / 4;
+	ccid->d_num_rate = ret / 4;
 
-	ccid->cci_data_rate = calloc(ccid->cci_num_rate,
-					sizeof(*ccid->cci_data_rate));
-	if ( NULL == ccid->cci_data_rate )
+	ccid->d_data_rate = calloc(ccid->d_num_rate,
+					sizeof(*ccid->d_data_rate));
+	if ( NULL == ccid->d_data_rate )
 		return 0;
 
-	for(i = 0; i < ccid->cci_num_rate; i++) {
-		ccid->cci_data_rate[i] = le32toh(buf[i]);
-//		trace(ccid, "%"PRId32"bps\n", ccid->cci_data_rate[i]);
+	for(i = 0; i < ccid->d_num_rate; i++) {
+		ccid->d_data_rate[i] = le32toh(buf[i]);
+//		trace(ccid, "%"PRId32"bps\n", ccid->d_data_rate[i]);
 	}
 
 	return 1;
@@ -800,7 +800,7 @@ static int get_data_rates(struct _ccid *ccid)
 
 static int get_clock_freqs(struct _ccid *ccid)
 {
-	uint32_t buf[ccid->cci_desc.bNumClockSupported];
+	uint32_t buf[ccid->d_desc.bNumClockSupported];
 	uint8_t rt;
 	int ret, i;
 
@@ -811,25 +811,25 @@ static int get_clock_freqs(struct _ccid *ccid)
 	rt = (LIBUSB_ENDPOINT_IN|
 		LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE);
 
-	ret = libusb_control_transfer(ccid->cci_dev, rt,
+	ret = libusb_control_transfer(ccid->d_dev, rt,
 					CCID_CTL_GET_CLOCK_FREQS,
-					0, ccid->cci_intf,
+					0, ccid->d_intf,
 					(uint8_t *)buf, sizeof(buf),
 					1000);
 	if ( ret < 0 )	
 		return 0;
 
-	ccid->cci_num_clock = ret / 4;
+	ccid->d_num_clock = ret / 4;
 
-	ccid->cci_clock_freq = calloc(ccid->cci_num_clock,
-					sizeof(*ccid->cci_clock_freq));
-	if ( NULL == ccid->cci_clock_freq )
+	ccid->d_clock_freq = calloc(ccid->d_num_clock,
+					sizeof(*ccid->d_clock_freq));
+	if ( NULL == ccid->d_clock_freq )
 		return 0;
 
-	trace(ccid, "%zu clock rates supported\n", ccid->cci_num_clock);
-	for(i = 0; i < ccid->cci_num_clock; i++) {
-		ccid->cci_clock_freq[i] = le32toh(buf[i]);
-		trace(ccid, " o %"PRId32"KHz\n", ccid->cci_clock_freq[i]);
+	trace(ccid, "%zu clock rates supported\n", ccid->d_num_clock);
+	for(i = 0; i < ccid->d_num_clock; i++) {
+		ccid->d_clock_freq[i] = le32toh(buf[i]);
+		trace(ccid, " o %"PRId32"KHz\n", ccid->d_clock_freq[i]);
 	}
 
 	return 1;
@@ -865,10 +865,10 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 
 	if ( tracefile ) {
 		if ( !strcmp("-", tracefile) )
-			ccid->cci_tf = stdout;
+			ccid->d_tf = stdout;
 		else
-			ccid->cci_tf = fopen(tracefile, "w");
-		if ( ccid->cci_tf == NULL )
+			ccid->d_tf = fopen(tracefile, "w");
+		if ( ccid->d_tf == NULL )
 			goto out_free;
 	}
 
@@ -879,37 +879,37 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 		trace(ccid, "Recognised as: %s\n", intf.name);
 
 	for(x = 0; x < CCID_MAX_SLOTS; x++) {
-		ccid->cci_slot[x].cc_parent = ccid;
-		ccid->cci_slot[x].cc_idx = x;
-		ccid->cci_slot[x].cc_ops = &_contact_ops;
+		ccid->d_slot[x].i_parent = ccid;
+		ccid->d_slot[x].i_idx = x;
+		ccid->d_slot[x].i_ops = &_contact_ops;
 	}
 
 	for(x = 0; x < RFID_MAX_FIELDS; x++) {
-		ccid->cci_rf[x].cc_parent = ccid;
-		ccid->cci_rf[x].cc_ops = &_rfid_ops;
+		ccid->d_rf[x].i_parent = ccid;
+		ccid->d_rf[x].i_ops = &_rfid_ops;
 		/* idx and ops set by proprietary initialisation routines */
 	}
 
 	/* Second, open USB device and get it ready */
-	if ( libusb_open(dev, &ccid->cci_dev) ) {
+	if ( libusb_open(dev, &ccid->d_dev) ) {
 		goto out_free;
 	}
 
 #if 1
-	libusb_reset_device(ccid->cci_dev);
+	libusb_reset_device(ccid->d_dev);
 #endif
 
-	if ( libusb_get_configuration(ccid->cci_dev, &c) ) {
+	if ( libusb_get_configuration(ccid->d_dev, &c) ) {
 		trace(ccid, "error getting configuration\n");
 		goto out_close;
 	}
 
-	if ( intf.c != c && libusb_set_configuration(ccid->cci_dev, intf.c) ) {
+	if ( intf.c != c && libusb_set_configuration(ccid->d_dev, intf.c) ) {
 		trace(ccid, "error setting configuration\n");
 		goto out_close;
 	}
 
-	if ( libusb_get_configuration(ccid->cci_dev, &c) ) {
+	if ( libusb_get_configuration(ccid->d_dev, &c) ) {
 		trace(ccid, "error getting configuration\n");
 		goto out_close;
 	}
@@ -920,17 +920,17 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 		goto out_close;
 	}
 
-	if ( libusb_claim_interface(ccid->cci_dev, intf.i) ) {
+	if ( libusb_claim_interface(ccid->d_dev, intf.i) ) {
 		trace(ccid, "error claiming interface\n");
 		goto out_close;
 	}
 
-	if ( libusb_set_interface_alt_setting(ccid->cci_dev, intf.i, intf.a) ) {
+	if ( libusb_set_interface_alt_setting(ccid->d_dev, intf.i, intf.a) ) {
 		trace(ccid, "error setting alternate settings\n");
 		goto out_close;
 	}
 
-	ccid->cci_intf = intf.i;
+	ccid->d_intf = intf.i;
 
 	/* Third, probe the CCID class descriptor */
 	if( !probe_descriptors(ccid) ) {
@@ -942,18 +942,18 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	if( !get_clock_freqs(ccid) )
 		goto out_close;
 
-	ccid->cci_xfr = _xfr_do_alloc(ccid->cci_max_out, ccid->cci_max_in);
-	if ( NULL == ccid->cci_xfr )
+	ccid->d_xfr = _xfr_do_alloc(ccid->d_max_out, ccid->d_max_in);
+	if ( NULL == ccid->d_xfr )
 		goto out_close;
 
 	/* Fourth, setup each slot */
-	trace(ccid, "Setting up %u contact card slots\n", ccid->cci_num_slots);
-	for(x = 0; x < ccid->cci_num_slots; x++) {
-		if ( !_PC_to_RDR_GetSlotStatus(ccid, x, ccid->cci_xfr) )
+	trace(ccid, "Setting up %u contact card slots\n", ccid->d_num_slots);
+	for(x = 0; x < ccid->d_num_slots; x++) {
+		if ( !_PC_to_RDR_GetSlotStatus(ccid, x, ccid->d_xfr) )
 			goto out_freebuf;
-		if ( !_RDR_to_PC(ccid, x, ccid->cci_xfr) )
+		if ( !_RDR_to_PC(ccid, x, ccid->d_xfr) )
 			goto out_freebuf;
-		if ( !_RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr) )
+		if ( !_RDR_to_PC_SlotStatus(ccid, ccid->d_xfr) )
 			goto out_freebuf;
 	}
 
@@ -961,15 +961,15 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	if ( intf.flags & INTF_RFID_OMNI )
 		_omnikey_init_prox(ccid);
 
-	ccid->cci_bus = libusb_get_bus_number(dev);
-	ccid->cci_addr = libusb_get_device_address(dev);
-	ccid->cci_name = strdup(intf.name);
+	ccid->d_bus = libusb_get_bus_number(dev);
+	ccid->d_addr = libusb_get_device_address(dev);
+	ccid->d_name = strdup(intf.name);
 	goto out;
 
 out_freebuf:
-	_xfr_do_free(ccid->cci_xfr);
+	_xfr_do_free(ccid->d_xfr);
 out_close:
-	libusb_close(ccid->cci_dev);
+	libusb_close(ccid->d_dev);
 out_free:
 	free(ccid);
 	ccid = NULL;
@@ -980,17 +980,17 @@ out:
 
 uint8_t ccid_bus(ccid_t ccid)
 {
-	return ccid->cci_bus;
+	return ccid->d_bus;
 }
 
 uint8_t ccid_addr(ccid_t ccid)
 {
-	return ccid->cci_addr;
+	return ccid->d_addr;
 }
 
 const char *ccid_name(ccid_t ccid)
 {
-	return ccid->cci_name;
+	return ccid->d_name;
 }
 
 /** Close connection to a chip card device.
@@ -1005,17 +1005,17 @@ void ccid_close(ccid_t ccid)
 	unsigned int i;
 
 	if ( ccid ) {
-		if ( ccid->cci_dev )
-			libusb_close(ccid->cci_dev);
-		if ( ccid->cci_tf )
-			fclose(ccid->cci_tf);
-		_xfr_do_free(ccid->cci_xfr);
-		free(ccid->cci_name);
+		if ( ccid->d_dev )
+			libusb_close(ccid->d_dev);
+		if ( ccid->d_tf )
+			fclose(ccid->d_tf);
+		_xfr_do_free(ccid->d_xfr);
+		free(ccid->d_name);
 
-		for(i = 0; i < ccid->cci_num_rf; i++) {
-			if ( NULL == ccid->cci_rf[i].cc_ops->dtor )
+		for(i = 0; i < ccid->d_num_rf; i++) {
+			if ( NULL == ccid->d_rf[i].i_ops->dtor )
 				continue;
-			(*ccid->cci_rf[i].cc_ops->dtor)(ccid->cci_rf + i);
+			(*ccid->d_rf[i].i_ops->dtor)(ccid->d_rf + i);
 		}
 	}
 	free(ccid);
@@ -1028,7 +1028,7 @@ void ccid_close(ccid_t ccid)
  */
 unsigned int ccid_num_slots(ccid_t ccid)
 {
-	return ccid->cci_num_slots;
+	return ccid->d_num_slots;
 }
 
 /** Retrieve a handle to a CCID slot.
@@ -1039,8 +1039,8 @@ unsigned int ccid_num_slots(ccid_t ccid)
  */
 cci_t ccid_get_slot(ccid_t ccid, unsigned int num)
 {
-	if ( num < ccid->cci_num_slots ) {
-		return ccid->cci_slot + num;
+	if ( num < ccid->d_num_slots ) {
+		return ccid->d_slot + num;
 	}else{
 		return NULL;
 	}
@@ -1053,7 +1053,7 @@ cci_t ccid_get_slot(ccid_t ccid, unsigned int num)
  */
 unsigned int ccid_num_fields(ccid_t ccid)
 {
-	return ccid->cci_num_rf;
+	return ccid->d_num_rf;
 }
 
 /** Retrieve a handle to a RFID field.
@@ -1064,8 +1064,8 @@ unsigned int ccid_num_fields(ccid_t ccid)
  */
 cci_t ccid_get_field(ccid_t ccid, unsigned int num)
 {
-	if ( num < ccid->cci_num_rf ) {
-		return ccid->cci_rf + num;
+	if ( num < ccid->d_num_rf ) {
+		return ccid->d_rf + num;
 	}else{
 		return NULL;
 	}
@@ -1077,16 +1077,16 @@ cci_t ccid_get_field(ccid_t ccid, unsigned int num)
  * @param fmt Format string as per printf().
  *
  * Prints a message in the trace log of the specified CCI device. Does nothing
- * if NULL was passed as tracefile paramater of \ref cci_open.
+ * if NULL was passed as tracefile paramater of \ref d_open.
  */
 void ccid_log(ccid_t ccid, const char *fmt, ...)
 {
 	va_list va;
 
-	if ( NULL == ccid->cci_tf )
+	if ( NULL == ccid->d_tf )
 		return;
 
 	va_start(va, fmt);
-	vfprintf(ccid->cci_tf, fmt, va);
+	vfprintf(ccid->d_tf, fmt, va);
 	va_end(va);
 }

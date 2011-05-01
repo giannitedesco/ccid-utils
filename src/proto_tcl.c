@@ -601,7 +601,7 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag,
 		return 0;
 
 	th->state = TCL_STATE_ATS_RCVD;
-	ccid = cci->cc_parent;
+	ccid = cci->i_parent;
 
 	if ( !parse_ats(cci, tag, th, ats, ats_len) ) {
 		return 0;
@@ -610,7 +610,7 @@ int _tcl_get_ats(struct _cci *cci, struct rfid_tag *tag,
 	if ( !do_pps(cci, tag, th) )
 		return 0;
 
-	memcpy(ccid->cci_xfr->x_rxbuf, ats, ats_len);
-	ccid->cci_xfr->x_rxlen = ats_len;
+	memcpy(ccid->d_xfr->x_rxbuf, ats, ats_len);
+	ccid->d_xfr->x_rxlen = ats_len;
 	return 1;
 }

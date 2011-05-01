@@ -14,7 +14,7 @@
 
 static int do_select(struct _cci *cci)
 {
-	struct _rfid *rf = cci->cc_priv;
+	struct _rfid *rf = cci->i_priv;
 	int ret;
 
 	memset(&rf->rf_tag, 0, sizeof(rf->rf_tag));
@@ -22,11 +22,11 @@ static int do_select(struct _cci *cci)
 	rf->rf_l3 = NULL;
 
 	if ( !_iso14443a_anticol(cci, 0, &rf->rf_tag) ) {
-		cci->cc_status = CHIPCARD_NOT_PRESENT;
+		cci->i_status = CHIPCARD_NOT_PRESENT;
 		return 0;
 	}
 
-	cci->cc_status = CHIPCARD_ACTIVE;
+	cci->i_status = CHIPCARD_ACTIVE;
 
 	//printf("Found ISO-14443-A tag: cascade level %d\n",
 	//	rf->rf_tag.level);
@@ -46,7 +46,7 @@ static int do_select(struct _cci *cci)
 static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 				size_t *atr_len)
 {
-	struct _ccid *ccid = cci->cc_parent;
+	struct _ccid *ccid = cci->i_parent;
 	if ( !_rfid_layer1_rf_power(cci, 1) )
 		return NULL;
 	if ( !_rfid_layer1_14443a_init(cci) )
@@ -54,19 +54,19 @@ static const uint8_t *rfid_power_on(struct _cci *cci, unsigned int voltage,
 	if ( !do_select(cci) )
 		return NULL;
 	if ( atr_len )
-		*atr_len = ccid->cci_xfr->x_rxlen;
-	return ccid->cci_xfr->x_rxbuf;
+		*atr_len = ccid->d_xfr->x_rxlen;
+	return ccid->d_xfr->x_rxbuf;
 }
 
 static int rfid_power_off(struct _cci *cci)
 {
-	cci->cc_status = CHIPCARD_NOT_PRESENT;
+	cci->i_status = CHIPCARD_NOT_PRESENT;
 	return _rfid_layer1_rf_power(cci, 0);
 }
 
 static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 {
-	struct _rfid *rf = cci->cc_priv;
+	struct _rfid *rf = cci->i_priv;
 	size_t rx_len;
 
 	if ( NULL == rf->rf_l3 ) {
@@ -86,11 +86,11 @@ static int rfid_transact(struct _cci *cci, struct _xfr *xfr)
 
 static void rfid_dtor(struct _cci *cci)
 {
-	struct _rfid *rf = cci->cc_priv;
+	struct _rfid *rf = cci->i_priv;
 	if ( rf->rf_l1->dtor )
 		rf->rf_l1->dtor(rf->rf_ccid, rf->rf_l1p);
 	free(rf);
-	cci->cc_priv = NULL;
+	cci->i_priv = NULL;
 }
 
 _private const struct _cci_ops _rfid_ops = {

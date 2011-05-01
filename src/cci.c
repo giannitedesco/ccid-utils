@@ -22,7 +22,7 @@
  */
 unsigned int cci_slot_status(cci_t cci)
 {
-	return cci->cc_status;
+	return cci->i_status;
 }
 
 
@@ -35,7 +35,7 @@ unsigned int cci_slot_status(cci_t cci)
  */
 ccid_t cci_ccid(cci_t cci)
 {
-	return cci->cc_parent;
+	return cci->i_parent;
 }
 
 /** Power on a chip card slot.
@@ -50,7 +50,7 @@ ccid_t cci_ccid(cci_t cci)
 const uint8_t *cci_power_on(cci_t cci, unsigned int voltage,
 				size_t *atr_len)
 {
-	return (*cci->cc_ops->power_on)(cci, voltage, atr_len);
+	return (*cci->i_ops->power_on)(cci, voltage, atr_len);
 }
 
 /** Perform a chip card transaction.
@@ -65,7 +65,7 @@ const uint8_t *cci_power_on(cci_t cci, unsigned int voltage,
  */
 int cci_transact(cci_t cci, xfr_t xfr)
 {
-	return (*cci->cc_ops->transact)(cci, xfr);
+	return (*cci->i_ops->transact)(cci, xfr);
 }
 
 /** Power off a chip card slot.
@@ -77,5 +77,5 @@ int cci_transact(cci_t cci, xfr_t xfr)
  */
 int cci_power_off(cci_t cci)
 {
-	return (*cci->cc_ops->power_off)(cci);
+	return (*cci->i_ops->power_off)(cci);
 }

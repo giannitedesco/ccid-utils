@@ -14,16 +14,16 @@ static int select_params(struct _cci *cci, const uint8_t *atr, size_t len)
 {
 	return 1;
 #if 0
-	struct _ccid *ccid = cci->cc_parent;
+	struct _ccid *ccid = cci->i_parent;
 	xfr_t xfr;
 
 	xfr = xfr_alloc(256, 256);
 	if ( NULL == xfr )
 		return 0;
 
-	if ( !_PC_to_RDR_GetParameters(ccid, cci->cc_idx, xfr) )
+	if ( !_PC_to_RDR_GetParameters(ccid, cci->i_idx, xfr) )
 		goto err;
-	if ( !_RDR_to_PC(ccid, cci->cc_idx, xfr) )
+	if ( !_RDR_to_PC(ccid, cci->i_idx, xfr) )
 		goto err;
 	if ( !_RDR_to_PC_Parameters(ccid, xfr) )
 		goto err;
@@ -36,6 +36,55 @@ err:
 #endif
 }
 
+static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
+				size_t *atr_len)
+{
+	struct _ccid *ccid = cci->i_parent;
+
+	if ( cci->i_ops != &_contact_ops )
+		return NULL;
+
+	if ( !_PC_to_RDR_IccPowerOn(ccid, cci->i_idx, ccid->d_xfr, voltage) )
+		return NULL;
+
+	if ( !_RDR_to_PC(ccid, cci->i_idx, ccid->d_xfr) )
+		return NULL;
+	
+	_RDR_to_PC_DataBlock(ccid, ccid->d_xfr);
+
+	select_params(cci, ccid->d_xfr->x_rxbuf, ccid->d_xfr->x_rxlen);
+
+	if ( atr_len )
+		*atr_len = ccid->d_xfr->x_rxlen;
+	return ccid->d_xfr->x_rxbuf;
+}
+
+static int contact_power_off(struct _cci *cci)
+{
+	struct _ccid *ccid = cci->i_parent;
+
+	if ( !_PC_to_RDR_IccPowerOff(ccid, cci->i_idx, ccid->d_xfr) )
+		return 0;
+
+	if ( !_RDR_to_PC(ccid, cci->i_idx, ccid->d_xfr) )
+		return 0;
+	
+	return _RDR_to_PC_SlotStatus(ccid, ccid->d_xfr);
+}
+
+static int contact_transact(struct _cci *cci, struct _xfr *xfr)
+{
+	struct _ccid *ccid = cci->i_parent;
+
+	if ( !_PC_to_RDR_XfrBlock(ccid, cci->i_idx, xfr) )
+		return 0;
+
+	if ( !_RDR_to_PC(ccid, cci->i_idx, xfr) )
+		return 0;
+
+	_RDR_to_PC_DataBlock(ccid, xfr);
+	return 1;
+}
 
 /** Retrieve chip card status.
  * \ingroup g_cci
@@ -48,68 +97,18 @@ err:
  */
 unsigned int cci_clock_status(cci_t cci)
 {
-	struct _ccid *ccid = cci->cc_parent;
+	struct _ccid *ccid = cci->i_parent;
 
-	if ( cci->cc_ops != &_contact_ops )
+	if ( cci->i_ops != &_contact_ops )
 		return CHIPCARD_NOT_PRESENT;
 
-	if ( !_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr) )
+	if ( !_PC_to_RDR_GetSlotStatus(ccid, cci->i_idx, ccid->d_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
+	if ( !_RDR_to_PC(ccid, cci->i_idx, ccid->d_xfr) )
 		return CHIPCARD_CLOCK_ERR;
 
-	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
-}
-
-static const uint8_t *contact_power_on(struct _cci *cci, unsigned int voltage,
-				size_t *atr_len)
-{
-	struct _ccid *ccid = cci->cc_parent;
-
-	if ( cci->cc_ops != &_contact_ops )
-		return NULL;
-
-	if ( !_PC_to_RDR_IccPowerOn(ccid, cci->cc_idx, ccid->cci_xfr, voltage) )
-		return NULL;
-
-	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
-		return NULL;
-	
-	_RDR_to_PC_DataBlock(ccid, ccid->cci_xfr);
-
-	select_params(cci, ccid->cci_xfr->x_rxbuf, ccid->cci_xfr->x_rxlen);
-
-	if ( atr_len )
-		*atr_len = ccid->cci_xfr->x_rxlen;
-	return ccid->cci_xfr->x_rxbuf;
-}
-
-static int contact_power_off(struct _cci *cci)
-{
-	struct _ccid *ccid = cci->cc_parent;
-
-	if ( !_PC_to_RDR_IccPowerOff(ccid, cci->cc_idx, ccid->cci_xfr) )
-		return 0;
-
-	if ( !_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr) )
-		return 0;
-	
-	return _RDR_to_PC_SlotStatus(ccid, ccid->cci_xfr);
-}
-
-static int contact_transact(struct _cci *cci, struct _xfr *xfr)
-{
-	struct _ccid *ccid = cci->cc_parent;
-
-	if ( !_PC_to_RDR_XfrBlock(ccid, cci->cc_idx, xfr) )
-		return 0;
-
-	if ( !_RDR_to_PC(ccid, cci->cc_idx, xfr) )
-		return 0;
-
-	_RDR_to_PC_DataBlock(ccid, xfr);
-	return 1;
+	return _RDR_to_PC_SlotStatus(ccid, ccid->d_xfr);
 }
 
 /** Wait for insertion of a chip card in to the slot.
@@ -121,15 +120,15 @@ static int contact_transact(struct _cci *cci, struct _xfr *xfr)
  */
 int cci_wait_for_card(cci_t cci)
 {
-	struct _ccid *ccid = cci->cc_parent;
+	struct _ccid *ccid = cci->i_parent;
 
 	do {
-		_PC_to_RDR_GetSlotStatus(ccid, cci->cc_idx, ccid->cci_xfr);
-		_RDR_to_PC(ccid, cci->cc_idx, ccid->cci_xfr);
-		if ( cci->cc_status != CHIPCARD_NOT_PRESENT )
+		_PC_to_RDR_GetSlotStatus(ccid, cci->i_idx, ccid->d_xfr);
+		_RDR_to_PC(ccid, cci->i_idx, ccid->d_xfr);
+		if ( cci->i_status != CHIPCARD_NOT_PRESENT )
 			break;
 		_cci_wait_for_interrupt(ccid);
-	} while( cci->cc_status == CHIPCARD_NOT_PRESENT );
+	} while( cci->i_status == CHIPCARD_NOT_PRESENT );
 	return 1;
 }
 

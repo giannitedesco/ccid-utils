@@ -12,9 +12,9 @@
 #define trace(ccid, fmt, x...) \
 		do { \
 			struct _ccid *_CCI = ccid; \
-			if ( _CCI->cci_tf ) { \
-				fprintf(_CCI->cci_tf, fmt , ##x); \
-				fflush(_CCI->cci_tf); \
+			if ( _CCI->d_tf ) { \
+				fprintf(_CCI->d_tf, fmt , ##x); \
+				fflush(_CCI->d_tf); \
 			} \
 		}while(0);
 
@@ -30,52 +30,52 @@ extern const struct _cci_ops _contact_ops;
 extern const struct _cci_ops _rfid_ops;
 
 struct _cci {
-	struct _ccid *cc_parent;
-	uint8_t cc_idx;
-	uint8_t cc_status;
-	const struct _cci_ops *cc_ops;
-	void *cc_priv;
+	struct _ccid *i_parent;
+	uint8_t i_idx;
+	uint8_t i_status;
+	const struct _cci_ops *i_ops;
+	void *i_priv;
 };
 
 #define RFID_MAX_FIELDS 1
 
 struct _ccid {
-	libusb_device_handle *cci_dev;
+	libusb_device_handle *d_dev;
 
-	struct _xfr	*cci_xfr;
+	struct _xfr	*d_xfr;
 
-	FILE		*cci_tf;
+	FILE		*d_tf;
 
 	/* USB interface */
-	int 		cci_inp;
-	int 		cci_outp;
-	int 		cci_intrp;
+	int 		d_inp;
+	int 		d_outp;
+	int 		d_intrp;
 
-	uint16_t 	cci_max_in;
-	uint16_t 	cci_max_out;
-	uint16_t 	cci_max_intr;
-	uint16_t	cci_intf;
+	uint16_t 	d_max_in;
+	uint16_t 	d_max_out;
+	uint16_t 	d_max_intr;
+	uint16_t	d_intf;
 
-	uint8_t 	cci_seq;
-	uint8_t		cci_bus, cci_addr;
+	uint8_t 	d_seq;
+	uint8_t		d_bus, d_addr;
 
 	/* cci slots */
-	unsigned int 	cci_num_slots;
-	unsigned int 	cci_max_slots;
-	struct _cci cci_slot[CCID_MAX_SLOTS];
+	unsigned int 	d_num_slots;
+	unsigned int 	d_max_slots;
+	struct _cci d_slot[CCID_MAX_SLOTS];
 
 	/* RF fields */
-	unsigned int	cci_num_rf;
-	struct _cci cci_rf[RFID_MAX_FIELDS];
+	unsigned int	d_num_rf;
+	struct _cci d_rf[RFID_MAX_FIELDS];
 
 	/* CCID USB descriptor */
-	struct ccid_desc cci_desc;
+	struct ccid_desc d_desc;
 
-	char		*cci_name;
-	uint32_t	*cci_clock_freq;
-	uint32_t	*cci_data_rate;
-	size_t		cci_num_clock;
-	size_t		cci_num_rate;
+	char		*d_name;
+	uint32_t	*d_clock_freq;
+	uint32_t	*d_data_rate;
+	size_t		d_num_clock;
+	size_t		d_num_rate;
 };
 
 struct _xfr {
