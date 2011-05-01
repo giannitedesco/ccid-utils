@@ -10,9 +10,10 @@
 
 #include "ccid-internal.h"
 #include "rfid-internal.h"
+#include "rfid_layer1.h"
 #include "iso14443a.h"
 
-#if 1
+#if 0
 #define dprintf printf
 #define dhex_dump hex_dump
 #else
@@ -47,7 +48,19 @@ static int do_select(struct _cci *cci)
 		return ret;
 	}
 
+#if 0
 	printf("Unsupported tag type\n");
+	if ( !_rfid_layer1_mfc_set_key(cci, MIFARE_CL_KEYA_DEFAULT) ) {
+		printf("set key failed\n");
+		return 0;
+	}
+	if ( !_rfid_layer1_mfc_auth(cci, RFID_CMD_MIFARE_AUTH1A,
+					*(uint32_t *)rf->rf_tag.uid, 0) ) {
+		printf("auth failed\n");
+		return 0;
+	}
+#endif
+
 	return 0;
 }
 

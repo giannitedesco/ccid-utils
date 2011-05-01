@@ -84,19 +84,19 @@ int _rfid_layer1_14443a_init(struct _cci *cci)
 	return (*rf->rf_l1->iso14443a_init)(cci->i_parent, rf->rf_l1p);
 }
 
-int _rfid_mfc_set_key(struct _cci *cci, const uint8_t *key)
+int _rfid_layer1_mfc_set_key(struct _cci *cci, const uint8_t *key)
 {
 	struct _rfid *rf = cci->i_priv;
 	return (*rf->rf_l1->mfc_set_key)(cci->i_parent, rf->rf_l1p, key);
 }
 
-int _rfid_mfc_set_key_ee(struct _cci *cci, unsigned int addr)
+int _rfid_layer1_mfc_set_key_ee(struct _cci *cci, unsigned int addr)
 {
 	struct _rfid *rf = cci->i_priv;
 	return (*rf->rf_l1->mfc_set_key_ee)(cci->i_parent, rf->rf_l1p, addr);
 }
 
-int _rfid_mfc_auth(struct _cci *cci, uint8_t cmd,
+int _rfid_layer1_mfc_auth(struct _cci *cci, uint8_t cmd,
 				uint32_t serial_no, uint8_t block)
 {
 	struct _rfid *rf = cci->i_priv;

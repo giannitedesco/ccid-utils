@@ -410,7 +410,7 @@ static int transact(struct _ccid *ccid, void *priv,
 #define RFID_MIFARE_KEY_CODED_LEN 12
 
 /* Transform crypto1 key from generic 6byte into rc632 specific 12byte */
-static int mfc_transform_key(const uint8_t *key6, uint8_t *key12)
+static void mfc_transform_key(const uint8_t *key6, uint8_t *key12)
 {
 	int i;
 	uint8_t ln;
@@ -422,7 +422,6 @@ static int mfc_transform_key(const uint8_t *key6, uint8_t *key12)
 		key12[i * 2 + 1] = (~ln << 4) | ln;
 		key12[i * 2] = (~hn << 4) | hn;
 	}
-	return 0;
 }
 
 static int mfc_set_key(struct _ccid *ccid, void *priv, const uint8_t *key)
@@ -430,8 +429,7 @@ static int mfc_set_key(struct _ccid *ccid, void *priv, const uint8_t *key)
 	uint8_t coded_key[RFID_MIFARE_KEY_CODED_LEN];
 	uint8_t reg;
 
-	if ( !mfc_transform_key(key, coded_key) )
-		return 0;
+	mfc_transform_key(key, coded_key);
 
 	/* Terminate probably running command */
 	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_IDLE) )
@@ -443,7 +441,7 @@ static int mfc_set_key(struct _ccid *ccid, void *priv, const uint8_t *key)
 	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_LOAD_KEY) )
 		return 0;
 
-	if ( !timer_set(ccid, priv, TMO_AUTH1) )
+	if ( !timer_set(ccid, priv, TMO_AUTH1 * 10) )
 		return 0;
 
 	//if ( !wait_idle(ccid, priv, TMO_AUTH1) )

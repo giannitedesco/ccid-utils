@@ -33,8 +33,7 @@
 #define MIFARE_CL_READ_FWT	250
 #define MIFARE_CL_WRITE_FWT	600
 
-static int
-mfcl_read(struct _cci *cci, unsigned int page,
+int _mfc_read(struct _cci *cci, unsigned int page,
 	  unsigned char *rx_data, unsigned int *rx_len)
 {
 	unsigned char rx_buf[16];
@@ -63,8 +62,7 @@ mfcl_read(struct _cci *cci, unsigned int page,
 	return 1;
 }
 
-static int
-mfcl_write(struct _cci *cci, unsigned int page,
+int _mfc_write(struct _cci *cci, unsigned int page,
 	   unsigned char *tx_data, unsigned int tx_len)
 {
 	unsigned char tx[2];
@@ -134,34 +132,6 @@ mfcl_getopt(struct _cci *cci, int optname, void *optval,
 }
 #endif
 
-#if 0
-int mfcl_set_key(struct _cci *cci, unsigned char *key)
-{
-	if (!cci->rh->reader->mifare_classic.setkey)
-		return -ENODEV;
-
-	return cci->rh->reader->mifare_classic.setkey(cci->rh, key);
-}
-
-int mfcl_set_key_ee(struct _cci *cci, unsigned int addr)
-{
-	if (!cci->rh->reader->mifare_classic.setkey_ee)
-		return -ENODEV;
-
-	return cci->rh->reader->mifare_classic.setkey_ee(cci->rh, addr);
-}
-
-int mfcl_auth(struct _cci *cci, uint8_t cmd, uint8_t block)
-{
-	uint32_t serno = *((uint32_t *)cci->uid);
-
-	if (!cci->rh->reader->mifare_classic.auth)
-		return -ENODEV;
-
-	return cci->rh->reader->mifare_classic.auth(cci->rh, cmd,
-						       serno, block);
-}
-
 int mfcl_block2sector(uint8_t block)
 {
 	if (block < MIFARE_CL_SMALL_SECTORS * MIFARE_CL_BLOCKS_P_SECTOR_1k)
@@ -179,7 +149,7 @@ int mfcl_sector2block(uint8_t sector)
 		return MIFARE_CL_SMALL_SECTORS * MIFARE_CL_BLOCKS_P_SECTOR_1k + 
 			(sector - MIFARE_CL_SMALL_SECTORS) * MIFARE_CL_BLOCKS_P_SECTOR_4k; 
 	else
-		return -EINVAL;
+		return 0;
 }
 
 int mfcl_sector_blocks(uint8_t sector)
@@ -189,6 +159,5 @@ int mfcl_sector_blocks(uint8_t sector)
 	else if (sector < MIFARE_CL_SMALL_SECTORS + MIFARE_CL_LARGE_SECTORS)
 		return MIFARE_CL_BLOCKS_P_SECTOR_4k;
 	else
-		return -EINVAL;
+		return 0;
 }
-#endif

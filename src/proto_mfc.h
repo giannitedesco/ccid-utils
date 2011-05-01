@@ -10,10 +10,10 @@ struct mfc_handle {
 	/* stateless */
 };
 
-#define MIFARE_CL_KEYA_DEFAULT	"\xa0\xa1\xa2\xa3\xa4\xa5"
-#define MIFARE_CL_KEYB_DEFAULT	"\xb0\xb1\xb2\xb3\xb4\xb5"
+#define MIFARE_CL_KEYA_DEFAULT	(const uint8_t *)"\xa0\xa1\xa2\xa3\xa4\xa5"
+#define MIFARE_CL_KEYB_DEFAULT	(const uint8_t *)"\xb0\xb1\xb2\xb3\xb4\xb5"
 
-#define MIFARE_CL_KEYA_DEFAULT_INFINEON	"\xff\xff\xff\xff\xff\xff"
+#define MIFARE_CL_KEYA_DEFAULT_INFINEON	(const uint8_t *)"\xff\xff\xff\xff\xff\xff"
 #define MIFARE_CL_KEYB_DEFAULT_INFINEON MIFARE_CL_KEYA_DEFAULT_INFINEON
 
 #define MIFARE_CL_KEY_LEN	(sizeof(MIFARE_CL_KEYA_DEFAULT)-1)
@@ -43,8 +43,11 @@ extern const struct rfid_protocol rfid_protocol_mfcl;
 #define MIFARE_CL_RESP_ACK	0x0a
 #define MIFARE_CL_RESP_NAK	0x00
 
-extern int mfcl_set_key(struct _cci *cci, unsigned char *key);
-extern int mfcl_auth(struct _cci *cci, uint8_t cmd, uint8_t block);				
+_private int _mfc_read(struct _cci *cci, unsigned int page,
+			unsigned char *rx_data, unsigned int *rx_len);
+_private int _mfc_write(struct _cci *cci, unsigned int page,
+			unsigned char *tx_data, unsigned int tx_len);
+
 extern int mfcl_sector2block(uint8_t sector);
 extern int mfcl_block2sector(uint8_t block);
 extern int mfcl_sector_blocks(uint8_t sector);

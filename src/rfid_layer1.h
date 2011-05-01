@@ -48,9 +48,9 @@ _private int _rfid_layer1_transact(struct _cci *cci,
 
 _private int _rfid_layer1_14443a_init(struct _cci *cci);
 
-_private int _rfid_mfc_set_key(struct _cci *cci, const uint8_t *key);
-_private int _rfid_mfc_set_key_ee(struct _cci *cci, unsigned int addr);
-_private int _rfid_mfc_auth(struct _cci *cci, uint8_t cmd,
+_private int _rfid_layer1_mfc_set_key(struct _cci *cci, const uint8_t *key);
+_private int _rfid_layer1_mfc_set_key_ee(struct _cci *cci, unsigned int addr);
+_private int _rfid_layer1_mfc_auth(struct _cci *cci, uint8_t cmd,
 				uint32_t serial_no, uint8_t block);
 
 _private unsigned int _rfid_layer1_carrier_freq(struct _cci *cc);

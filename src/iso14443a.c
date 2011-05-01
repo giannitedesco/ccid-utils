@@ -17,7 +17,7 @@
 #include "rfid_layer1.h"
 #include "iso14443a.h"
 
-#if 1
+#if 0
 #define dprintf printf
 #define dhex_dump hex_dump
 #else
