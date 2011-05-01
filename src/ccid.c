@@ -958,8 +958,8 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	}
 
 	/* Fifth, Initialise any proprietary interfaces */
-//	if ( intf.flags & INTF_RFID_OMNI )
-//		_omnikey_init_prox(ccid);
+	if ( intf.flags & INTF_RFID_OMNI )
+		_omnikey_init_prox(ccid);
 
 	ccid->cci_bus = libusb_get_bus_number(dev);
 	ccid->cci_addr = libusb_get_device_address(dev);
