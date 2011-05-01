@@ -98,27 +98,75 @@ unsigned int _RDR_to_PC_SlotStatus(struct _ccid *ccid, struct _xfr *xfr)
 	}
 }
 
+static const struct {
+	uint16_t fi; /* Fi */
+	uint16_t fmax; /* Fmax (KHz) */
+} fi_table[16] = {
+	{.fi = 372, .fmax = 4000},
+	{.fi = 372, .fmax = 5000},
+	{.fi = 558, .fmax = 6000},
+	{.fi = 744, .fmax = 8000},
+	{.fi = 1116, .fmax = 12000},
+	{.fi = 1488, .fmax = 16000},
+	{.fi = 1860, .fmax = 20000},
+	{.fi = 0, },
+
+	{.fi = 0, },
+	{.fi = 512, .fmax = 5000},
+	{.fi = 768, .fmax = 7500},
+	{.fi = 1024, .fmax = 10000},
+	{.fi = 1536, .fmax = 15000},
+	{.fi = 2048, .fmax = 20000},
+	{.fi = 0, },
+	{.fi = 0, },
+};
+
+static const uint8_t di_table[16] = {
+	0, 1, 2, 4, 8, 16, 32, 64,
+	12, 20, 0, 0, 0, 0, 0, 0
+};
+
+static unsigned int guard_time(uint8_t t)
+{
+	if ( t == 0xff )
+		t = 0;
+	return 12 + t;
+}
+
 int _RDR_to_PC_Parameters(struct _ccid *ccid, struct _xfr *xfr)
 {
-	const struct _ccid_t0 *t0;
-	const struct _ccid_t1 *t1;
+	const struct ccid_t0 *t0;
+	const struct ccid_t1 *t1;
 
 	assert(xfr->x_rxhdr->bMessageType == RDR_to_PC_Parameters);
-	trace(ccid, "     : RDR_to_PC_Parameters: ");
+	trace(ccid, "     : RDR_to_PC_Parameters: \n");
 	switch(xfr->x_rxhdr->in.bApp) {
 	case CCID_PROTOCOL_T0:
-		trace(ccid, "T=0 Protocol block follows\n");
+		trace(ccid, "     : T=0 Protocol block follows\n");
 		if ( xfr->x_rxlen < sizeof(*t0) )
 			return 0;
-		t0 = (const struct _ccid_t0 *)xfr->x_rxbuf;
-		_hex_dumpf(ccid->cci_tf, (uint8_t *)t0,
-				sizeof(*t0), sizeof(*t0));
+		t0 = (const struct ccid_t0 *)xfr->x_rxbuf;
+
+		trace(ccid, "     : Fi=%d Fmax = %dKHz\n",
+			fi_table[t0->bmFindexDindex >> 4].fi,
+			fi_table[t0->bmFindexDindex >> 4].fmax);
+		trace(ccid, "     : Baud rate conversion factor Di = %d\n",
+			di_table[t0->bmFindexDindex & 0xf]);
+		trace(ccid, "     : %s convention\n",
+			(t0->bmTCCSKST0 & 1) ? "Inverse" : "Direct");
+		trace(ccid, "     : Guard time: %detu\n",
+			guard_time(t0->bGuardTimeT0));
+		trace(ccid, "     : Waiting integer: %d\n",
+			t0->bWaitingIntegerT0);
+		trace(ccid, "     : Clock stop: %d\n",
+			t0->bClockStop);
+
 		break;
 	case CCID_PROTOCOL_T1:
 		trace(ccid, "T=1 Protocol block follows\n");
 		if ( xfr->x_rxlen < sizeof(*t1) )
 			return 0;
-		t1 = (const struct _ccid_t1 *)xfr->x_rxbuf;
+		t1 = (const struct ccid_t1 *)xfr->x_rxbuf;
 		_hex_dumpf(ccid->cci_tf, (uint8_t *)t1,
 				sizeof(*t1), sizeof(*t1));
 		break;
@@ -196,6 +244,7 @@ static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 		return 0;
 	case CCID_RESULT_TIMEOUT:
 		trace(ccid, "     : Command: Time Extension Request\n");
+		trace(ccid, "     : BW1/CW1 = 0x%.2x\n", msg->in.bError);
 		return 0;
 	default:
 		fprintf(stderr, "*** error: unknown command result\n");
@@ -328,6 +377,7 @@ int _PC_to_RDR_XfrBlock(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 
 	memset(xfr->x_txhdr, 0, sizeof(*xfr->x_txhdr));
 	xfr->x_txhdr->bMessageType = PC_to_RDR_XfrBlock;
+	//xfr->x_txhdr->out.bApp[0] = 0xff; /* wait integer */
 	ret = _PC_to_RDR(ccid, slot, xfr);
 	if ( ret ) {
 		trace(ccid, " Xmit: PC_to_RDR_XfrBlock(%u)\n", slot);
@@ -561,9 +611,9 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 		trace(ccid, " T=1");
 	trace(ccid, "\n");
 
-	trace(ccid, " o Default Clock Freq.: %uHz\n",
+	trace(ccid, " o Default Clock Freq.: %uKHz\n",
 			ccid->cci_desc.dwDefaultClock);
-	trace(ccid, " o Max. Clock Freq.: %uHz\n",
+	trace(ccid, " o Max. Clock Freq.: %uKHz\n",
 			ccid->cci_desc.dwMaximumClock);
 	trace(ccid, "   .bNumClocks = %u\n",
 			ccid->cci_desc.bNumClockSupported);
@@ -583,7 +633,7 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 	if ( ccid->cci_desc.dwFeatures & CCID_ATR_CONFIG )
 		trace(ccid, " o Paramaters configured from ATR\n");
 	if ( ccid->cci_desc.dwFeatures & CCID_ACTIVATE )
-		trace(ccid, " o Chipcard auto-activate\n");
+		trace(ccid, " o Chipcard auto-activate on insert\n");
 	if ( ccid->cci_desc.dwFeatures & CCID_VOLTAGE )
 		trace(ccid, " o Auto Voltage Select\n");
 	if ( ccid->cci_desc.dwFeatures & CCID_FREQ )
@@ -597,28 +647,28 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 	if ( ccid->cci_desc.dwFeatures & CCID_IFSD )
 		trace(ccid, " o Auto IFSD on first exchange\n");
 	
-	switch ( ccid->cci_desc.dwFeatures & (CCID_PPS_VENDOR|CCID_PPS) ) {
-	case CCID_PPS_VENDOR:
-		trace(ccid, " o Proprietary parameter selection algorithm\n");
+	switch ( ccid->cci_desc.dwFeatures & (CCID_PPS_AUTO|CCID_PPS_CUR) ) {
+	case CCID_PPS_AUTO:
+		trace(ccid, " o Parameter selection: Automatic\n");
 		break;
-	case CCID_PPS:
-		trace(ccid, " o Chipcard automatic PPD\n");
+	case CCID_PPS_CUR:
+		trace(ccid, " o Parameter selection: Manual\n");
 		break;
 	default:
-		fprintf(stderr, "PPS/PPS_VENDOR conflict in descriptor\n");
+		fprintf(stderr, "Manual/Auto param. conflict in descriptor\n");
 		return 0;
 	}
 
 	switch ( ccid->cci_desc.dwFeatures &
 		(CCID_T1_TPDU|CCID_T1_APDU|CCID_T1_APDU_EXT) ) {
 	case CCID_T1_TPDU:
-		trace(ccid, " o T=1 TPDU\n");
+		trace(ccid, " o Level: T=1 TPDU\n");
 		break;
 	case CCID_T1_APDU:
-		trace(ccid, " o T=1 APDU (Short)\n");
+		trace(ccid, " o Level: T=1 APDU (Short)\n");
 		break;
 	case CCID_T1_APDU_EXT:
-		trace(ccid, " o T=1 APDU (Short and Extended)\n");
+		trace(ccid, " o Level: T=1 APDU (Short and Extended)\n");
 		break;
 	default:
 		fprintf(stderr, "T=1 PDU conflict in descriptor\n");
@@ -812,8 +862,8 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 	}
 
 	/* Fifth, Initialise any proprietary interfaces */
-	if ( intf.flags & INTF_RFID_OMNI )
-		_omnikey_init_prox(ccid);
+//	if ( intf.flags & INTF_RFID_OMNI )
+//		_omnikey_init_prox(ccid);
 
 	ccid->cci_bus = libusb_get_bus_number(dev);
 	ccid->cci_addr = libusb_get_device_address(dev);

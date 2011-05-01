@@ -121,8 +121,8 @@ struct ccid_desc {
 #define CCID_VOLTAGE		(1<<3)
 #define CCID_FREQ		(1<<4)
 #define CCID_BAUD		(1<<5)
-#define CCID_PPS_VENDOR		(1<<6)
-#define CCID_PPS		(1<<7)
+#define CCID_PPS_AUTO		(1<<6)
+#define CCID_PPS_CUR		(1<<7)
 #define CCID_CLOCK_STOP		(1<<8)
 #define CCID_NAD		(1<<9)
 #define CCID_IFSD		(1<<10)
@@ -143,7 +143,7 @@ struct ccid_desc {
 } _packed;
 
 #define CCID_PROTOCOL_T0 0x0
-struct _ccid_t0 {
+struct ccid_t0 {
 	uint8_t bmFindexDindex;
 	uint8_t bmTCCSKST0;
 	uint8_t bGuardTimeT0;
@@ -152,7 +152,7 @@ struct _ccid_t0 {
 } _packed;
 
 #define CCID_PROTOCOL_T1 0x1
-struct _ccid_t1 {
+struct ccid_t1 {
 	uint8_t bmFindexDindex;
 	uint8_t bmTCCSKST1;
 	uint8_t bGuardTimeT1;

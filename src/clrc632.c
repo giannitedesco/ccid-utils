@@ -176,7 +176,7 @@ static int wait_idle_timer(struct _ccid *ccid, void *priv)
 				 * at iso14443a operation with mifare UL? */
 				/*   RC632_ERR_FLAG_CRC_ERR | */
 				   0)) {
-				printf("error during wait\n");
+				//printf("error during wait\n");
 				return 0;
 			}
 		}
@@ -187,7 +187,7 @@ static int wait_idle_timer(struct _ccid *ccid, void *priv)
 
 			if (irq & RC632_IRQ_TIMER && !(irq & RC632_IRQ_RX)) {
 				/* timed out */
-				printf("..timed out\n");
+				//printf("..timed out\n");
 				clear_irqs(ccid, priv, RC632_IRQ_TIMER);
 				return 0;
 			}
