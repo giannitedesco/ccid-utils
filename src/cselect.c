@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 
+#if 0
 static int jcop_select(cci_t cci)
 {
 	xfr_t xfr;
@@ -29,6 +30,7 @@ static int jcop_select(cci_t cci)
 	xfr_free(xfr);
 	return ret;
 }
+#endif
 
 static int do_stuff(cci_t cci)
 {
@@ -47,22 +49,24 @@ static int do_stuff(cci_t cci)
 		return 0;
 	}
 
-	printf(" - Got %zu bytes ATS...\n", ats_len);
-	hex_dump(ats, ats_len, 16);
+	printf(" - power on OK\n");
 
+#if 0
 	if ( !jcop_select(cci) ) {
 		printf(" - jcop select failed\n");
 		return 0;
 	}
+#endif
 
 	cci_power_off(cci);
-	printf("YAY\n");
 	return 1;
 }
 
 static int found_ccid(ccidev_t dev)
 {
+	static unsigned int count;
 	unsigned int i, num_slots;
+	char fn[128];
 	ccid_t ccid;
 	cci_t cci;
 	int ret = 0;
@@ -70,9 +74,14 @@ static int found_ccid(ccidev_t dev)
 	printf("Found CCI device at %d.%d\n",
 		libccid_device_bus(dev),
 		libccid_device_addr(dev));
-	ccid = ccid_probe(dev, "./cselect.log");
+
+	snprintf(fn, sizeof(fn), "cselect.%u.trace", count);
+	ccid = ccid_probe(dev, fn);
 	if ( NULL == ccid )
 		goto out;
+
+	count++;
+	printf("%s\n", ccid_name(ccid));
 
 	num_slots = ccid_num_slots(ccid);
 	printf("CCID has %d slots\n", num_slots);
@@ -95,7 +104,6 @@ static int found_ccid(ccidev_t dev)
 	}
 
 	ret = 1;
-
 	ccid_close(ccid);
 out:
 	return ret;
@@ -110,8 +118,10 @@ int main(int argc, char **argv)
 	if ( NULL == dev )
 		return EXIT_FAILURE;
 
-	for(i = 0; i < num_dev; i++)
+	for(i = 0; i < num_dev; i++) {
 		found_ccid(dev[i]);
+		printf("\n");
+	}
 
 	libccid_free_device_list(dev);
 
