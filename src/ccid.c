@@ -831,6 +831,17 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 		goto out_close;
 	}
 
+	if ( libusb_get_configuration(ccid->cci_dev, &c) ) {
+		trace(ccid, "error getting configuration\n");
+		goto out_close;
+	}
+
+	if ( c != intf.c ) {
+		trace(ccid, "raced while setting configuration (%d != %d)\n",
+			c, intf.c);
+		goto out_close;
+	}
+
 	if ( libusb_claim_interface(ccid->cci_dev, intf.i) ) {
 		trace(ccid, "error claiming interface\n");
 		goto out_close;
