@@ -95,6 +95,8 @@ _public const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 _public void xfr_free(xfr_t xfr);
 
 _public ccid_t cci_ccid(cci_t cc);
+
+/* contact interfaces only */
 _public int cci_wait_for_card(cci_t cc);
 
 /** \ingroup g_cci
@@ -109,6 +111,7 @@ _public int cci_wait_for_card(cci_t cc);
  * Chip card is not present in the slot.
 */
 #define CHIPCARD_NOT_PRESENT	0x2
+/* contact interfaces only */
 _public unsigned int cci_slot_status(cci_t cc);
 
 /** \ingroup g_cci

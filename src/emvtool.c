@@ -7,7 +7,7 @@
 #include <ccid.h>
 #include <emv.h>
 
-#include <stdio.h>
+#include <string.h>
 
 #include "ca_pubkeys.h"
 
