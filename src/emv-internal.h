@@ -8,6 +8,9 @@
 
 #define EMV_PIN_BLOCK_LEN 8
 
+#include <string.h>
+#include <assert.h>
+
 #include <openssl/sha.h>
 #include <openssl/rsa.h>
 #include <openssl/engine.h>

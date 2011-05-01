@@ -6,6 +6,16 @@
 #ifndef _CCID_INTERNAL_H
 #define _CCID_INTERNAL_H
 
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <string.h>
+#include <assert.h>
+#if HAVE_ENDIAN_H
+#include <endian.h>
+#endif
+
 #include <libusb.h>
 #include <ccid-spec.h>
 

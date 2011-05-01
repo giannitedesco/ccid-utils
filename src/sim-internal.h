@@ -6,6 +6,9 @@
 #ifndef _SIM_INTERNAL_H
 #define _SIM_INTERNAL_H
 
+#include <string.h>
+#include <assert.h>
+
 #define SIM_CLA			0xa0
 
 #define SIM_INS_SELECT		0xa4

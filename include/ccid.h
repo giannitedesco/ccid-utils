@@ -6,18 +6,9 @@
 #ifndef _CCID_H
 #define _CCID_H
 
-#if HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
-#include <assert.h>
-#if HAVE_ENDIAN_H
-#include <endian.h>
-#endif
 
 #include "compiler.h"
 
