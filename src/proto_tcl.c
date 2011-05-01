@@ -1,12 +1,13 @@
 /*
  * This file is part of ccid-utils
  * Copyright (c) 2011 Gianni Tedesco <gianni@scaramanga.co.uk>
- * Released under the terms of the GNU GPL version 3
+ * Released under the terms of the GNU GPL version 2
  *
  * T=CL layer 3 protocol
  *
  * Much logic liberally copied from librfid
  * (C) 2005-2008 Harald Welte <laforge@gnumonks.org>
+ * Released under the terms of the GNU GPL version 2
 */
 #include <ccid.h>
 #include <unistd.h>

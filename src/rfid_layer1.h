@@ -30,7 +30,7 @@ struct rf_mode {
 #define RF_ERR_CRC		(1<<1)
 #define RF_ERR_TIMEOUT		(1<<2)
 _private int _rfid_layer1_rf_power(struct _cci *cci, unsigned int on);
-_private int _rfid_layer1_14443a_init(struct _cci *cci);
+
 _private int _rfid_layer1_set_rf_mode(struct _cci *cci,
 					const struct rf_mode *rf);
 _private int _rfid_layer1_get_rf_mode(struct _cci *cci,
@@ -45,33 +45,50 @@ _private int _rfid_layer1_transact(struct _cci *cci,
 					uint8_t *rx_len,
 					uint64_t timer,
 					unsigned int toggle);
+
+_private int _rfid_layer1_14443a_init(struct _cci *cci);
+
+_private int _rfid_mfc_set_key(struct _cci *cci, const uint8_t *key);
+_private int _rfid_mfc_set_key_ee(struct _cci *cci, unsigned int addr);
+_private int _rfid_mfc_auth(struct _cci *cci, uint8_t cmd,
+				uint32_t serial_no, uint8_t block);
+
 _private unsigned int _rfid_layer1_carrier_freq(struct _cci *cc);
 _private unsigned int _rfid_layer1_get_speeds(struct _cci *cc);
 _private unsigned int _rfid_layer1_mtu(struct _cci *cc);
 _private unsigned int _rfid_layer1_mru(struct _cci *cc);
 
 struct rfid_layer1_ops {
-	 int (*rf_power)(struct _ccid *ccid, void *p, unsigned int on);
-	 int (*iso14443a_init)(struct _ccid *ccid, void *p);
-	 int (*set_rf_mode)(struct _ccid *ccid, void *p,
-	 			const struct rf_mode *rf);
-	 int (*get_rf_mode)(struct _ccid *ccid, void *p,
-	 			const struct rf_mode *rf);
-	 int (*get_error)(struct _ccid *ccid, void *p, uint8_t *err);
-	 int (*get_coll_pos)(struct _ccid *ccid, void *p, uint8_t *pos);
-	 int (*set_speed)(struct _ccid *ccid, void *p, unsigned int i);
-	 int (*transact)(struct _ccid *ccid, void *p,
+	int (*rf_power)(struct _ccid *ccid, void *p, unsigned int on);
+
+	int (*set_rf_mode)(struct _ccid *ccid, void *p,
+				const struct rf_mode *rf);
+	int (*get_rf_mode)(struct _ccid *ccid, void *p,
+				const struct rf_mode *rf);
+	int (*get_error)(struct _ccid *ccid, void *p, uint8_t *err);
+	int (*get_coll_pos)(struct _ccid *ccid, void *p, uint8_t *pos);
+	int (*set_speed)(struct _ccid *ccid, void *p, unsigned int i);
+	int (*transact)(struct _ccid *ccid, void *p,
 				 const uint8_t *tx_buf,
 				 uint8_t tx_len,
 				 uint8_t *rx_buf,
 				 uint8_t *rx_len,
 				 uint64_t timer,
 				 unsigned int toggle);
-	 unsigned int (*carrier_freq)(struct _ccid *ccid, void *p);
-	 unsigned int (*get_speeds)(struct _ccid *ccid, void *p);
-	 unsigned int (*mtu)(struct _ccid *ccid, void *p);
-	 unsigned int (*mru)(struct _ccid *ccid, void *p);
-	 void (*dtor)(struct _ccid *ccid, void *p);
+
+	int (*iso14443a_init)(struct _ccid *ccid, void *p);
+
+	int (*mfc_set_key)(struct _ccid *ccid, void *p, const uint8_t *key);
+	int (*mfc_set_key_ee)(struct _ccid *ccid, void *p, unsigned int addr);
+	int (*mfc_auth)(struct _ccid *ccid, void *p, uint8_t cmd,
+			uint32_t serial_no, uint8_t block);
+
+	unsigned int (*carrier_freq)(struct _ccid *ccid, void *p);
+	unsigned int (*get_speeds)(struct _ccid *ccid, void *p);
+	unsigned int (*mtu)(struct _ccid *ccid, void *p);
+	unsigned int (*mru)(struct _ccid *ccid, void *p);
+
+	void (*dtor)(struct _ccid *ccid, void *p);
 };
 
 _private int _rfid_init(struct _cci *cci,

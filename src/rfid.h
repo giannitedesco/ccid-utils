@@ -33,16 +33,6 @@ struct rfid_tag {
 	uint8_t level;
 
 	uint8_t tcl_capable;
-
-	/* bitmask of supported layer 3 protocols */
-#define RFID_PROTOCOL_UNKNOWN		0
-#define RFID_PROTOCOL_TCL		1
-#define RFID_PROTOCOL_MIFARE_UL		2
-#define RFID_PROTOCOL_MIFARE_CLASSIC	3
-#define RFID_PROTOCOL_ICODE_SLI		4
-#define RFID_PROTOCOL_TAGIT		5
-#define RFID_NUM_PROTOCOLS		6
-	uint8_t proto_supported;
 };
 
 /* ==================[ API ]================== */

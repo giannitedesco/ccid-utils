@@ -1,7 +1,7 @@
 /*
  * This file is part of ccid-utils
  * Copyright (c) 2010 Gianni Tedesco <gianni@scaramanga.co.uk>
- * Released under the terms of the GNU GPL version 3
+ * Released under the terms of the GNU GPL version 2
  *
  * CLRC632 RFID ASIC driver
  *
@@ -18,10 +18,13 @@
 #include "rfid.h"
 #include "clrc632.h"
 #include "rfid_layer1.h"
+#include "proto_mfc.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 #endif
+
+#define TMO_AUTH1 140
 
 struct reg_file {
 	uint8_t reg;
@@ -403,6 +406,220 @@ static int transact(struct _ccid *ccid, void *priv,
 	return fifo_read(ccid, priv, rx_buf, *rx_len);
 }
 
+#define RFID_MIFARE_KEY_LEN 6
+#define RFID_MIFARE_KEY_CODED_LEN 12
+
+/* Transform crypto1 key from generic 6byte into rc632 specific 12byte */
+static int mfc_transform_key(const uint8_t *key6, uint8_t *key12)
+{
+	int i;
+	uint8_t ln;
+	uint8_t hn;
+
+	for (i = 0; i < RFID_MIFARE_KEY_LEN; i++) {
+		ln = key6[i] & 0x0f;
+		hn = key6[i] >> 4;
+		key12[i * 2 + 1] = (~ln << 4) | ln;
+		key12[i * 2] = (~hn << 4) | hn;
+	}
+	return 0;
+}
+
+static int mfc_set_key(struct _ccid *ccid, void *priv, const uint8_t *key)
+{
+	uint8_t coded_key[RFID_MIFARE_KEY_CODED_LEN];
+	uint8_t reg;
+
+	if ( !mfc_transform_key(key, coded_key) )
+		return 0;
+
+	/* Terminate probably running command */
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_IDLE) )
+		return 0;
+
+	if ( !fifo_write(ccid, priv, coded_key, sizeof(coded_key)) )
+		return 0;
+
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_LOAD_KEY) )
+		return 0;
+
+	if ( !timer_set(ccid, priv, TMO_AUTH1) )
+		return 0;
+
+	//if ( !wait_idle(ccid, priv, TMO_AUTH1) )
+	if ( !wait_idle_timer(ccid, priv) )
+		return 0;
+
+	if ( !reg_read(ccid, priv, RC632_REG_ERROR_FLAG, &reg) )
+		return 0;
+
+	if (reg & RC632_ERR_FLAG_KEY_ERR)
+		return 0;
+
+	return 1;
+}
+
+static int mfc_set_key_ee(struct _ccid *ccid, void *priv, unsigned int addr)
+{
+	uint8_t cmd_addr[2];
+	uint8_t reg;
+
+	if (addr > 0xffff - RFID_MIFARE_KEY_CODED_LEN)
+		return 0;
+
+	cmd_addr[0] = addr & 0xff;		/* LSB */
+	cmd_addr[1] = (addr >> 8) & 0xff;	/* MSB */
+
+	/* Terminate probably running command */
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_IDLE) )
+		return 0;
+
+	/* Write the key address to the FIFO */
+	if ( !fifo_write(ccid, priv, cmd_addr, sizeof(cmd_addr)) )
+		return 0;
+
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_LOAD_KEY_E2) )
+		return 0;
+
+	if ( !timer_set(ccid, priv, TMO_AUTH1) )
+		return 0;
+
+	//if ( !wait_idle(ccid, priv, TMO_AUTH1) )
+	if ( !wait_idle_timer(ccid, priv) )
+		return 0;
+
+	if ( !reg_read(ccid, priv, RC632_REG_ERROR_FLAG, &reg) )
+		return 0;
+
+	if (reg & RC632_ERR_FLAG_KEY_ERR)
+		return 0;
+
+	return 1;
+}
+
+struct mifare_authcmd {
+	uint8_t auth_cmd;
+	uint8_t block_address;
+	uint32_t serno;
+}_packed;
+
+static int mfc_auth(struct _ccid *ccid, void *priv, uint8_t cmd,
+			uint32_t serial_no, uint8_t block)
+{
+	struct mifare_authcmd acmd;
+	uint8_t reg;
+
+	if (cmd != RFID_CMD_MIFARE_AUTH1A && cmd != RFID_CMD_MIFARE_AUTH1B) {
+		fprintf(stderr, "invalid auth command\n");
+		return 0;
+	}
+
+	/* Initialize acmd */
+	acmd.block_address = block & 0xff;
+	acmd.auth_cmd = cmd;
+	//acmd.serno = htonl(serial_no);
+	acmd.serno = serial_no;
+
+#if 1
+	/* Clear Rx CRC */
+	if ( !asic_clear_bits(ccid, priv, RC632_REG_CHANNEL_REDUNDANCY,
+				RC632_CR_RX_CRC_ENABLE) )
+#else
+	/* Clear Rx CRC, Set Tx CRC and Odd Parity */
+	if ( !reg_write(ccid, priv, RC632_REG_CHANNEL_REDUNDANCY,
+				RC632_CR_TX_CRC_ENABLE | RC632_CR_PARITY_ODD |
+				RC632_CR_PARITY_ENABLE) )
+#endif
+		return 0;
+
+	/* Send Authent1 Command */
+	if ( !fifo_write(ccid, priv, (unsigned char *)&acmd, sizeof(acmd)) )
+		return 0;
+
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_AUTHENT1) )
+		return 0;
+
+	/* Wait until transmitter is idle */
+	if ( !timer_set(ccid, priv, TMO_AUTH1) )
+		return 0;
+
+	//if ( !wait_idle(ccid, priv, TMO_AUTH1) )
+	if ( !wait_idle_timer(ccid, priv) )
+		return 0;
+
+	if ( !reg_read(ccid, priv, RC632_REG_SECONDARY_STATUS, &reg) )
+		return 0;
+	if (reg & 0x07) {
+		fprintf(stderr, "bitframe?");
+		return 0;
+	}
+
+	/* Clear Tx CRC */
+	if ( !asic_clear_bits(ccid, priv, RC632_REG_CHANNEL_REDUNDANCY,
+				RC632_CR_TX_CRC_ENABLE) )
+		return 0;
+
+	/* Wait until transmitter is idle */
+	if ( !timer_set(ccid, priv, TMO_AUTH1) )
+		return 0;
+
+	/* Send Authent2 Command */
+	if ( !reg_write(ccid, priv, RC632_REG_COMMAND, RC632_CMD_AUTHENT2) )
+		return 0;
+
+	/* Wait until transmitter is idle */
+	//wait_idle(ccid, priv, TMO_AUTH1);
+	if ( !wait_idle_timer(ccid, priv) )
+		return 0;
+
+	/* Check whether authentication was successful */
+	if ( !reg_read(ccid, priv, RC632_REG_CONTROL, &reg) )
+		return 0;
+
+	if (!(reg & RC632_CONTROL_CRYPTO1_ON)) {
+		fprintf(stderr, "authentication not successful");
+		return 0;
+	}
+
+	return 1;
+}
+
+/* transceive regular frame */
+#if 0
+static int
+mifare_transceive(struct rfid_asic_handle *handle,
+			const uint8_t *tx_buf, unsigned int tx_len,
+			uint8_t *rx_buf, unsigned int *rx_len,
+			uint64_t timeout, unsigned int flags)
+{
+	int ret;
+	uint8_t rxl = *rx_len & 0xff;
+
+	memset(rx_buf, 0, *rx_len);
+
+#if 1
+	ret = reg_write(handle, RC632_REG_CHANNEL_REDUNDANCY,
+				(RC632_CR_PARITY_ENABLE |
+				 RC632_CR_PARITY_ODD |
+				 RC632_CR_TX_CRC_ENABLE |
+				 RC632_CR_RX_CRC_ENABLE));
+#else
+	ret = asic_clear_bits(handle, RC632_REG_CHANNEL_REDUNDANCY,
+				RC632_CR_RX_CRC_ENABLE|RC632_CR_TX_CRC_ENABLE);
+#endif
+	if (ret < 0)
+		return ret;
+
+	ret = transceive(handle, tx_buf, tx_len, rx_buf, &rxl, 0x32, 0);
+	*rx_len = rxl;
+	if (ret < 0)
+		return ret;
+
+
+	return 0; 
+}
+#endif
+
 static const struct reg_file rf_14443a_init[] = {
 	{ .reg =	RC632_REG_TX_CONTROL,
 	  .val =	RC632_TXCTRL_MOD_SRC_INT |
@@ -559,13 +776,20 @@ static unsigned int get_mru(struct _ccid *ccid, void *priv)
 
 static const struct rfid_layer1_ops l1_ops = {
 	.rf_power = rf_power,
-	.iso14443a_init = iso14443a_init,
+
 	.set_rf_mode = set_rf_mode, 
 	.get_rf_mode = get_rf_mode,
 	.get_error = get_error,
 	.get_coll_pos = get_coll_pos,
 	.set_speed = set_speed,
 	.transact = transact,
+
+	.iso14443a_init = iso14443a_init,
+
+	.mfc_set_key = mfc_set_key,
+	.mfc_set_key_ee = mfc_set_key_ee,
+	.mfc_auth = mfc_auth,
+
 	.carrier_freq = carrier_freq,
 	.get_speeds = get_speeds,
 	.mtu = get_mtu,

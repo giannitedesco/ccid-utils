@@ -12,6 +12,14 @@
 #include "rfid-internal.h"
 #include "iso14443a.h"
 
+#if 1
+#define dprintf printf
+#define dhex_dump hex_dump
+#else
+#define dprintf(...) do {} while(0)
+#define dhex_dump(a, b, c) do {} while(0)
+#endif
+
 static int do_select(struct _cci *cci)
 {
 	struct _rfid *rf = cci->i_priv;
@@ -28,9 +36,9 @@ static int do_select(struct _cci *cci)
 
 	cci->i_status = CHIPCARD_ACTIVE;
 
-	//printf("Found ISO-14443-A tag: cascade level %d\n",
-	//	rf->rf_tag.level);
-	//hex_dump(rf->rf_tag.uid, rf->rf_tag.uid_len, 16);
+	dprintf("Found ISO-14443-A tag: cascade level %d\n",
+		rf->rf_tag.level);
+	dhex_dump(rf->rf_tag.uid, rf->rf_tag.uid_len, 16);
 
 	if ( rf->rf_tag.tcl_capable ) {
 		ret = _tcl_get_ats(cci, &rf->rf_tag, &rf->rf_l3p.tcl);

@@ -1,12 +1,13 @@
 /*
  * This file is part of ccid-utils
  * Copyright (c) 2011 Gianni Tedesco <gianni@scaramanga.co.uk>
- * Released under the terms of the GNU GPL version 3
+ * Released under the terms of the GNU GPL version 2
  *
  * ISO-14443-A Layer 2
  *
  * Much logic liberally copied from librfid
  * (C) 2005-2008 Harald Welte <laforge@gnumonks.org>
+ * Released under the terms of the GNU GPL version 2
 */
 #include <ccid.h>
 #include <unistd.h>
@@ -16,7 +17,7 @@
 #include "rfid_layer1.h"
 #include "iso14443a.h"
 
-#if 0
+#if 1
 #define dprintf printf
 #define dhex_dump hex_dump
 #else
@@ -427,12 +428,9 @@ cascade:
 
 	if (sak[0] & 0x20) {
 		dprintf("we have a T=CL compliant PICC\n");
-		tag->proto_supported = (1 << RFID_PROTOCOL_TCL);
 		tag->tcl_capable = 1;
 	} else {
 		dprintf("we have a T!=CL PICC\n");
-		tag->proto_supported = (1 << RFID_PROTOCOL_MIFARE_UL)|
-					  (1 << RFID_PROTOCOL_MIFARE_CLASSIC);
 		tag->tcl_capable = 0;
 	}
 

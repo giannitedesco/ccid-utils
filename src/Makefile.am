@@ -18,6 +18,8 @@ libccid_la_SOURCES = \
 	cci_rfid.c \
 	proto_tcl.c \
 	proto_tcl.h \
+	proto_mfc.c \
+	proto_mfc.h \
 	iso14443a.c \
 	iso14443a.h \
 	clrc632.c \

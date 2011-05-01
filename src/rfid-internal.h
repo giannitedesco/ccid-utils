@@ -9,9 +9,11 @@
 #include "rfid.h"
 #include "rfid_layer1.h"
 #include "proto_tcl.h"
+#include "proto_mfc.h"
 
 union _rfid_layer3 {
 	struct tcl_handle tcl;
+	struct mfc_handle mfc;
 };
 
 typedef int (*rfid_l3_t)(struct _cci *cci, struct rfid_tag *tag,

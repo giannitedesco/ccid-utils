@@ -33,12 +33,6 @@ int _rfid_layer1_rf_power(struct _cci *cci, unsigned int on)
 	return (*rf->rf_l1->rf_power)(cci->i_parent, rf->rf_l1p, on);
 }
 
-int _rfid_layer1_14443a_init(struct _cci *cci)
-{
-	struct _rfid *rf = cci->i_priv;
-	return (*rf->rf_l1->iso14443a_init)(cci->i_parent, rf->rf_l1p);
-}
-
 int _rfid_layer1_set_rf_mode(struct _cci *cci, const struct rf_mode *mode)
 {
 	struct _rfid *rf = cci->i_priv;
@@ -82,6 +76,32 @@ int _rfid_layer1_transact(struct _cci *cci,
 					 tx_buf, tx_len,
 					 rx_buf, rx_len,
 					 timer, toggle);
+}
+
+int _rfid_layer1_14443a_init(struct _cci *cci)
+{
+	struct _rfid *rf = cci->i_priv;
+	return (*rf->rf_l1->iso14443a_init)(cci->i_parent, rf->rf_l1p);
+}
+
+int _rfid_mfc_set_key(struct _cci *cci, const uint8_t *key)
+{
+	struct _rfid *rf = cci->i_priv;
+	return (*rf->rf_l1->mfc_set_key)(cci->i_parent, rf->rf_l1p, key);
+}
+
+int _rfid_mfc_set_key_ee(struct _cci *cci, unsigned int addr)
+{
+	struct _rfid *rf = cci->i_priv;
+	return (*rf->rf_l1->mfc_set_key_ee)(cci->i_parent, rf->rf_l1p, addr);
+}
+
+int _rfid_mfc_auth(struct _cci *cci, uint8_t cmd,
+				uint32_t serial_no, uint8_t block)
+{
+	struct _rfid *rf = cci->i_priv;
+	return (*rf->rf_l1->mfc_auth)(cci->i_parent, rf->rf_l1p, cmd,
+					serial_no, block);
 }
 
 unsigned int _rfid_layer1_carrier_freq(struct _cci *cci)
