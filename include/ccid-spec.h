@@ -12,6 +12,12 @@
 /* Max slots */
 #define CCID_MAX_SLOTS			0x10U
 
+/* control nessages */
+#define CCID_CTL_ABORT			0x1
+#define CCID_CTL_GET_CLOCK_FREQS	0x2
+#define CCID_CTL_GET_DATA_RATES		0x3
+
+/* error codes */
 #define CCID_ERR_ABORT			0xff
 #define CCID_ERR_MUTE			0xfe
 #define CCID_ERR_PARITY			0xfd

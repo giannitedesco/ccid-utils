@@ -9,6 +9,7 @@
 #include <ccid.h>
 
 #include <stdarg.h>
+#include <inttypes.h>
 
 #include "ccid-internal.h"
 
@@ -615,14 +616,18 @@ static int fill_ccid_desc(struct _ccid *ccid, const uint8_t *ptr, size_t len)
 			ccid->cci_desc.dwDefaultClock);
 	trace(ccid, " o Max. Clock Freq.: %uKHz\n",
 			ccid->cci_desc.dwMaximumClock);
-	trace(ccid, "   .bNumClocks = %u\n",
-			ccid->cci_desc.bNumClockSupported);
+	if ( ccid->cci_desc.bNumClockSupported ) {
+		trace(ccid, "   .bNumClocks = %u\n",
+				ccid->cci_desc.bNumClockSupported);
+	}
 	trace(ccid, " o Default Data Rate: %ubps\n",	
 			ccid->cci_desc.dwDataRate);
 	trace(ccid, " o Max. Data Rate: %ubps\n",
 			ccid->cci_desc.dwMaxDataRate);
-	trace(ccid, "   .bNumDataRates = %u\n",
-			ccid->cci_desc.bNumDataRatesSupported);
+	if ( ccid->cci_desc.bNumDataRatesSupported ) {
+		trace(ccid, "   .bNumDataRates = %u\n",
+				ccid->cci_desc.bNumDataRatesSupported);
+	}
 	trace(ccid, " o T=1 Max. IFSD = %u\n",
 			ccid->cci_desc.dwMaxIFSD);
 	trace(ccid, "   .dwSynchProtocols = 0x%.8x\n",
@@ -757,6 +762,79 @@ static int probe_descriptors(struct _ccid *ccid)
 	return 1;
 }
 
+static int get_data_rates(struct _ccid *ccid)
+{
+	uint32_t buf[ccid->cci_desc.bNumDataRatesSupported];
+	uint8_t rt;
+	int ret, i;
+
+	/* no data rates to get... */
+	if ( sizeof(buf) == 0 )
+		return 1;
+
+	rt = (LIBUSB_ENDPOINT_IN|
+		LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE);
+
+	ret = libusb_control_transfer(ccid->cci_dev, rt,
+					CCID_CTL_GET_DATA_RATES,
+					0, ccid->cci_intf,
+					(uint8_t *)buf, sizeof(buf),
+					1000);
+	if ( ret < 0 )	
+		return 0;
+
+	ccid->cci_num_rate = ret / 4;
+
+	ccid->cci_data_rate = calloc(ccid->cci_num_rate,
+					sizeof(*ccid->cci_data_rate));
+	if ( NULL == ccid->cci_data_rate )
+		return 0;
+
+	for(i = 0; i < ccid->cci_num_rate; i++) {
+		ccid->cci_data_rate[i] = le32toh(buf[i]);
+//		trace(ccid, "%"PRId32"bps\n", ccid->cci_data_rate[i]);
+	}
+
+	return 1;
+}
+
+static int get_clock_freqs(struct _ccid *ccid)
+{
+	uint32_t buf[ccid->cci_desc.bNumClockSupported];
+	uint8_t rt;
+	int ret, i;
+
+	/* no data rates to get... */
+	if ( sizeof(buf) == 0 )
+		return 1;
+
+	rt = (LIBUSB_ENDPOINT_IN|
+		LIBUSB_REQUEST_TYPE_CLASS|LIBUSB_RECIPIENT_INTERFACE);
+
+	ret = libusb_control_transfer(ccid->cci_dev, rt,
+					CCID_CTL_GET_CLOCK_FREQS,
+					0, ccid->cci_intf,
+					(uint8_t *)buf, sizeof(buf),
+					1000);
+	if ( ret < 0 )	
+		return 0;
+
+	ccid->cci_num_clock = ret / 4;
+
+	ccid->cci_clock_freq = calloc(ccid->cci_num_clock,
+					sizeof(*ccid->cci_clock_freq));
+	if ( NULL == ccid->cci_clock_freq )
+		return 0;
+
+	trace(ccid, "%zu clock rates supported\n", ccid->cci_num_clock);
+	for(i = 0; i < ccid->cci_num_clock; i++) {
+		ccid->cci_clock_freq[i] = le32toh(buf[i]);
+		trace(ccid, " o %"PRId32"KHz\n", ccid->cci_clock_freq[i]);
+	}
+
+	return 1;
+}
+
 /** Connect to a physical chipcard device.
  * \ingroup g_ccid
  * @param dev \ref ccidev_t representing a physical device.
@@ -852,10 +930,17 @@ ccid_t ccid_probe(ccidev_t dev, const char *tracefile)
 		goto out_close;
 	}
 
+	ccid->cci_intf = intf.i;
+
 	/* Third, probe the CCID class descriptor */
 	if( !probe_descriptors(ccid) ) {
 		goto out_close;
 	}
+
+	if ( !get_data_rates(ccid) )
+		goto out_close;
+	if( !get_clock_freqs(ccid) )
+		goto out_close;
 
 	ccid->cci_xfr = _xfr_do_alloc(ccid->cci_max_out, ccid->cci_max_in);
 	if ( NULL == ccid->cci_xfr )

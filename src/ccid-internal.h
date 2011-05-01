@@ -54,6 +54,7 @@ struct _ccid {
 	uint16_t 	cci_max_in;
 	uint16_t 	cci_max_out;
 	uint16_t 	cci_max_intr;
+	uint16_t	cci_intf;
 
 	uint8_t 	cci_seq;
 	uint8_t		cci_bus, cci_addr;
@@ -71,6 +72,10 @@ struct _ccid {
 	struct ccid_desc cci_desc;
 
 	char		*cci_name;
+	uint32_t	*cci_clock_freq;
+	uint32_t	*cci_data_rate;
+	size_t		cci_num_clock;
+	size_t		cci_num_rate;
 };
 
 struct _xfr {
