@@ -72,18 +72,32 @@ _public ccidev_t libccid_device_by_address(uint8_t bus, uint8_t addr);
 _public uint8_t libccid_device_bus(ccidev_t dev);
 _public uint8_t libccid_device_addr(ccidev_t dev);
 
+#define CCID_ERROR_IN_VALUE		1
+#define CCID_ERROR_NO_MEM		2
+#define CCID_ERROR_DEVICE_REMOVED	3
+#define CCID_ERROR_BUS			4 /* error on device bus */
+#define CCID_ERROR_NO_CARD		5
+#define CCID_ERROR_CARD_IO		6 /* error on card bus */
+#define CCID_ERROR_CARD_PROTO		7 /* unsupported protocol */
+#define CCID_ERROR_CARD_TIMEOUT		8
+#define CCID_ERROR_AUTH			9
+#define CCID_ERROR_PIN_TIMEOUT		10 /* not implemented */
+
 _public ccid_t ccid_probe(ccidev_t dev, const char *tracefile);
-_public unsigned int ccid_num_slots(ccid_t cci);
-_public cci_t ccid_get_slot(ccid_t cci, unsigned int i);
-_public unsigned int ccid_num_fields(ccid_t cci);
-_public cci_t ccid_get_field(ccid_t cci, unsigned int i);
-_public void ccid_close(ccid_t cci);
-_public void ccid_log(ccid_t cci, const char *fmt, ...) _printf(2, 3);
+_public unsigned int ccid_num_slots(ccid_t ccid);
+_public cci_t ccid_get_slot(ccid_t ccid, unsigned int i);
+_public unsigned int ccid_num_fields(ccid_t ccid);
+_public cci_t ccid_get_field(ccid_t ccid, unsigned int i);
+_public void ccid_close(ccid_t ccid);
+_public void ccid_log(ccid_t ccid, const char *fmt, ...) _printf(2, 3);
 _public uint8_t ccid_bus(ccid_t ccid);
 _public uint8_t ccid_addr(ccid_t ccid);
 _public const char *ccid_name(ccid_t ccid);
 
-_public xfr_t  xfr_alloc(size_t txbuf, size_t rxbuf);
+_public unsigned int ccid_error(ccid_t ccid);
+
+/* Transact xfr buffers */
+_public xfr_t xfr_alloc(size_t txbuf, size_t rxbuf);
 _public void xfr_reset(xfr_t xfr);
 _public int xfr_tx_byte(xfr_t xfr, uint8_t byte);
 _public int xfr_tx_buf(xfr_t xfr, const uint8_t *ptr, size_t len);
@@ -94,10 +108,15 @@ _public const uint8_t *xfr_rx_data(xfr_t xfr, size_t *len);
 
 _public void xfr_free(xfr_t xfr);
 
-_public ccid_t cci_ccid(cci_t cc);
+/* Chip card interface */
+_public ccid_t cci_ccid(cci_t cci);
+
+_public int cci_power_off(cci_t cci);
+_public int cci_transact(cci_t cci, xfr_t xfr);
+_public unsigned int cci_error(cci_t cci);
 
 /* contact interfaces only */
-_public int cci_wait_for_card(cci_t cc);
+_public int cci_wait_for_card(cci_t cci);
 
 /** \ingroup g_cci
  * Chip card is present in the slot, powered and clocked.
@@ -112,7 +131,7 @@ _public int cci_wait_for_card(cci_t cc);
 */
 #define CHIPCARD_NOT_PRESENT	0x2
 /* contact interfaces only */
-_public unsigned int cci_slot_status(cci_t cc);
+_public unsigned int cci_slot_status(cci_t cci);
 
 /** \ingroup g_cci
  * There was an error while retrieving clock status.
@@ -134,7 +153,7 @@ _public unsigned int cci_slot_status(cci_t cc);
  * Clock is stopped in unknown state.
 */
 #define CHIPCARD_CLOCK_STOP	0x4
-_public unsigned int cci_clock_status(cci_t cc);
+_public unsigned int cci_clock_status(cci_t cci);
 
 /** \ingroup g_cci
  * Automatically select chip card voltage.
@@ -152,11 +171,8 @@ _public unsigned int cci_clock_status(cci_t cc);
  * 1.8 Volts.
 */
 #define CHIPCARD_1_8V		0x3
-_public const uint8_t *cci_power_on(cci_t cc, unsigned int voltage,
+_public const uint8_t *cci_power_on(cci_t cci, unsigned int voltage,
 				size_t *atr_len);
-_public int cci_power_off(cci_t cc);
-
-_public int cci_transact(cci_t cc, xfr_t xfr);
 
 /* -- Utility functions */
 _public void hex_dump(const uint8_t *ptr, size_t len, size_t llen);

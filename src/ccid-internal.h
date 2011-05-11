@@ -81,6 +81,8 @@ struct _ccid {
 	/* CCID USB descriptor */
 	struct ccid_desc d_desc;
 
+	unsigned int	d_error;
+
 	char		*d_name;
 	uint32_t	*d_clock_freq;
 	uint32_t	*d_data_rate;

@@ -13,6 +13,21 @@
 
 #include "ccid-internal.h"
 
+static void usb_xfr_error(struct _ccid *ccid, int rc)
+{
+	switch(rc) {
+	case LIBUSB_ERROR_NO_DEVICE:
+		ccid->d_error = CCID_ERROR_DEVICE_REMOVED;
+		return;
+	case LIBUSB_ERROR_NO_MEM:
+		ccid->d_error = CCID_ERROR_NO_MEM;
+		return;
+	default:
+		ccid->d_error = CCID_ERROR_BUS;
+		return;
+	}
+}
+
 static size_t x_rbuflen(struct _xfr *xfr)
 {
 	return xfr->x_rxmax + sizeof(struct ccid_msg);
@@ -25,13 +40,20 @@ static size_t x_tbuflen(struct _xfr *xfr)
 int _cci_wait_for_interrupt(struct _ccid *ccid)
 {
 	const uint8_t *buf;
-	int ret;
+	int ret, rc;
 	size_t len;
 
-	if ( libusb_interrupt_transfer(ccid->d_dev, ccid->d_intrp,
+again:
+	rc = libusb_interrupt_transfer(ccid->d_dev, ccid->d_intrp,
 				(void *)ccid->d_xfr->x_rxhdr,
-				x_rbuflen(ccid->d_xfr), &ret, 250) )
+				x_rbuflen(ccid->d_xfr), &ret, 250);
+	if ( rc == LIBUSB_ERROR_INTERRUPTED )
+		goto again;
+	if ( rc ) {
+		fprintf(stderr, "*** error: libusb_interrupt_transfer()\n");
+		usb_xfr_error(ccid, rc);
 		return 0;
+	}
 
 	if ( ret == 0 )
 		return 1;
@@ -186,9 +208,11 @@ static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 		trace(ccid, "     : Command: SUCCESS\n");
 		return 1;
 	case CCID_RESULT_ERROR:
+		ccid->d_error = CCID_ERROR_CARD_IO;
 		switch ( msg->in.bError ) {
 		case CCID_ERR_ABORT:
 			trace(ccid, "     : Command: ERR: ICC Aborted\n");
+			ccid->d_error = CCID_ERROR_NO_CARD;
 			break;
 		case CCID_ERR_MUTE:
 			trace(ccid, "     : Command: ERR: ICC Timed Out\n");
@@ -204,20 +228,25 @@ static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 			break;
 		case CCID_ERR_BAD_TS:
 			trace(ccid, "     : Command: ERR: Bad ATR TS\n");
+			ccid->d_error = CCID_ERROR_CARD_PROTO;
 			break;
 		case CCID_ERR_BAD_TCK:
 			trace(ccid, "     : Command: ERR: Bad ATR TCK\n");
+			ccid->d_error = CCID_ERROR_CARD_PROTO;
 			break;
 		case CCID_ERR_PROTOCOL:
 			trace(ccid, "     : Command: ERR: "
 					"Unsupported Protocol\n");
+			ccid->d_error = CCID_ERROR_CARD_PROTO;
 			break;
 		case CCID_ERR_CLASS:
 			trace(ccid, "     : Command: ERR: Unsupported CLA\n");
+			ccid->d_error = CCID_ERROR_CARD_PROTO;
 			break;
 		case CCID_ERR_PROCEDURE:
 			trace(ccid, "     : Command: ERR: "
 					"Procedure Byte Conflict\n");
+			ccid->d_error = CCID_ERROR_CARD_PROTO;
 			break;
 		case CCID_ERR_DEACTIVATED:
 			trace(ccid, "     : Command: ERR: "
@@ -229,6 +258,7 @@ static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 			break;
 		case CCID_ERR_PIN_TIMEOUT:
 			trace(ccid, "     : Command: ERR: PIN timeout\n");
+			ccid->d_error = CCID_ERROR_PIN_TIMEOUT;
 			break;
 		case CCID_ERR_BUSY:
 			trace(ccid, "     : Command: ERR: Slot Busy\n");
@@ -246,22 +276,29 @@ static int _cmd_result(struct _ccid *ccid, const struct ccid_msg *msg)
 	case CCID_RESULT_TIMEOUT:
 		trace(ccid, "     : Command: Time Extension Request\n");
 		trace(ccid, "     : BW1/CW1 = 0x%.2x\n", msg->in.bError);
+		ccid->d_error = CCID_ERROR_CARD_TIMEOUT;
 		return 0;
 	default:
 		fprintf(stderr, "*** error: unknown command result\n");
+		ccid->d_error = CCID_ERROR_CARD_IO;
 		return 0;
 	}
 }
 
 static int do_recv(struct _ccid *ccid, struct _xfr *xfr)
 {
-	int ret;
+	int ret, rc;
 	size_t len;
 
-	if ( libusb_bulk_transfer(ccid->d_dev, ccid->d_inp,
+again:
+	rc = libusb_bulk_transfer(ccid->d_dev, ccid->d_inp,
 				(void *)xfr->x_rxhdr,
-				x_rbuflen(xfr), &ret, 0) ) {
+				x_rbuflen(xfr), &ret, 0);
+	if ( rc == LIBUSB_ERROR_INTERRUPTED )
+		goto again;
+	if ( rc ) {
 		fprintf(stderr, "*** error: libusb_bulk_read()\n");
+		usb_xfr_error(ccid, rc);
 		return 0;
 	}
 
@@ -269,11 +306,13 @@ static int do_recv(struct _ccid *ccid, struct _xfr *xfr)
 
 	if ( len < sizeof(*xfr->x_rxhdr) ) {
 		fprintf(stderr, "*** error: truncated CCI msg\n");
+		ccid->d_error = CCID_ERROR_BUS;
 		return 0;
 	}
 
 	if ( sizeof(*xfr->x_rxhdr) + le32toh(xfr->x_rxhdr->dwLength) > len ) {
 		fprintf(stderr, "*** error: bad dwLength in CCI msg\n");
+		ccid->d_error = CCID_ERROR_BUS;
 		return 0;
 	}
 
@@ -320,12 +359,14 @@ again:
 	if ( msg->bSlot != slot ) {
 		fprintf(stderr, "*** error: bad slot %u (expected %u)\n",
 			msg->bSlot, slot);
+		ccid->d_error = CCID_ERROR_BUS;
 		return 0;
 	}
 
 	if ( (uint8_t)(msg->bSeq + 1) != ccid->d_seq ) {
 		fprintf(stderr, "*** error: expected seq 0x%.2x got 0x%.2x\n",
 			ccid->d_seq, (uint8_t)(msg->bSeq + 1));
+		ccid->d_error = CCID_ERROR_BUS;
 		return 0;
 	}
 
@@ -339,7 +380,7 @@ again:
 
 static int _PC_to_RDR(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 {
-	int ret;
+	int ret, rc;
 	size_t len;
 
 	/* Escape functions may use bad slots as part of their
@@ -354,10 +395,15 @@ static int _PC_to_RDR(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	xfr->x_txhdr->bSlot = slot;
 	xfr->x_txhdr->bSeq = ccid->d_seq++;
 
-	if ( libusb_bulk_transfer(ccid->d_dev, ccid->d_outp,
+again:
+	rc = libusb_bulk_transfer(ccid->d_dev, ccid->d_outp,
 				(void *)xfr->x_txhdr,
-				x_tbuflen(xfr), &ret, 0) ) {
+				x_tbuflen(xfr), &ret, 0);
+	if ( rc == LIBUSB_ERROR_INTERRUPTED )
+		goto again;
+	if ( rc ) {
 		fprintf(stderr, "*** error: libusb_bulk_write()\n");
+		usb_xfr_error(ccid, rc);
 		return 0;
 	}
 
@@ -366,6 +412,7 @@ static int _PC_to_RDR(struct _ccid *ccid, unsigned int slot, struct _xfr *xfr)
 	if ( ret < x_tbuflen(xfr) ) {
 		fprintf(stderr, "*** error: truncated TX: %zu/%zu\n",
 			len, x_tbuflen(xfr));
+		ccid->d_error = CCID_ERROR_BUS;
 		return 0;
 	}
 

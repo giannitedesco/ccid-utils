@@ -10,6 +10,10 @@
 #include <structmember.h>
 #include "py_ccid.h"
 
+#define MODNAME "ccid"
+
+static PyObject *_ccid_err;
+
 static ccidev_t get_dev(struct cp_dev *dev)
 {
 	if ( dev->dev )
@@ -68,7 +72,7 @@ static PyGetSetDef cp_dev_attribs[] = {
 
 static PyTypeObject dev_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.dev",
+	.tp_name = MODNAME ".dev",
 	.tp_basicsize = sizeof(struct cp_dev),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
@@ -120,7 +124,7 @@ static PySequenceMethods devlist_seq = {
 
 static PyTypeObject devlist_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.devlist",
+	.tp_name = MODNAME ".devlist",
 	.tp_basicsize = sizeof(struct cp_devlist),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
@@ -240,7 +244,7 @@ static PyMethodDef cp_xfr_methods[] = {
 
 static PyTypeObject xfr_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.xfr",
+	.tp_name = MODNAME ".xfr",
 	.tp_basicsize = sizeof(struct cp_xfr),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
@@ -256,7 +260,7 @@ static PyObject *cp_cci_transact(struct cp_cci *self, PyObject *args)
 	struct cp_xfr *xfr;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -279,7 +283,7 @@ static PyObject *cp_cci_transact(struct cp_cci *self, PyObject *args)
 static PyObject *cp_cci_wait(struct cp_cci *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -292,7 +296,7 @@ static PyObject *cp_cci_wait(struct cp_cci *self, PyObject *args)
 static PyObject *cp_cci_status(struct cp_cci *self)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -304,7 +308,7 @@ static PyObject *cp_cci_clock(struct cp_cci *self, PyObject *args)
 	long ret;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -324,7 +328,7 @@ static PyObject *cp_cci_on(struct cp_cci *self, PyObject *args)
 	size_t atr_len;
 
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -332,7 +336,7 @@ static PyObject *cp_cci_on(struct cp_cci *self, PyObject *args)
 		return NULL;
 
 	if ( voltage < 0 || voltage > CHIPCARD_1_8V ) {
-		PyErr_SetString(PyExc_ValueError, "Bad voltage ID");
+		PyErr_SetString(_ccid_err, "Bad voltage ID");
 		return NULL;
 	}
 
@@ -348,7 +352,7 @@ static PyObject *cp_cci_on(struct cp_cci *self, PyObject *args)
 static PyObject *cp_cci_off(struct cp_cci *self, PyObject *args)
 {
 	if ( NULL == self->slot ) {
-		PyErr_SetString(PyExc_ValueError, "Bad slot");
+		PyErr_SetString(_ccid_err, "Bad slot");
 		return NULL;
 	}
 
@@ -417,7 +421,7 @@ static PyGetSetDef cp_cci_attribs[] = {
 
 static PyTypeObject cci_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.cci",
+	.tp_name = MODNAME ".cci",
 	.tp_basicsize = sizeof(struct cp_cci),
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	.tp_new = PyType_GenericNew,
@@ -429,7 +433,7 @@ static PyTypeObject cci_pytype = {
 
 static PyTypeObject slot_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.slot",
+	.tp_name = MODNAME ".slot",
 	.tp_base = &cci_pytype,
 	.tp_basicsize = sizeof(struct cp_cci),
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -441,7 +445,7 @@ static PyTypeObject slot_pytype = {
 
 static PyTypeObject rfid_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.rfid",
+	.tp_name = MODNAME".rfid",
 	.tp_base = &cci_pytype,
 	.tp_basicsize = sizeof(struct cp_cci),
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -586,13 +590,13 @@ static PyGetSetDef cp_ccid_attribs[] = {
 
 static PyMethodDef cp_ccid_methods[] = {
 	{"log",(PyCFunction)cp_log, METH_VARARGS,
-		"ccid.log(string) - Log some text to the tracefile"},
+		MODNAME ".log(string) - Log some text to the tracefile"},
 	{NULL, }
 };
 
 static PyTypeObject ccid_pytype = {
 	PyObject_HEAD_INIT(NULL)
-	.tp_name = "ccid.ccid",
+	.tp_name = MODNAME ".ccid",
 	.tp_basicsize = sizeof(struct cp_ccid),
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_new = PyType_GenericNew,
@@ -653,7 +657,7 @@ PyMODINIT_FUNC initccid(void)
 	if ( PyType_Ready(&rfid_pytype) < 0 )
 		return;
 
-	m = Py_InitModule3("ccid", methods, "USB Chip Card Interface Driver");
+	m = Py_InitModule3(MODNAME, methods, "USB Chip Card Interface Driver");
 	if ( NULL == m )
 		return;
 
@@ -671,6 +675,11 @@ PyMODINIT_FUNC initccid(void)
 	_INT_CONST(m, CHIPCARD_5V);
 	_INT_CONST(m, CHIPCARD_3V);
 	_INT_CONST(m, CHIPCARD_1_8V);
+
+	_ccid_err = PyErr_NewException(MODNAME ".CCID_Error",
+					PyExc_Exception, NULL);
+	Py_INCREF(_ccid_err);
+	PyModule_AddObject(m, "CCID_Error", _ccid_err);
 
 	Py_INCREF(&xfr_pytype);
 	PyModule_AddObject(m, "xfr", (PyObject *)&xfr_pytype);

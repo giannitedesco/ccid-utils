@@ -25,6 +25,10 @@ unsigned int cci_slot_status(cci_t cci)
 	return cci->i_status;
 }
 
+unsigned int cci_error(cci_t cci)
+{
+	return cci->i_parent->d_error;
+}
 
 /** Return pointer to CCID to which a chip card slot belongs.
  * \ingroup g_cci
