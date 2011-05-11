@@ -18,22 +18,6 @@ static xfr_t xfr;
 
 #define SOCKET_FN "/tmp/osmocom_simctl"
 
-static int fdctl_coe(int fd, int coe)
-{
-	int ret;
-
-	if ( coe )
-		coe = FD_CLOEXEC;
-	else
-		coe = 0;
-
-	ret = fcntl(fd, F_SETFD, coe);
-	if ( ret < 0 )
-		return 0;
-
-	return 1;
-}
-
 static const char *sys_err(void)
 {
 	return strerror(errno);
@@ -55,7 +39,6 @@ static int get_msg(int s)
 	if ( rc <= 0 )
 		return 0;
 
-	printf("Retrieved %zu bytes of data\n", (size_t)rc);
 	xfr_tx_buf(xfr, buf, rc);
 	if ( !cci_transact(cci, xfr) ) {
 		fprintf(stderr, "cci_transact error %s\n", sys_err());
@@ -73,7 +56,6 @@ static int get_msg(int s)
 	if ( rc <= 0 )
 		return 0;
 	
-	printf("Sent %zu bytes of data\n", sz + 2);
 	return 1;
 }
 
@@ -159,19 +141,9 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if ( !cci_power_on(cci, CHIPCARD_AUTO_VOLTAGE, NULL) ) {
-		fprintf(stderr, "Failed to retreive ATR\n");
-		return EXIT_FAILURE;
-	}
-
 	s = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if ( s < 0 ) {
 		fprintf(stderr, "%s: socket: %s\n", cmd, sys_err());
-		return EXIT_FAILURE;
-	}
-
-	if ( !fdctl_coe(s, 1) ) {
-		fprintf(stderr, "%s: fdctl: %s\n", cmd, sys_err());
 		return EXIT_FAILURE;
 	}
 
@@ -194,6 +166,13 @@ int main(int argc, char **argv)
 
 	printf("Accepting connections on: %s\n", SOCKET_FN);
 
+again:
+	cci_power_off(cci);
+	if ( !cci_power_on(cci, CHIPCARD_AUTO_VOLTAGE, NULL) ) {
+		fprintf(stderr, "Failed to retreive ATR\n");
+		return EXIT_FAILURE;
+	}
+
 	salen = sizeof(sa);
 	c = accept(s, (struct sockaddr *)&sa, &salen);
 	if ( c < 0 ) {
@@ -201,13 +180,14 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if ( !fdctl_coe(c, 1) ) {
-		fprintf(stderr, "%s: fdctl: %s\n", cmd, sys_err());
-		return EXIT_FAILURE;
-	}
-
+	printf("peer connected\n");
 	for(; get_msg(c); )
 		/* nothing */;
+
+	printf("peer hung up\n");
+	close(c);
+	usleep(1000000);
+	goto again;
 
 	return EXIT_SUCCESS;
 }
