@@ -33,6 +33,13 @@ static int bop_pname(const uint8_t *ptr, size_t len, void *priv)
 	return 1;
 }
 
+static int bop_pdol(const uint8_t *ptr, size_t len, void *priv)
+{
+	struct _emv_app *a = priv;
+	hex_dump(ptr, len, 16);
+	return 1;
+}
+
 static int bop_prio(const uint8_t *ptr, size_t len, void *priv)
 {
 	struct _emv_app *a = priv;
@@ -190,6 +197,7 @@ static int bop_fci2(const uint8_t *ptr, size_t len, void *priv)
 		{ .tag = "\x5f\x2d", .tag_len = 2, .op = NULL},
 		{ .tag = "\x9f\x11", .tag_len = 2, .op = NULL},
 		{ .tag = "\x9f\x12", .tag_len = 2, .op = bop_pname},
+		{ .tag = "\x9f\x38", .tag_len = 2, .op = bop_pdol},
 		{ .tag = "\xbf\x0c", .tag_len = 2, .op = NULL},
 		/* FIXME: retrieve optional PDOL if present */
 	};
