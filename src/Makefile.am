@@ -48,14 +48,14 @@ libemv_la_SOURCES = 	gang.c \
 			emv_trm.c \
 			emv_err.c
 
-emvtool_LDADD = libemv.la -lusb-1.0
+emvtool_LDADD = libemv.la -lusb-1.0 libccid.la
 emvtool_SOURCES = emvtool.c
 
 libsim_la_LIBADD = libccid.la
 libsim_la_LDFLAGS =  -version-info 4:0:0
 libsim_la_SOURCES = sim.c sim_apdu.c sim_sms.c
 
-simtool_LDADD = libsim.la -lusb-1.0
+simtool_LDADD = libsim.la -lusb-1.0 libccid.la
 simtool_SOURCES = simtool.c
 
 cselect_LDADD = libccid.la
