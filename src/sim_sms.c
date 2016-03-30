@@ -118,7 +118,7 @@ const char *fmt_number(uint8_t type, uint8_t len, const uint8_t *ptr)
 
 void _sms_decode(struct _sms *sms, const uint8_t *ptr)
 {
-	const uint8_t *end = ptr + 176;
+	//const uint8_t *end = ptr + 176;
 
 	memset(sms, 0, sizeof(*sms));
 

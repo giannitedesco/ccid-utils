@@ -83,7 +83,7 @@ static RSA *get_ca_key(unsigned int idx, emv_mod_cb_t mod,
 	exponent = (*exp)(priv, idx, &exp_len);
 	if ( NULL == exponent )
 		return NULL;
-	
+
 	key = RSA_new();
 	if ( NULL == key )
 		return NULL;

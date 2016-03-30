@@ -15,7 +15,7 @@ static int do_sel(emv_t e, uint8_t p1, uint8_t p2,
 {
 	uint8_t sw2;
 
-	assert(nlen < 0x100);
+	//assert(nlen < 0x100);
 	xfr_reset(e->e_xfr);
 	xfr_tx_byte(e->e_xfr, 0x00);		/* CLA */
 	xfr_tx_byte(e->e_xfr, 0xa4);		/* INS: SELECT */

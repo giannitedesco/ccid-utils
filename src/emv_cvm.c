@@ -54,14 +54,13 @@ int emv_pin_try_counter(struct _emv *e)
 int emv_cvm_pin(emv_t e, const char *pin)
 {
 	emv_pb_t pb;
-	int try;
 
 	if ( !_emv_pin2pb(pin, pb) ) {
 		_emv_error(e, EMV_ERR_BAD_PIN_FORMAT);
 		return 0;
 	}
 
-	try = ptc(e);
+	ptc(e);
 	if ( _emv_verify(e, 0x80, pb, sizeof(pb)) )
 		return 1;
 

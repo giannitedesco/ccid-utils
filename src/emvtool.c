@@ -119,6 +119,10 @@ static const struct {
 	const uint8_t *mod, *exp;
 	size_t mod_len, exp_len;
 }ca_keys[] = {
+	[5] = {.mod = mastercard1408_mod,
+		.mod_len = sizeof(mastercard1408_mod),
+		.exp = mastercard1408_exp,
+		.exp_len = sizeof(mastercard1408_exp)},
 	[7] = {.mod = visa1152_mod,
 		.mod_len = sizeof(visa1152_mod),
 		.exp = visa1152_exp,
@@ -173,8 +177,9 @@ static int do_emv_stuff(cci_t cc)
 	printf("emvtool: application initiated\n");
 
 	/* Step 2. Read application data */
-	if ( !emv_read_app_data(e) )
+	if ( !emv_read_app_data(e) ) {
 		goto end;
+	}
 
 	printf("emvtool: application data retrieved\n");
 
@@ -212,6 +217,7 @@ static int do_emv_stuff(cci_t cc)
 #endif
 
 end:	/* Step 6. terminate processing */
+	printf("Done: status=%s\n", emv_error_string(emv_error(e)));
 	emv_fini(e);
 	return 1;
 }
