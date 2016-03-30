@@ -177,6 +177,8 @@ _public const uint8_t *cci_power_on(cci_t cci, unsigned int voltage,
 /* -- Utility functions */
 _public void hex_dump(const uint8_t *ptr, size_t len, size_t llen);
 _public void hex_dumpf(FILE *f, const uint8_t *ptr, size_t len, size_t llen);
-_public void ber_dump(const uint8_t *ptr, size_t len, unsigned int depth);
+
+_public int ber_dump(const uint8_t *ptr, size_t len);
+_public int ber_dumpf(FILE *f, const uint8_t *ptr, size_t len);
 
 #endif /* _CCID_H */

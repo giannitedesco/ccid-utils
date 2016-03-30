@@ -31,6 +31,7 @@ libccid_la_SOURCES = \
 	cci.c \
 	util.c \
 	ber.c \
+	ber_decode.c \
 	xfr.c
 
 libemv_la_LIBADD = libccid.la -lcrypto
