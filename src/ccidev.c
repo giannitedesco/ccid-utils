@@ -238,7 +238,7 @@ static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 {
 	struct libusb_config_descriptor *conf;
 	const struct libusb_interface *iface;
-	int a, ret;
+	int a;
 
 	if ( libusb_get_config_descriptor(dev, c, &conf) )
 		return -1;
@@ -246,7 +246,7 @@ static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 	iface = &conf->interface[i];
 
 	/* Scan for generic CCID class */
-	for (ret = a = 0; a < iface->num_altsetting; a++) {
+	for (a = 0; a < iface->num_altsetting; a++) {
 		const struct libusb_interface_descriptor *id =
 							&iface->altsetting[a];
 		if ( id->bInterfaceClass == 0x0b ) {
@@ -254,14 +254,14 @@ static int check_interface(struct libusb_device *dev, int c, int i, int generic)
 			return a;
 		}
 	}
-	
+
 	if ( generic )
 		goto out;
 
 	/* If no generic CCID found, try first proprietary since the vendor
 	 * and device ID's are in our list
 	 */
-	for (ret = a = 0; a < iface->num_altsetting; a++) {
+	for (a = 0; a < iface->num_altsetting; a++) {
 		const struct libusb_interface_descriptor *id =
 							&iface->altsetting[a];
 		if ( id->bInterfaceClass == 0xff ) {
@@ -332,8 +332,13 @@ success:
 		intf->c = c;
 		intf->i = i;
 		intf->a = a;
-		intf->flags = id->flags;
-		intf->name = id->name;
+		if ( id ) {
+			intf->flags = id->flags;
+			intf->name = id->name;
+		}else{
+			intf->flags = 0;
+			intf->name = "Unknown device";
+		}
 	}
 	return 1;
 }
