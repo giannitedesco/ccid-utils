@@ -299,7 +299,7 @@ int _iso14443a_anticol(struct _cci *cci, int wup, struct rfid_tag *tag)
 	memset(&atqa, 0, sizeof(atqa));
 	memset(&acf, 0, sizeof(acf));
 
-	memset(tag, 0, sizeof(tag));
+	memset(&tag, 0, sizeof(tag));
 	tag->state = ISO14443A_STATE_NONE;
 	tag->level = ISO14443A_LEVEL_NONE;
 
