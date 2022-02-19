@@ -35,8 +35,10 @@ static int bop_pname(const uint8_t *ptr, size_t len, void *priv)
 
 static int bop_pdol(const uint8_t *ptr, size_t len, void *priv)
 {
-	//struct _emv_app *a = priv;
-	hex_dump(ptr, len, 16);
+	struct _emv_app *a = priv;
+	assert(len <= sizeof(a->a_pdol));
+	a->a_pdol_sz = len;
+	memcpy(a->a_pdol, ptr, len);
 	return 1;
 }
 

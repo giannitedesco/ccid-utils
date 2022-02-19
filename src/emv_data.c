@@ -227,7 +227,7 @@ int emv_data_int(emv_data_t d)
 
 	for(ret = i = 0; i < d->d_len; i++)
 		ret = (ret << 8) | d->d_data[i];
-	
+
 	return ret;
 }
 

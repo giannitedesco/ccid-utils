@@ -75,6 +75,7 @@ static RSA *get_ca_key(unsigned int idx, emv_mod_cb_t mod,
 	const uint8_t *modulus, *exponent;
 	size_t mod_len, exp_len;
 	RSA *key;
+	BIGNUM *n, *e;
 
 	modulus = (*mod)(priv, idx, &mod_len);
 	if ( NULL == modulus )
@@ -88,19 +89,24 @@ static RSA *get_ca_key(unsigned int idx, emv_mod_cb_t mod,
 	if ( NULL == key )
 		return NULL;
 
-	key->n = BN_bin2bn(modulus, mod_len, NULL);
-	if ( NULL == key->n )
+	n = BN_bin2bn(modulus, mod_len, NULL);
+	if ( NULL == n )
 		goto err_free_key;
 
-	key->e = BN_bin2bn(exponent, exp_len, NULL);
-	if ( NULL == key->e )
+	e = BN_bin2bn(exponent, exp_len, NULL);
+	if ( NULL == e )
 		goto err_free_mod;
+
+	if (!RSA_set0_key(key, n, e, NULL))
+		goto err_free_exp;
 
 	*key_len = mod_len;
 
 	return key;
+err_free_exp:
+	BN_free(e);
 err_free_mod:
-	BN_free(key->n);
+	BN_free(n);
 err_free_key:
 	RSA_free(key);
 	return NULL;
@@ -180,6 +186,7 @@ static RSA *make_issuer_pk(struct _emv *e, struct sda_req *req)
 	const uint8_t *kb;
 	size_t kb_len;
 	RSA *key;
+	BIGNUM *mod, *exp;
 
 	tmp = malloc(req->pk_cert_len);
 	if ( NULL == tmp ) {
@@ -201,14 +208,17 @@ static RSA *make_issuer_pk(struct _emv *e, struct sda_req *req)
 		return NULL;
 	}
 
-	key->n = BN_bin2bn(tmp, req->pk_cert_len, NULL);
-	key->e = BN_bin2bn(req->pk_exp, req->pk_exp_len, NULL);
-	free(tmp);
-	if ( NULL == key->n || NULL == key->e ) {
+	mod = BN_bin2bn(tmp, req->pk_cert_len, NULL);
+	exp = BN_bin2bn(req->pk_exp, req->pk_exp_len, NULL);
+
+	if ( mod == NULL || exp == NULL ) {
 		_emv_sys_error(e);
 		RSA_free(key);
 		return NULL;
 	}
+
+	RSA_set0_key(key, mod, exp, NULL);
+	free(tmp);
 
 	return key;
 }

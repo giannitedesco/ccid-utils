@@ -37,7 +37,7 @@ int _emsa_pss_decode(const uint8_t *msg, size_t msg_len,
 		printf("emsa-pss: bad trailer\n");
 		return 0;
 	}
-	
+
 	mdb_len = em_len - sizeof(md) - 1;
 
 	if ( memcmp(em + mdb_len, md, SHA_DIGEST_LENGTH) )
@@ -222,7 +222,7 @@ static void do_emv_fini(emv_t e)
 		gang_free(e->e_files);
 
 		free(e->e_afl);
- 
+
 		if ( e->e_xfr )
 			xfr_free(e->e_xfr);
 

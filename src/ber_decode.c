@@ -117,7 +117,7 @@ static const uint8_t *do_decode_tag(struct gber_tag *tag,
 {
 	const uint8_t *end = ptr + len;
 
-	if ( len  < 2 ) {
+	if ( len < 2 ) {
 		printf("block too small\n");
 		return NULL;
 	}

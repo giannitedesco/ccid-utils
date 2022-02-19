@@ -51,6 +51,7 @@ again:
 		memcpy(e->e_afl, inner, tag.ber_len);
 		break;
 	default:
+		printf("dunno 0x%.x\n", tag.ber_tag);
 		break;
 	}
 
@@ -67,18 +68,28 @@ again:
 static int get_aip(emv_t e)
 {
 	static const uint8_t pdol[] = {0x83, 0x00};
-	const uint8_t *res, *inner;
+	const uint8_t *res, *inner, *pd;
 	struct gber_tag tag;
-	size_t len;
+	size_t len, pd_len;
 
-	/* TODO: handle case where PDOL was specified */
+	if ( e->e_app->a_pdol_sz ) {
+		hex_dump(e->e_app->a_pdol, e->e_app->a_pdol_sz, 16);
+		pd = "\x83\x02\x04\x10";
+		pd_len = 4;
+		ber_dump(pd, pd_len);
+	}else{
+		pd = pdol;
+		pd_len = sizeof(pdol);
+	}
 
-	if ( !_emv_get_proc_opts(e, pdol, sizeof(pdol)) ) {
+	if ( !_emv_get_proc_opts(e, pd, pd_len) ) {
 		return 0;
 	}
 	res = xfr_rx_data(e->e_xfr, &len);
 	if ( NULL == res )
 		return 0;
+
+	ber_dump(res, len);
 
 	inner = ber_decode_block(&tag, res, len);
 	if ( NULL == inner ) {

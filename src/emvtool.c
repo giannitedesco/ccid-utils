@@ -25,6 +25,8 @@ static const struct t_app apps[] = {
 	{.aid = (uint8_t *)"\xa0\x00\x00\x00\x29", .aid_len = 5, .asi = 1},
 	{.aid = (uint8_t *)"\xa0\x00\x00\x03\x59", .aid_len = 5, .asi = 1},
 	{.aid = (uint8_t *)"\xa0\x00\x00\x01\x41", .aid_len = 5, .asi = 1},
+	{.aid = (uint8_t *)"\xd4\x10\x00\x00\x01\x10\x10",
+		.aid_len = 7, .asi = 1},
 };
 
 static int app_cmp(emv_app_t a, const struct t_app *b)
@@ -53,6 +55,13 @@ static int app_supported(emv_app_t a)
 		if ( !app_cmp(a, apps + i) )
 			return 1;
 	}
+
+	do {
+		uint8_t aid[EMV_AID_LEN];
+		size_t sz;
+		emv_app_aid(a, aid, &sz);
+		hex_dump(aid, sz, 16);
+	}while(0);
 
 	return 0;
 }
@@ -131,6 +140,7 @@ static const struct {
 
 static const uint8_t *get_mod(void *priv, unsigned int idx, size_t *len)
 {
+	printf("emvtool: Looking for key with rid index %u\n", idx);
 	if ( idx >= sizeof(ca_keys)/sizeof(*ca_keys) )
 		return NULL;
 	*len = ca_keys[idx].mod_len;
@@ -166,13 +176,17 @@ static int do_emv_stuff(cci_t cc)
 		return 0;
 	}
 
-	if ( !select_app(e) )
+	if ( !select_app(e) ) {
 		goto end;
+	}
+
+	printf("emvtool: app selected\n");
 
 
 	/* Step 1. Initiate application processing */
-	if ( !emv_app_init(e) )
+	if ( !emv_app_init(e) ) {
 		goto end;
+	}
 
 	printf("emvtool: application initiated\n");
 
