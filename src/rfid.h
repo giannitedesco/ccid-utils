@@ -36,6 +36,6 @@ struct rfid_tag {
 };
 
 /* ==================[ API ]================== */
-struct _rfid *rfid_t;
+typedef struct _rfid *rfid_t;
 
 #endif /* RFID_H */
